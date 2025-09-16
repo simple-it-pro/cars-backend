@@ -1,0 +1,32 @@
+services:
+  postgres-cars:
+    container_name: postgres-cars
+    image: postgres:17
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    ports:
+      - "5462:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  app-cars:
+    container_name: app-cars
+    build:
+      context: .
+    env_file:
+      - .env.production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres-cars
+    restart: unless-stopped
+
+networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1450
+
+volumes:
+  postgres_data:
