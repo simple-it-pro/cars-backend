@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { JwtModule } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { User } from './users/entities/user.entity';
 import { RefreshToken } from './auth/entities/refresh-token.entity';
@@ -28,6 +30,15 @@ import configuration from './config/configuration';
       schema: process.env.POSTGRES_SCHEMA || 'public',
       entities: [User, RefreshToken, SmsVerification],
       synchronize: false,
+    }),
+    PassportModule,
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        secret: configService.get('jwt.accessSecret'),
+        signOptions: { expiresIn: configService.get('jwt.accessExpiresIn') },
+      }),
+      inject: [ConfigService],
     }),
     AuthModule,
     UsersModule,

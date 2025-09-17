@@ -13,7 +13,9 @@ export class TokensResponseDto {
     description: 'JWT Refresh token',
   })
   refreshToken: string;
+}
 
+export class TokensResponseDtoWithUser extends TokensResponseDto {
   @ApiProperty({ type: User })
   user: User;
 }

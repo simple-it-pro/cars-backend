@@ -18,6 +18,6 @@ export default () => ({
     codeTtl: 5 * 60 * 1000, // 5 минут
     maxAttempts: 3,
     blockTime: 5 * 60 * 1000, // 5 минут
-    maxRequestsPerMinute: 3, // Защита от флуда
+    maxRequestsPerMinute: 1, // Защита от флуда
   },
 });

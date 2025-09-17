@@ -2,6 +2,8 @@ import {
   Injectable,
   BadRequestException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -14,6 +16,7 @@ import { User } from '../users/entities/user.entity';
 import { SmsVerification } from './entities/sms-verification.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { randomUUID } from 'crypto';
+import { instanceToPlain } from 'class-transformer';
 
 @Injectable()
 export class AuthService {
@@ -38,7 +41,7 @@ export class AuthService {
 
     await this.checkFloodProtection(normalizedPhone);
 
-    const code = this.generateCode(this.verificationConfig.codeLength);
+    const code = this.generateCode(Number(this.verificationConfig.codeLength));
     const codeHash = await bcrypt.hash(code, 10);
 
     await this.smsVerificationRepository.delete({ phone: normalizedPhone });
@@ -46,7 +49,7 @@ export class AuthService {
     const verification = this.smsVerificationRepository.create({
       phone: normalizedPhone,
       codeHash,
-      expiresAt: new Date(Date.now() + this.verificationConfig.codeTtl),
+      expiresAt: new Date(Date.now() + Number(this.verificationConfig.codeTtl)),
     });
 
     await this.smsVerificationRepository.save(verification);
@@ -75,7 +78,6 @@ export class AuthService {
       where: {
         phone: normalizedPhone,
         expiresAt: MoreThan(new Date()),
-        isBlocked: false,
       },
     });
 
@@ -92,10 +94,12 @@ export class AuthService {
     if (!isValid) {
       verification.attempts += 1;
 
-      if (verification.attempts >= this.verificationConfig.maxAttempts) {
+      if (
+        verification.attempts >= Number(this.verificationConfig.maxAttempts)
+      ) {
         verification.isBlocked = true;
         verification.blockedUntil = new Date(
-          Date.now() + this.verificationConfig.blockTime,
+          Date.now() + Number(this.verificationConfig.blockTime),
         );
       }
 
@@ -116,7 +120,7 @@ export class AuthService {
 
     const tokens = await this.generateTokens(user, userAgent, ip);
 
-    return { ...tokens, user };
+    return { ...tokens, user: instanceToPlain(user) as User };
   }
 
   async refreshTokens(
@@ -129,7 +133,7 @@ export class AuthService {
       payload = this.jwtService.verify(refreshToken, {
         secret: this.configService.get('jwt.refreshSecret'),
       });
-    } catch (error) {
+    } catch {
       throw new ForbiddenException('Невалидный refresh token');
     }
 
@@ -163,8 +167,23 @@ export class AuthService {
   }
 
   async logout(refreshToken: string): Promise<void> {
-    const tokenHash = await bcrypt.hash(refreshToken, 10);
-    await this.refreshTokenRepository.delete({ tokenHash });
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(refreshToken, {
+        secret: this.configService.get('jwt.refreshSecret'),
+      });
+    } catch {
+      return;
+    }
+
+    if (payload?.type !== 'refresh' || !payload?.jti || !payload?.sub) {
+      return;
+    }
+
+    await this.refreshTokenRepository.delete({
+      tokenId: payload.jti,
+      userId: payload.sub,
+    });
   }
 
   private async generateTokens(
@@ -223,8 +242,29 @@ export class AuthService {
       },
     });
 
-    if (recentRequests >= this.verificationConfig.maxRequestsPerMinute) {
-      throw new ForbiddenException('Слишком много запросов. Попробуйте позже');
+    if (
+      recentRequests >= Number(this.verificationConfig.maxRequestsPerMinute)
+    ) {
+      const lastVerification = await this.smsVerificationRepository.findOne({
+        where: { phone },
+        order: { createdAt: 'DESC' },
+      });
+
+      if (lastVerification) {
+        const cooldownMs = 60 * 1000;
+        const nextAllowedAt = new Date(
+          lastVerification.createdAt.getTime() + cooldownMs,
+        );
+        if (nextAllowedAt > new Date()) {
+          const secondsLeft = Math.ceil(
+            (nextAllowedAt.getTime() - Date.now()) / 1000,
+          );
+          throw new HttpException(
+            `Новый код можно запросить через ${secondsLeft} сек`,
+            HttpStatus.TOO_MANY_REQUESTS,
+          );
+        }
+      }
     }
   }
 
