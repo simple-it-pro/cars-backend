@@ -17,6 +17,7 @@ import { SmsVerification } from './entities/sms-verification.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { randomUUID } from 'crypto';
 import { instanceToPlain } from 'class-transformer';
+import { WSTokenResponseDto } from './dto/tokens-response.dto';
 
 @Injectable()
 export class AuthService {
@@ -276,5 +277,31 @@ export class AuthService {
 
   private normalizePhone(phone: string): string {
     return phone.replace(/[^0-9+]/g, '');
+  }
+
+  async generateWebSocketToken(userId: number): Promise<WSTokenResponseDto> {
+    const wsToken = this.jwtService.sign(
+      {
+        sub: userId,
+        type: 'websocket',
+      },
+      {
+        expiresIn: this.configService.get('jwt.websocketExpiresIn', '24h'),
+      },
+    );
+
+    return { wsToken };
+  }
+
+  async verifyWebSocketToken(token: string): Promise<any> {
+    try {
+      const payload = this.jwtService.verify(token);
+      if (payload.type !== 'websocket') {
+        throw new Error('Invalid token type');
+      }
+      return payload;
+    } catch (error) {
+      throw new Error('Invalid WebSocket token');
+    }
   }
 }
