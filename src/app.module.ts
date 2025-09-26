@@ -5,13 +5,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
-import { User } from './users/entities/user.entity';
-import { RefreshToken } from './auth/entities/refresh-token.entity';
-import { SmsVerification } from './auth/entities/sms-verification.entity';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { SmsModule } from './sms/sms.module';
+import { ChatsModule } from './chats/chats.module';
 import configuration from './config/configuration';
+import * as path from 'path';
 
 @Module({
   imports: [
@@ -28,7 +27,9 @@ import configuration from './config/configuration';
       password: process.env.POSTGRES_PASSWORD,
       database: process.env.POSTGRES_DB,
       schema: process.env.POSTGRES_SCHEMA || 'public',
-      entities: [User, RefreshToken, SmsVerification],
+      entities: [
+        path.join(__dirname, '**', 'entities', '*{.ts,.js}'),
+      ],
       synchronize: false,
     }),
     PassportModule,
@@ -43,6 +44,7 @@ import configuration from './config/configuration';
     AuthModule,
     UsersModule,
     SmsModule,
+    ChatsModule,
   ],
   controllers: [],
   providers: [JwtStrategy],

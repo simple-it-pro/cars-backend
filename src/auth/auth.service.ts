@@ -17,6 +17,8 @@ import { SmsVerification } from './entities/sms-verification.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { randomUUID } from 'crypto';
 import { instanceToPlain } from 'class-transformer';
+import { WSTokenResponseDto } from './dto/tokens-response.dto';
+import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../common/constants/messages';
 
 @Injectable()
 export class AuthService {
@@ -60,10 +62,10 @@ export class AuthService {
     );
 
     if (!sent) {
-      throw new BadRequestException('Не удалось отправить SMS');
+      throw new BadRequestException(ERROR_MESSAGES.AUTH.SMS_FAIL);
     }
 
-    return { message: 'Код подтверждения отправлен' };
+    return { message: SUCCESS_MESSAGES.AUTH.SMS_SUCCESS };
   }
 
   async verifyCode(
@@ -82,11 +84,11 @@ export class AuthService {
     });
 
     if (!verification) {
-      throw new BadRequestException('Код не найден или истек');
+      throw new BadRequestException(ERROR_MESSAGES.AUTH.CODE_EXPIRED);
     }
 
     if (verification.blockedUntil && verification.blockedUntil > new Date()) {
-      throw new ForbiddenException('Слишком много попыток. Попробуйте позже');
+      throw new ForbiddenException(ERROR_MESSAGES.AUTH.TOO_MANY_ATTEMPTS);
     }
 
     const isValid = await bcrypt.compare(code, verification.codeHash);
@@ -104,7 +106,7 @@ export class AuthService {
       }
 
       await this.smsVerificationRepository.save(verification);
-      throw new BadRequestException('Неверный код подтверждения');
+      throw new BadRequestException(ERROR_MESSAGES.AUTH.WRONG_CODE);
     }
 
     await this.smsVerificationRepository.delete(verification.id);
@@ -134,11 +136,11 @@ export class AuthService {
         secret: this.configService.get('jwt.refreshSecret'),
       });
     } catch {
-      throw new ForbiddenException('Невалидный refresh token');
+      throw new ForbiddenException(ERROR_MESSAGES.AUTH.INVALID_REFRESH_TOKEN);
     }
 
     if (payload.type !== 'refresh') {
-      throw new ForbiddenException('Неверный тип токена');
+      throw new ForbiddenException(ERROR_MESSAGES.AUTH.WRONG_TOKEN_TYPE);
     }
 
     const storedToken = await this.refreshTokenRepository.findOne({
@@ -151,14 +153,12 @@ export class AuthService {
     });
 
     if (!storedToken) {
-      throw new ForbiddenException(
-        'Refresh token не найден или уже использован',
-      );
+      throw new ForbiddenException(ERROR_MESSAGES.AUTH.REFRESH_TOKEN_NOT_FOUND);
     }
 
     const isMatch = await bcrypt.compare(refreshToken, storedToken.tokenHash);
     if (!isMatch) {
-      throw new ForbiddenException('Невалидный refresh token');
+      throw new ForbiddenException(ERROR_MESSAGES.AUTH.INVALID_REFRESH_TOKEN);
     }
 
     await this.refreshTokenRepository.delete(storedToken.id);
@@ -276,5 +276,31 @@ export class AuthService {
 
   private normalizePhone(phone: string): string {
     return phone.replace(/[^0-9+]/g, '');
+  }
+
+  async generateWebSocketToken(userId: number): Promise<WSTokenResponseDto> {
+    const wsToken = this.jwtService.sign(
+      {
+        sub: userId,
+        type: 'websocket',
+      },
+      {
+        expiresIn: this.configService.get('jwt.websocketExpiresIn', '24h'),
+      },
+    );
+
+    return { wsToken };
+  }
+
+  async verifyWebSocketToken(token: string): Promise<any> {
+    try {
+      const payload = this.jwtService.verify(token);
+      if (payload.type !== 'websocket') {
+        throw new Error(ERROR_MESSAGES.AUTH.WRONG_TOKEN_TYPE);
+      }
+      return payload;
+    } catch (_) {
+      throw new Error(ERROR_MESSAGES.AUTH.INVALID_WEBSOCKET_TOKEN);
+    }
   }
 }

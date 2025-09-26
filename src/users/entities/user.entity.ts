@@ -3,7 +3,8 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  UpdateDateColumn, OneToMany,
+  UpdateDateColumn,
+  OneToMany,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
@@ -55,7 +56,7 @@ export class User {
   @ApiProperty({
     example: 'John',
   })
-  @Column({ nullable: true })
+  @Column({ nullable: true, unique: true })
   nickname: string;
 
   @ApiProperty({
@@ -67,7 +68,7 @@ export class User {
   @ApiProperty({
     example: '2000-09-01T08:57:59.589Z',
   })
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'timestamptz' })
   birthdate: Date;
 
   @ApiProperty({
