@@ -26,6 +26,7 @@ import { SendMessageDto } from './dto/send-message.dto';
 import { UsersService } from '../users/users.service';
 import { Chat } from './entities/chat.entity';
 import { Message } from './entities/message.entity';
+import { ERROR_MESSAGES } from '../common/constants/messages';
 
 @Controller('chats')
 @UseGuards(JwtGuard)
@@ -92,7 +93,7 @@ export class ChatsController {
     const chat = await this.chatsService.findChatById(id);
 
     if (chat.userA.id !== userId && chat.userB.id !== userId) {
-      throw new ForbiddenException('Недостаточно прав');
+      throw new ForbiddenException(ERROR_MESSAGES.AUTH.NO_PERMISSIONS);
     }
 
     return chat;
@@ -118,7 +119,7 @@ export class ChatsController {
     const partner = await this.usersService.getUserById(partnerId);
 
     if (!user || !partner) {
-      throw new BadRequestException('Пользователь с данным id не найден');
+      throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
     }
 
     return this.chatsService.findOrCreateChat(user, partner);
@@ -164,15 +165,15 @@ export class ChatsController {
     const sender = await this.usersService.getUserById(userId);
 
     if (!chat) {
-      throw new BadRequestException('Чат с данным id не найден');
+      throw new BadRequestException(ERROR_MESSAGES.CHAT.NOT_FOUND);
     }
 
     if (!sender) {
-      throw new BadRequestException('Пользователь с данным id не найден');
+      throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
     }
 
     if (chat.userA.id !== userId && chat.userB.id !== userId) {
-      throw new ForbiddenException('Пользователь не имеет доступа к чату');
+      throw new ForbiddenException(ERROR_MESSAGES.CHAT.NO_PERMISSIONS);
     }
 
     return this.messagesService.sendMessage(chat, sender, sendMessageDto);

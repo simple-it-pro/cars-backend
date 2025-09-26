@@ -8,6 +8,7 @@ import {
   parseCompositeCursor,
   createCompositeCursor,
 } from '../common/dto/pagination.dto';
+import { ERROR_MESSAGES } from '../common/constants/messages';
 
 @Injectable()
 export class ChatsService {
@@ -104,7 +105,7 @@ export class ChatsService {
     });
 
     if (!chat) {
-      throw new NotFoundException('Чат с таким id не найден');
+      throw new NotFoundException(ERROR_MESSAGES.CHAT.NOT_FOUND);
     }
 
     return chat;

@@ -8,6 +8,7 @@ import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
 import { instanceToPlain } from 'class-transformer';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ERROR_MESSAGES } from '../common/constants/messages';
 
 @Injectable()
 export class UsersService {
@@ -19,7 +20,7 @@ export class UsersService {
     const user = await this.userRepository.findOne({ where: { id } });
 
     if (!user) {
-      throw new NotFoundException(`'Пользователь с данным id не найден'`);
+      throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
     }
 
     return instanceToPlain(user) as User;
@@ -32,7 +33,7 @@ export class UsersService {
     const user = await this.userRepository.findOne({ where: { id } });
 
     if (!user) {
-      throw new BadRequestException('Пользователь с данным id не найден');
+      throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
     }
 
     if (updateUserDto.nickname) {
@@ -41,9 +42,7 @@ export class UsersService {
       });
 
       if (userWithSameNickname && userWithSameNickname.id !== user.id) {
-        throw new BadRequestException(
-          'Пользователь с таким никнеймом уже существует',
-        );
+        throw new BadRequestException(ERROR_MESSAGES.USER.NICKNAME_DUPLICATE);
       }
     }
 
@@ -53,9 +52,7 @@ export class UsersService {
       });
 
       if (userWithSameEmail && userWithSameEmail.id !== user.id) {
-        throw new BadRequestException(
-          'Пользователь с таким email уже существует',
-        );
+        throw new BadRequestException(ERROR_MESSAGES.USER.EMAIL_DUPLICATE);
       }
     }
 
