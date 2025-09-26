@@ -25,7 +25,7 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private connectedUsers = new Map<number, string>();
 
   constructor(
-    private readonly authService: AuthService, // Инжектим AuthService
+    private readonly authService: AuthService,
   ) {}
 
   async handleConnection(socket: Socket) {
@@ -84,7 +84,7 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { chatId: string; isTyping: boolean },
   ) {
     socket.to(`chat_${data.chatId}`).emit('user_typing', {
-      chatId: data.chatId, // Добавить эту строку
+      chatId: data.chatId,
       userId: this.getUserIdFromSocket(socket),
       isTyping: data.isTyping,
     });
