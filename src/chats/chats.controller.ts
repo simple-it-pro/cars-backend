@@ -6,6 +6,8 @@ import {
   Body,
   UseGuards,
   BadRequestException,
+  Query,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtGuard } from '../guard/jwt.guard';
 import { ChatsService } from './chats.service';
@@ -13,7 +15,7 @@ import { MessagesService } from './messages.service';
 import { AuthUser } from '../decorators/user.decorator';
 import { JwtUserData } from '../users/types';
 import { CreateChatDto } from './dto/create-chat.dto';
-import { PaginationDto } from '../common/dto/pagination.dto';
+import { CursorPaginationDto } from '../common/dto/pagination.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { UsersService } from '../users/users.service';
 
@@ -27,8 +29,30 @@ export class ChatsController {
   ) {}
 
   @Get()
-  async getUserChats(@AuthUser() { sub: userId }: JwtUserData) {
-    return this.chatsService.getUserChats(userId);
+  async getUserChats(
+    @AuthUser() { sub: userId }: JwtUserData,
+    @Query() pagination: CursorPaginationDto,
+  ) {
+    return this.chatsService.getUserChats(userId, pagination);
+  }
+
+  @Get('unread-count')
+  async getTotalUnreadCount(@AuthUser() { sub: userId }: JwtUserData) {
+    return await this.chatsService.getTotalUnreadCount(userId);
+  }
+
+  @Get(':id')
+  async getChatById(
+    @AuthUser() { sub: userId }: JwtUserData,
+    @Param('id') id: string,
+  ) {
+    const chat = await this.chatsService.findChatById(id);
+
+    if (chat.userA.id !== userId && chat.userB.id !== userId) {
+      throw new ForbiddenException('Недостаточно прав');
+    }
+
+    return chat;
   }
 
   @Post()
@@ -49,9 +73,9 @@ export class ChatsController {
   @Get(':chatId/messages')
   async getMessages(
     @Param('chatId') chatId: string,
-    @Body() paginationDto: PaginationDto,
+    @Query() pagination: CursorPaginationDto,
   ) {
-    return this.messagesService.getMessages(chatId, paginationDto);
+    return this.messagesService.getMessages(chatId, pagination);
   }
 
   @Post(':chatId/messages')
@@ -63,8 +87,16 @@ export class ChatsController {
     const chat = await this.chatsService.findChatById(chatId);
     const sender = await this.usersService.getUserById(userId);
 
+    if (!chat) {
+      throw new BadRequestException('Чат с данным id не найден');
+    }
+
     if (!sender) {
       throw new BadRequestException('Пользователь с данным id не найден');
+    }
+
+    if (chat.userA.id !== userId && chat.userB.id !== userId) {
+      throw new ForbiddenException('Пользователь не имеет доступа к чату');
     }
 
     return this.messagesService.sendMessage(chat, sender, sendMessageDto);

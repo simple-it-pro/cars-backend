@@ -10,7 +10,11 @@ import { Message } from './entities/message.entity';
 import { Chat } from './entities/chat.entity';
 import { User } from '../users/entities/user.entity';
 import { SendMessageDto } from './dto/send-message.dto';
-import { PaginationDto } from '../common/dto/pagination.dto';
+import {
+  CursorPaginationDto,
+  parseCompositeCursor,
+  createCompositeCursor,
+} from '../common/dto/pagination.dto';
 import { ChatsGateway } from './chats.gateway';
 
 @Injectable()
@@ -69,20 +73,52 @@ export class MessagesService {
 
   async getMessages(
     chatId: string,
-    pagination: PaginationDto,
-  ): Promise<Message[]> {
-    const where: any = { chat: { id: chatId }, isDeleted: false };
+    pagination: CursorPaginationDto,
+  ): Promise<{ messages: Message[]; hasMore: boolean; nextCursor?: string }> {
+    const limit = pagination.limit || 50;
+    const limitPlusOne = limit + 1;
+
+    let whereCondition: any = { chat: { id: chatId }, isDeleted: false };
 
     if (pagination.cursor) {
-      where.createdAt = LessThan(pagination.cursor);
+      const { date, id } = parseCompositeCursor(pagination.cursor);
+      whereCondition = [
+        {
+          chat: { id: chatId },
+          isDeleted: false,
+          createdAt: LessThan(date),
+        },
+        {
+          chat: { id: chatId },
+          isDeleted: false,
+          createdAt: date,
+          id: LessThan(id),
+        },
+      ];
     }
 
-    return this.messageRepository.find({
-      where,
-      order: { createdAt: 'DESC' },
-      take: pagination.limit,
+    const messages = await this.messageRepository.find({
+      where: whereCondition,
+      order: { createdAt: 'DESC', id: 'DESC' },
+      take: limitPlusOne,
       relations: ['sender', 'chat'],
     });
+
+    const hasMore = messages.length > limit;
+    const resultMessages = hasMore ? messages.slice(0, limit) : messages;
+    const nextCursor =
+      hasMore && resultMessages.length > 0
+        ? createCompositeCursor(
+            resultMessages[resultMessages.length - 1].createdAt,
+            resultMessages[resultMessages.length - 1].id,
+          )
+        : undefined;
+
+    return {
+      messages: resultMessages,
+      hasMore,
+      nextCursor,
+    };
   }
 
   async markMessagesAsRead(chatId: string, userId: number): Promise<void> {

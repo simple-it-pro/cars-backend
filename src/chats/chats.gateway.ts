@@ -84,6 +84,7 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { chatId: string; isTyping: boolean },
   ) {
     socket.to(`chat_${data.chatId}`).emit('user_typing', {
+      chatId: data.chatId, // Добавить эту строку
       userId: this.getUserIdFromSocket(socket),
       isTyping: data.isTyping,
     });
