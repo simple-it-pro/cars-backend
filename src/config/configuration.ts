@@ -6,6 +6,7 @@ export default () => ({
     refreshSecret:
       process.env.JWT_REFRESH_SECRET || 'your-super-secret-refresh-key',
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
+    websocketExpiresIn: process.env.JWT_WEBSOCKET_EXPIRES_IN || '24h',
   },
 
   sms: {

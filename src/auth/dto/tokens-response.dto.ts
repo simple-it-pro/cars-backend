@@ -19,3 +19,11 @@ export class TokensResponseDtoWithUser extends TokensResponseDto {
   @ApiProperty({ type: User })
   user: User;
 }
+
+export class WSTokenResponseDto {
+  @ApiProperty({
+    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    description: 'JWT WS token',
+  })
+  wsToken: string;
+}
