@@ -4,7 +4,8 @@ import {
   ManyToOne,
   Column,
   CreateDateColumn,
-  UpdateDateColumn, JoinColumn,
+  UpdateDateColumn,
+  JoinColumn,
 } from 'typeorm';
 import { Chat } from './chat.entity';
 import { User } from '../../users/entities/user.entity';
@@ -67,11 +68,17 @@ export class Message {
   })
   @Column('jsonb', { default: [] })
   attachments: Array<{
-    type: 'image' | 'video' | 'file';
+    type: 'image' | 'video' | 'file' | 'voice';
     url: string;
     name: string;
     size: number;
   }>;
+
+  @Column({ nullable: true })
+  voiceUrl?: string;
+
+  @Column({ default: 'text' })
+  type: 'text' | 'voice';
 
   @ApiProperty({
     example: false,
