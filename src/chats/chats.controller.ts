@@ -9,12 +9,7 @@ import {
   Query,
   ForbiddenException,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtGuard } from '../guard/jwt.guard';
 import { ChatsService } from './chats.service';
 import { MessagesService } from './messages.service';
@@ -48,8 +43,10 @@ export class ChatsController {
   async getUserChats(
     @AuthUser() { sub: userId }: JwtUserData,
     @Query() pagination: CursorPaginationDto,
+    @Query('filter') filter?: 'all' | 'unread' | 'favorite',
+    @Query('search') search?: string,
   ) {
-    return this.chatsService.getUserChats(userId, pagination);
+    return this.chatsService.getUserChats(userId, pagination, filter, search);
   }
 
   @ApiBearerAuth('JWT-auth')
@@ -204,5 +201,14 @@ export class ChatsController {
     @AuthUser() { sub: userId }: JwtUserData,
   ) {
     return this.messagesService.markMessagesAsRead(chatId, userId);
+  }
+
+  @Post(':chatId/favorite')
+  @ApiOperation({ summary: 'Добавить/убрать чат из избранного' })
+  async toggleFavorite(
+    @Param('chatId') chatId: string,
+    @AuthUser() { sub: userId }: JwtUserData,
+  ) {
+    return this.chatsService.toggleFavorite(chatId, userId);
   }
 }

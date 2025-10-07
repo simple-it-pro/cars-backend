@@ -6,7 +6,8 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
-  OneToMany, JoinColumn,
+  OneToMany,
+  JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { ApiProperty } from '@nestjs/swagger';
@@ -86,6 +87,20 @@ export class Chat {
   })
   @Column({ default: 0 })
   unreadCountForUserB: number;
+
+  @ApiProperty({
+    example: false,
+    description: 'Добавлен ли чат в избранное у первого пользователя',
+  })
+  @Column({ default: false })
+  isFavoriteForUserA: boolean;
+
+  @ApiProperty({
+    example: false,
+    description: 'Добавлен ли чат в избранное у второго пользователя',
+  })
+  @Column({ default: false })
+  isFavoriteForUserB: boolean;
 
   @OneToMany(() => Message, (message) => message.chat)
   messages: Message[];

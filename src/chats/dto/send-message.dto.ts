@@ -6,6 +6,7 @@ import {
   IsEnum,
   IsUrl,
   IsNumber,
+  IsString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
@@ -14,10 +15,10 @@ class AttachmentDto {
   @ApiProperty({
     example: 'image',
     description: 'Тип вложения',
-    enum: ['image', 'video', 'file'],
+    enum: ['image', 'video', 'file', 'voice'],
   })
-  @IsEnum(['image', 'video', 'file'])
-  type: 'image' | 'video' | 'file';
+  @IsEnum(['image', 'video', 'file', 'voice'])
+  type: 'image' | 'video' | 'file' | 'voice';
 
   @ApiProperty({
     example: 'https://example.com/image.jpg',
@@ -46,8 +47,9 @@ export class SendMessageDto {
     example: 'Привет! Как дела?',
     description: 'Текст сообщения',
   })
-  @IsNotEmpty()
-  content: string;
+  @IsOptional()
+  @IsString()
+  content?: string;
 
   @ApiProperty({
     type: [AttachmentDto],
@@ -59,4 +61,8 @@ export class SendMessageDto {
   @ValidateNested({ each: true })
   @Type(() => AttachmentDto)
   attachments?: AttachmentDto[];
+
+  @IsOptional()
+  @IsUrl({}, { message: 'Invalid voice URL' })
+  voiceUrl?: string;
 }
