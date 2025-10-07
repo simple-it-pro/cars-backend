@@ -10,6 +10,7 @@ import { Exclude } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { UserRole } from '../../common/types/roles';
 import { RefreshToken } from '../../auth/entities/refresh-token.entity';
+import { Review } from '../../reviews/entities/review.entity';
 
 @Entity({ name: 'users' })
 export class User {
@@ -106,4 +107,10 @@ export class User {
 
   @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
   refreshTokens: RefreshToken[];
+
+  @OneToMany(() => Review, (review) => review.user)
+  reviews: Review[];
+
+  @OneToMany(() => Review, (review) => review.author)
+  authoredReviews: Review[];
 }
