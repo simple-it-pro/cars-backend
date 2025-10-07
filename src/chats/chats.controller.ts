@@ -203,6 +203,7 @@ export class ChatsController {
     return this.messagesService.markMessagesAsRead(chatId, userId);
   }
 
+  @ApiBearerAuth('JWT-auth')
   @Post(':chatId/favorite')
   @ApiOperation({ summary: 'Добавить/убрать чат из избранного' })
   async toggleFavorite(

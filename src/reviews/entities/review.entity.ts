@@ -31,12 +31,26 @@ export class Review {
   @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 
+  @ApiProperty({
+    example: 'Всё круто и чётко',
+  })
   @Column({ length: 200 })
   content: string;
 
+  @ApiProperty({
+    example: 'Спасибо за хороший отзыв',
+  })
   @Column({ nullable: true, length: 200 })
   answer?: string;
 
+  @ApiProperty({
+    example: '2025-09-14T08:57:59.589Z',
+  })
+  answeredAt?: Date;
+
+  @ApiProperty({
+    example: 5,
+  })
   @Column('integer')
   @IsInt()
   @Min(1)
