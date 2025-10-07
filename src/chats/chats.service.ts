@@ -90,10 +90,8 @@ export class ChatsService {
       if (!isUserA && !isUserB) return false;
 
       if (filter === 'unread') {
-        const unreadCount = isUserA
-          ? chat.unreadCountForUserA
-          : chat.unreadCountForUserB;
-        if (!unreadCount || unreadCount <= 0) return false;
+        if (chat.unreadCountForUserA <= 0 || chat.unreadCountForUserB <= 0)
+          return false;
       }
 
       if (filter === 'favorite') {
