@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   forwardRef,
   Inject,
   Injectable,
@@ -33,12 +34,20 @@ export class MessagesService {
     sender: User,
     dto: SendMessageDto,
   ): Promise<Message> {
+    const messageType: 'text' | 'voice' = dto.voiceUrl ? 'voice' : 'text';
+
+    if (!dto.content && !dto.voiceUrl) {
+      throw new BadRequestException('Message must have content or voiceUrl');
+    }
+
     const message = this.messageRepository.create({
       chat,
       sender,
       content: dto.content,
-      attachments: dto.attachments || [],
-    });
+      attachments: dto.attachments,
+      voiceUrl: dto.voiceUrl,
+      type: messageType,
+    } satisfies Partial<Message>);
 
     const savedMessage = await this.messageRepository.save(message);
 
@@ -135,7 +144,6 @@ export class MessagesService {
     );
 
     await this.resetUnreadCount(chat, userId);
-
     this.chatGateway.sendReadReceipt(chatId, userId);
   }
 
@@ -144,7 +152,8 @@ export class MessagesService {
     message: Message,
   ): Promise<void> {
     await this.chatRepository.update(chat.id, {
-      lastMessageContent: message.content,
+      lastMessageContent:
+        message.type === 'voice' ? '🎤 Voice message' : message.content,
       lastMessageCreatedAt: message.createdAt,
     });
   }

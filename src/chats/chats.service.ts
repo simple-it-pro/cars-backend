@@ -41,6 +41,8 @@ export class ChatsService {
   async getUserChats(
     userId: number,
     pagination: CursorPaginationDto,
+    filter: 'all' | 'favorite' | 'unread' = 'all',
+    search?: string,
   ): Promise<{ chats: Chat[]; hasMore: boolean; nextCursor?: string }> {
     const limit = pagination.limit || 20;
     const limitPlusOne = limit + 1;
@@ -81,8 +83,41 @@ export class ChatsService {
       take: limitPlusOne,
     });
 
-    const hasMore = chats.length > limit;
-    const resultChats = hasMore ? chats.slice(0, limit) : chats;
+    const filtered = chats.filter((chat) => {
+      const isUserA = chat.userA.id === userId;
+      const isUserB = chat.userB.id === userId;
+
+      if (!isUserA && !isUserB) return false;
+
+      if (filter === 'unread') {
+        const unreadCount = isUserA
+          ? chat.unreadCountForUserA
+          : chat.unreadCountForUserB;
+        if (!unreadCount || unreadCount <= 0) return false;
+      }
+
+      if (filter === 'favorite') {
+        const isFavorite = isUserA
+          ? chat.isFavoriteForUserA
+          : chat.isFavoriteForUserB;
+        if (!isFavorite) return false;
+      }
+
+      if (search && search.trim()) {
+        const query = search.trim().toLowerCase();
+        const otherUser = isUserA ? chat.userB : chat.userA;
+        const name = (otherUser.name || otherUser.nickname || '')
+          .toString()
+          .toLowerCase();
+        if (!name.includes(query)) return false;
+      }
+
+      return true;
+    });
+
+    const hasMore = filtered.length > limit;
+    const resultChats = hasMore ? filtered.slice(0, limit) : filtered;
+
     const nextCursor =
       hasMore && resultChats.length > 0
         ? createCompositeCursor(
@@ -131,5 +166,25 @@ export class ChatsService {
       .getRawOne();
 
     return parseInt(result.total as string) || 0;
+  }
+
+  async toggleFavorite(chatId: string, userId: number): Promise<Chat> {
+    const chat = await this.findChatById(chatId);
+
+    const isUserA = chat.userA.id === userId;
+    const isUserB = chat.userB.id === userId;
+
+    if (!isUserA && !isUserB) {
+      throw new NotFoundException(ERROR_MESSAGES.CHAT.NOT_FOUND);
+    }
+
+    if (isUserA) {
+      chat.isFavoriteForUserA = !chat.isFavoriteForUserA;
+    } else {
+      chat.isFavoriteForUserB = !chat.isFavoriteForUserB;
+    }
+
+    await this.chatRepository.save(chat);
+    return chat;
   }
 }
