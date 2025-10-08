@@ -97,4 +97,20 @@ export class ReviewsController {
   ) {
     return this.reviewsService.answerReview(id, updateReviewDto.answer, userId);
   }
+
+  @ApiBearerAuth('JWT-auth')
+  @Patch(':id/verify')
+  @ApiOperation({ summary: 'Верифицировать отзыв (для админа)' })
+  @UseGuards(JwtGuard)
+  verifyReview(@Param('id', ParseIntPipe) id: number) {
+    return this.reviewsService.verifyReview(id);
+  }
+
+  @ApiBearerAuth('JWT-auth')
+  @Patch(':id/unverify')
+  @ApiOperation({ summary: 'Снять верификацию с отзыва (для админа)' })
+  @UseGuards(JwtGuard)
+  unverifyReview(@Param('id', ParseIntPipe) id: number) {
+    return this.reviewsService.unverifyReview(id);
+  }
 }

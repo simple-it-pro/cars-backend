@@ -148,6 +148,7 @@ export class ReviewsService {
       authorId,
     });
   }
+
   async answerReview(id: number, answer: string, userId: number) {
     const review = await this.findOne(id);
 
@@ -164,6 +165,18 @@ export class ReviewsService {
     review.answer = answer;
     review.answeredAt = new Date();
 
+    return this.reviewsRepository.save(review);
+  }
+
+  async verifyReview(id: number) {
+    const review = await this.findOne(id);
+    review.isVerified = true;
+    return this.reviewsRepository.save(review);
+  }
+
+  async unverifyReview(id: number) {
+    const review = await this.findOne(id);
+    review.isVerified = false;
     return this.reviewsRepository.save(review);
   }
 }
