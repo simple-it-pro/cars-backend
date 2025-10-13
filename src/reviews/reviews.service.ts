@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Review } from './entities/review.entity';
 import { Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
+import { reviewLength } from "src/common/constants/reviews";
 
 @Injectable()
 export class ReviewsService {
@@ -156,9 +157,9 @@ export class ReviewsService {
       throw new BadRequestException('Вы можете отвечать только на свои отзывы');
     }
 
-    if (answer.length > 200) {
+    if (answer.length > reviewLength) {
       throw new BadRequestException(
-        'Текст ответа не должен превышать 200 символов',
+        `Текст ответа не должен превышать ${reviewLength} символов`,
       );
     }
 

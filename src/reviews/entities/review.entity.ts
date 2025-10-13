@@ -2,14 +2,14 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, Max, Min } from 'class-validator';
+import {ArrayMaxSize, IsArray, IsInt, Max, Min, ValidateNested} from 'class-validator';
 import { User } from '../../users/entities/user.entity';
+import {reviewLength} from "../../common/constants/reviews";
 
 @Entity()
 export class Review {
@@ -34,13 +34,13 @@ export class Review {
   @ApiProperty({
     example: 'Всё круто и чётко',
   })
-  @Column({ length: 200 })
+  @Column({ length: reviewLength })
   content: string;
 
   @ApiProperty({
     example: 'Спасибо за хороший отзыв',
   })
-  @Column({ nullable: true, length: 200 })
+  @Column({ nullable: true, length: reviewLength })
   answer?: string;
 
   @ApiProperty({
@@ -67,6 +67,9 @@ export class Review {
     ],
     description: 'Изображения',
   })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @ArrayMaxSize(5, { message: 'Максимум можно добавить 5 изображений' })
   @Column('jsonb', { default: [] })
   images: Array<{
     url: string;

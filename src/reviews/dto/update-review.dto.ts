@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import {reviewLength} from "../../common/constants/reviews";
 
 export class UpdateReviewDto {
   @ApiProperty({
@@ -8,6 +9,6 @@ export class UpdateReviewDto {
   })
   @IsString()
   @IsNotEmpty()
-  @MaxLength(200, { message: 'Ответ не должен превышать 200 символов' })
+  @MaxLength(reviewLength, { message: 'Ответ не должен превышать 200 символов' })
   answer: string;
 }
