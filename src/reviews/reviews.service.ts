@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -8,7 +9,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Review } from './entities/review.entity';
 import { Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
-import { reviewLength } from "src/common/constants/reviews";
+import { reviewLength } from 'src/common/constants/reviews';
+import { AnswerReviewDto } from './dto/answer-review.dto';
+import { JwtUserData } from '../users/types';
 
 @Injectable()
 export class ReviewsService {
@@ -18,12 +21,19 @@ export class ReviewsService {
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
   ) {}
-  async create(createReviewDto: CreateReviewDto) {
+  async create(createReviewDto: CreateReviewDto, userData: JwtUserData) {
     const { content, userId, rank, images, authorId } = createReviewDto;
 
-    if (userId === authorId) {
-      throw new Error('Нельзя оставить отзыв самому себе');
+    if (userData.sub !== authorId) {
+      throw new ForbiddenException(
+        'Нельзя оставить отзыв от имени другого пользователя',
+      );
     }
+
+    if (userId === authorId) {
+      throw new BadRequestException('Нельзя оставить отзыв самому себе');
+    }
+
     const [user, author] = await Promise.all([
       this.usersRepository.findOne({ where: { id: userId } }),
       this.usersRepository.findOne({ where: { id: authorId } }),
@@ -150,8 +160,9 @@ export class ReviewsService {
     });
   }
 
-  async answerReview(id: number, answer: string, userId: number) {
+  async answerReview(id: number, answerDto: AnswerReviewDto) {
     const review = await this.findOne(id);
+    const { userId, answer } = answerDto;
 
     if (review.user.id !== userId) {
       throw new BadRequestException('Вы можете отвечать только на свои отзывы');

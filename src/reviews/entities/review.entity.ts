@@ -7,11 +7,11 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
-import {ArrayMaxSize, IsArray, IsInt, Max, Min, ValidateNested} from 'class-validator';
+import { ArrayMaxSize, IsArray, ValidateNested } from 'class-validator';
 import { User } from '../../users/entities/user.entity';
-import {reviewLength} from "../../common/constants/reviews";
+import { reviewLength } from '../../common/constants/reviews';
 
-@Entity()
+@Entity({ name: 'reviews' })
 export class Review {
   @PrimaryGeneratedColumn()
   @ApiProperty({
@@ -46,15 +46,13 @@ export class Review {
   @ApiProperty({
     example: '2025-09-14T08:57:59.589Z',
   })
+  @Column({ nullable: true, type: 'timestamptz' })
   answeredAt?: Date;
 
   @ApiProperty({
     example: 5,
   })
   @Column('integer')
-  @IsInt()
-  @Min(1)
-  @Max(5)
   rank: number;
 
   @ApiProperty({

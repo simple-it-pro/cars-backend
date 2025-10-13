@@ -1,13 +1,18 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsArray,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
   IsUrl,
+  Max,
+  MaxLength,
+  Min,
   ValidateNested,
 } from 'class-validator';
+import { reviewLength } from '../../common/constants/reviews';
 
 class ImageDto {
   @ApiProperty({
@@ -39,6 +44,7 @@ export class CreateReviewDto {
   })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(reviewLength)
   content: string;
 
   @ApiProperty({
@@ -61,7 +67,9 @@ export class CreateReviewDto {
     example: 5,
     description: 'Оценка',
   })
-  @IsNumber()
+  @IsInt()
+  @Min(1)
+  @Max(5)
   @IsNotEmpty()
   rank: number;
 

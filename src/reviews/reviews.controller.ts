@@ -12,8 +12,10 @@ import {
 import ReviewsService from './reviews.service';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { UpdateReviewDto } from './dto/update-review.dto';
+import { AnswerReviewDto } from './dto/answer-review.dto';
 import { JwtGuard } from '../guard/jwt.guard';
+import { AuthUser } from '../decorators/user.decorator';
+import { JwtUserData } from '../users/types';
 
 @Controller('reviews')
 export class ReviewsController {
@@ -25,8 +27,11 @@ export class ReviewsController {
   @ApiResponse({ status: 201, description: 'Отзыв создан' })
   @ApiResponse({ status: 400, description: 'Неверные данные' })
   @UseGuards(JwtGuard)
-  create(@Body() createReviewDto: CreateReviewDto) {
-    return this.reviewsService.create(createReviewDto);
+  create(
+    @Body() createReviewDto: CreateReviewDto,
+    @AuthUser() user: JwtUserData,
+  ) {
+    return this.reviewsService.create(createReviewDto, user);
   }
 
   @ApiBearerAuth('JWT-auth')
@@ -37,9 +42,14 @@ export class ReviewsController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
     @Query('userId') userId?: number,
-    @Query('authorId') authorId?: number,
+    @AuthUser() author?: JwtUserData,
   ) {
-    return this.reviewsService.findAll({ page, limit, userId, authorId });
+    return this.reviewsService.findAll({
+      page,
+      limit,
+      userId,
+      authorId: author?.sub,
+    });
   }
 
   @ApiBearerAuth('JWT-auth')
@@ -92,10 +102,9 @@ export class ReviewsController {
   @UseGuards(JwtGuard)
   answerReview(
     @Param('id', ParseIntPipe) id: number,
-    @Body() updateReviewDto: UpdateReviewDto,
-    @Query('userId', ParseIntPipe) userId: number,
+    @Body() answerReviewDto: AnswerReviewDto,
   ) {
-    return this.reviewsService.answerReview(id, updateReviewDto.answer, userId);
+    return this.reviewsService.answerReview(id, answerReviewDto);
   }
 
   @ApiBearerAuth('JWT-auth')
