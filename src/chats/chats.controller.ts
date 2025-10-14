@@ -9,7 +9,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { JwtGuard } from '../guard/jwt.guard';
 import { ChatsService } from './chats.service';
 import { MessagesService } from './messages.service';
@@ -49,7 +54,19 @@ export class ChatsController {
         },
       },
     },
-    description: 'Список чатов пользователя с пагинацией-курсером',
+    description: 'Список чатов пользователя с пагинацией-курсором',
+  })
+  @ApiQuery({
+    name: 'filter',
+    required: false,
+    enum: ['all', 'unread', 'favorite'],
+    description: 'Фильтр списка чатов',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Поиск по названию чата или имени/нику собеседника',
   })
   @Get()
   async getUserChats(

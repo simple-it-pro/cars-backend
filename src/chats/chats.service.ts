@@ -198,7 +198,6 @@ export class ChatsService {
     )
       .addOrderBy('chat.id', 'DESC')
       .select('chat.id', 'id')
-      .distinct(true)
       .limit(limitPlusOne);
 
     const rows = await qb.getRawMany<{ id: string }>();
