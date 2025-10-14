@@ -5,12 +5,17 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  ManyToMany,
+  JoinTable,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { UserRole } from '../../common/types/roles';
 import { RefreshToken } from '../../auth/entities/refresh-token.entity';
 import { Review } from '../../reviews/entities/review.entity';
+import { Chat } from '../../chats/entities/chat.entity';
+import { Message } from '../../chats/entities/message.entity';
+import { UnreadChat } from '../../chats/entities/unread-chat.entity';
 
 @Entity({ name: 'users' })
 export class User {
@@ -105,6 +110,25 @@ export class User {
   @Column({ nullable: true })
   about: string;
 
+  @ManyToMany(() => Chat, (chat) => chat.users)
+  @JoinTable({
+    name: 'chats_to_users',
+    joinColumn: { name: 'user_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'chat_id', referencedColumnName: 'id' },
+  })
+  chats: Chat[];
+
+  @ManyToMany(() => Chat, (chat) => chat.favoritedBy)
+  @JoinTable({
+    name: 'favorite_chats',
+    joinColumn: { name: 'user_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'chat_id', referencedColumnName: 'id' },
+  })
+  favoriteChats: Chat[];
+
+  @OneToMany(() => UnreadChat, (unreadChat) => unreadChat.user)
+  unreadChats: UnreadChat[];
+
   @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
   refreshTokens: RefreshToken[];
 
@@ -113,4 +137,7 @@ export class User {
 
   @OneToMany(() => Review, (review) => review.author)
   authoredReviews: Review[];
+
+  @OneToMany(() => Message, (message) => message.sender)
+  messages: Message[];
 }

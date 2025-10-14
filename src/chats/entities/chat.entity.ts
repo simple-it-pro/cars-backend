@@ -1,17 +1,19 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
-  ManyToOne,
   Column,
   CreateDateColumn,
-  UpdateDateColumn,
+  Entity,
   Index,
+  JoinTable,
+  ManyToMany,
+  ManyToOne,
   OneToMany,
-  JoinColumn,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { ApiProperty } from '@nestjs/swagger';
 import { Message } from './message.entity';
+import { UnreadChat } from './unread-chat.entity';
 
 @Entity()
 export class Chat {
@@ -35,20 +37,28 @@ export class Chat {
   updatedAt: Date;
 
   @ApiProperty({
-    type: () => User,
-    description: 'Первый участник чата',
+    example: 'private',
+    description: 'Тип чата',
+    enum: ['private', 'group'],
   })
-  @ManyToOne(() => User, { eager: true })
-  @JoinColumn()
-  userA: User;
+  @Column({ default: 'private' })
+  type: 'private' | 'group';
 
   @ApiProperty({
-    type: () => User,
-    description: 'Второй участник чата',
+    example: 'Мой групповой чат',
+    description: 'Название чата (для групповых)',
+    required: false,
   })
-  @ManyToOne(() => User, { eager: true })
-  @JoinColumn()
-  userB: User;
+  @Column({ nullable: true })
+  name: string;
+
+  @ApiProperty({
+    example: 'Описание группового чата',
+    description: 'Описание чата (для групповых)',
+    required: false,
+  })
+  @Column({ nullable: true })
+  description: string;
 
   @ApiProperty({
     example: 'user1_user2',
@@ -71,37 +81,35 @@ export class Chat {
     description: 'Время создания последнего сообщения',
     required: false,
   })
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'timestamptz' })
   lastMessageCreatedAt?: Date;
 
   @ApiProperty({
-    example: 3,
-    description: 'Количество непрочитанных сообщений для первого пользователя',
+    type: () => User,
+    description: 'Создатель чата',
+    required: false,
   })
-  @Column({ default: 0 })
-  unreadCountForUserA: number;
+  @ManyToOne(() => User, { nullable: true })
+  createdBy?: User;
 
   @ApiProperty({
-    example: 0,
-    description: 'Количество непрочитанных сообщений для второго пользователя',
+    type: () => [User],
+    description: 'Участники чата',
   })
-  @Column({ default: 0 })
-  unreadCountForUserB: number;
+  @ManyToMany(() => User, (user) => user.chats)
+  @JoinTable({
+    name: 'chat_users',
+    joinColumn: { name: 'chat_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'user_id', referencedColumnName: 'id' },
+  })
+  users: User[];
 
-  @ApiProperty({
-    example: false,
-    description: 'Добавлен ли чат в избранное у первого пользователя',
-  })
-  @Column({ default: false })
-  isFavoriteForUserA: boolean;
-
-  @ApiProperty({
-    example: false,
-    description: 'Добавлен ли чат в избранное у второго пользователя',
-  })
-  @Column({ default: false })
-  isFavoriteForUserB: boolean;
+  @ManyToMany(() => User, (user) => user.favoriteChats)
+  favoritedBy: User[];
 
   @OneToMany(() => Message, (message) => message.chat)
   messages: Message[];
+
+  @OneToMany(() => UnreadChat, (unreadChat) => unreadChat.chat)
+  unreadChats: UnreadChat[];
 }
