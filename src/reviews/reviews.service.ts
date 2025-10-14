@@ -160,9 +160,9 @@ export class ReviewsService {
     });
   }
 
-  async answerReview(id: number, answerDto: AnswerReviewDto) {
+  async answerReview(id: number, userId: number, answerDto: AnswerReviewDto) {
     const review = await this.findOne(id);
-    const { userId, answer } = answerDto;
+    const { answer } = answerDto;
 
     if (review.user.id !== userId) {
       throw new BadRequestException('Вы можете отвечать только на свои отзывы');

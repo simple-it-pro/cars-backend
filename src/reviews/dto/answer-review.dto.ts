@@ -10,15 +10,7 @@ export class AnswerReviewDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(reviewLength, {
-    message: 'Ответ не должен превышать 200 символов',
+    message: `Ответ не должен превышать ${reviewLength} символов`,
   })
   answer: string;
-
-  @ApiProperty({
-    example: 1,
-    description: 'id польователя',
-  })
-  @IsInt()
-  @IsNotEmpty()
-  userId: number;
 }

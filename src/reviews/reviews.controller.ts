@@ -102,9 +102,10 @@ export class ReviewsController {
   @UseGuards(JwtGuard)
   answerReview(
     @Param('id', ParseIntPipe) id: number,
+    @AuthUser() { sub: userId }: JwtUserData,
     @Body() answerReviewDto: AnswerReviewDto,
   ) {
-    return this.reviewsService.answerReview(id, answerReviewDto);
+    return this.reviewsService.answerReview(id, userId, answerReviewDto);
   }
 
   @ApiBearerAuth('JWT-auth')
