@@ -3,6 +3,8 @@ export const ERROR_MESSAGES = {
     NOT_FOUND: 'Пользователь с данным id не найден',
     NICKNAME_DUPLICATE: 'Пользователь с таким никнеймом уже существует',
     EMAIL_DUPLICATE: 'Пользователь с таким email уже существует',
+    SOME_NOT_FOUND: 'Один или несколько пользователей не найдены',
+    SOME_NOT_FOUND_WITH_IDS_PREFIX: 'Пользователи с id не найдены: ', // далее подставляем список id
   },
   AUTH: {
     SMS_FAIL: 'Не удалось отправить SMS',
@@ -18,11 +20,19 @@ export const ERROR_MESSAGES = {
   CHAT: {
     NOT_FOUND: 'Чат с данным id не найден',
     NO_PERMISSIONS: 'Пользователь не имеет доступа к чату',
+    NO_CREATOR: 'Нельзя создать групповой чат без создателя',
   },
-};
+  MESSAGE: {
+    EMPTY: 'Сообщение должно содержать текст или голосовое вложение',
+    RELOAD_FAIL: 'Сообщение сохранено, но не удалось его перечитать',
+  },
+} as const;
 
 export const SUCCESS_MESSAGES = {
   AUTH: {
     SMS_SUCCESS: 'Код подтверждения отправлен',
   },
-};
+  CHAT: {
+    MARK_READ: 'Сообщения отмечены как прочитанные',
+  },
+} as const;

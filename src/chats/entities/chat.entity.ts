@@ -27,12 +27,14 @@ export class Chat {
   @ApiProperty({
     example: '2025-09-14T08:57:59.589Z',
   })
+  @Index('idx_chat_created_at')
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
   @ApiProperty({
     example: '2025-09-14T08:57:59.589Z',
   })
+  @Index('idx_chat_updated_at')
   @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 
@@ -65,7 +67,7 @@ export class Chat {
     description: 'Уникальный ключ чата',
   })
   @Column({ unique: true })
-  @Index()
+  @Index('idx_chat_unique_key')
   uniqueKey: string;
 
   @ApiProperty({
@@ -81,6 +83,7 @@ export class Chat {
     description: 'Время создания последнего сообщения',
     required: false,
   })
+  @Index('idx_chat_last_message_created_at')
   @Column({ nullable: true, type: 'timestamptz' })
   lastMessageCreatedAt?: Date;
 

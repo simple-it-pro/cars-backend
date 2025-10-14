@@ -1,22 +1,26 @@
 import {
   BadRequestException,
+  ForbiddenException,
   forwardRef,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan, Not } from 'typeorm';
+import { In, LessThan, Repository } from 'typeorm';
 import { Message } from './entities/message.entity';
 import { Chat } from './entities/chat.entity';
 import { User } from '../users/entities/user.entity';
 import { SendMessageDto } from './dto/send-message.dto';
 import {
+  createCompositeCursor,
   CursorPaginationDto,
   parseCompositeCursor,
-  createCompositeCursor,
 } from '../common/dto/pagination.dto';
 import { ChatsGateway } from './chats.gateway';
+import { ERROR_MESSAGES } from '../common/constants/messages';
+import { UnreadChat } from './entities/unread-chat.entity';
+import { MessageContent } from './entities/message-content.entity';
 
 @Injectable()
 export class MessagesService {
@@ -29,74 +33,141 @@ export class MessagesService {
     private readonly chatGateway: ChatsGateway,
   ) {}
 
+  private async getChatAndEnsureMembership(
+    chatId: string,
+    userId: number,
+  ): Promise<Chat> {
+    const chat = await this.chatRepository.findOne({
+      where: { id: chatId },
+      relations: ['users'],
+    });
+    if (!chat) {
+      throw new NotFoundException(ERROR_MESSAGES.CHAT.NOT_FOUND);
+    }
+    const isParticipant = chat.users.some((u) => u.id === userId);
+    if (!isParticipant) {
+      throw new ForbiddenException(ERROR_MESSAGES.AUTH.NO_PERMISSIONS);
+    }
+    return chat;
+  }
+
   async sendMessage(
-    chat: Chat,
+    chatId: string,
     sender: User,
     dto: SendMessageDto,
   ): Promise<Message> {
-    const messageType: 'text' | 'voice' = dto.voiceUrl ? 'voice' : 'text';
+    const hasText = Boolean(dto.content && dto.content.trim().length > 0);
+    const hasVoice = Boolean(dto.voiceUrl && dto.voiceUrl.trim().length > 0);
 
-    if (!dto.content && !dto.voiceUrl) {
-      throw new BadRequestException('Message must have content or voiceUrl');
+    if (!hasText && !hasVoice) {
+      throw new BadRequestException(ERROR_MESSAGES.MESSAGE.EMPTY);
     }
 
-    const message = this.messageRepository.create({
-      chat,
-      sender,
-      content: dto.content,
-      attachments: dto.attachments,
-      voiceUrl: dto.voiceUrl,
-      type: messageType,
-    } satisfies Partial<Message>);
+    const chat = await this.getChatAndEnsureMembership(chatId, sender.id);
 
-    const savedMessage = await this.messageRepository.save(message);
+    const attachments = Array.isArray(dto.attachments) ? dto.attachments : [];
+    const type: 'text' | 'voice' = hasVoice ? 'voice' : 'text';
+    const normalizedContent = hasText ? dto.content!.trim() : '';
 
-    await this.updateChatLastMessage(chat, savedMessage);
+    const saved = await this.messageRepository.manager.transaction(
+      async (manager) => {
+        let message = manager.create(Message, {
+          chat,
+          sender,
+          content: normalizedContent,
+          attachments,
+          voiceUrl: hasVoice ? dto.voiceUrl : null,
+          type,
+          isRead: false,
+          isDeleted: false,
+        } as Partial<Message>);
+        message = await manager.save(Message, message);
 
-    await this.incrementUnreadCount(chat, sender);
+        let version = manager.create(MessageContent, {
+          message,
+          content: normalizedContent,
+          attachments,
+          version: 1,
+        } as Partial<MessageContent>);
+        version = await manager.save(MessageContent, version);
 
-    await this.sendMessageNotificationToAllParticipants(chat, savedMessage);
+        message.currentContent = version;
+        message = await manager.save(Message, message);
 
-    return savedMessage;
-  }
+        await manager.update(
+          Chat,
+          { id: chat.id },
+          {
+            lastMessageContent:
+              type === 'voice' ? '🎤 Voice message' : normalizedContent,
+            lastMessageCreatedAt: message.createdAt,
+          },
+        );
 
-  private async sendMessageNotificationToAllParticipants(
-    chat: Chat,
-    message: Message,
-  ) {
-    const notifications = [
-      this.chatGateway.sendNewMessageNotification(
-        chat.id,
-        message,
-        chat.userA.id,
-      ),
-      this.chatGateway.sendNewMessageNotification(
-        chat.id,
-        message,
-        chat.userB.id,
-      ),
-    ];
+        const recipientIds = chat.users
+          .filter((u) => u.id !== sender.id)
+          .map((u) => u.id);
 
-    await Promise.all(notifications);
+        if (recipientIds.length > 0) {
+          const unreadExisting = await manager.find(UnreadChat, {
+            where: { chat: { id: chat.id }, user: { id: In(recipientIds) } },
+            relations: ['user', 'chat'],
+          });
+
+          const byUserId = new Map<number, UnreadChat>(
+            unreadExisting.map((row) => [row.user.id, row]),
+          );
+
+          const toSave: UnreadChat[] = [];
+          for (const rid of recipientIds) {
+            const row =
+              byUserId.get(rid) ||
+              manager.create(UnreadChat, {
+                chat,
+                user: { id: rid } as User,
+                unreadCount: 0,
+              } as Partial<UnreadChat>);
+            row.unreadCount = (row.unreadCount ?? 0) + 1;
+            toSave.push(row);
+          }
+          await manager.save(UnreadChat, toSave);
+        }
+
+        return message;
+      },
+    );
+
+    for (const user of chat.users) {
+      if (user.id === sender.id) continue;
+      this.chatGateway.sendNewMessageNotification(chat.id, saved, user.id);
+    }
+
+    const full = await this.messageRepository.findOne({
+      where: { id: saved.id },
+      relations: ['sender', 'currentContent'],
+    });
+
+    if (!full) {
+      throw new NotFoundException(ERROR_MESSAGES.MESSAGE.RELOAD_FAIL);
+    }
+    return full;
   }
 
   async getMessages(
     chatId: string,
     pagination: CursorPaginationDto,
+    userId: number,
   ): Promise<{ messages: Message[]; hasMore: boolean; nextCursor?: string }> {
+    await this.getChatAndEnsureMembership(chatId, userId);
+
     const limit = pagination.limit || 50;
     const limitPlusOne = limit + 1;
 
     let whereCondition: any = { chat: { id: chatId }, isDeleted: false };
-
     if (pagination.cursor) {
       const { date, id } = parseCompositeCursor(pagination.cursor);
       whereCondition = [
-        {
-          chat: { id: chatId },
-          isDeleted: false,
-          createdAt: LessThan(date),
-        },
+        { chat: { id: chatId }, isDeleted: false, createdAt: LessThan(date) },
         {
           chat: { id: chatId },
           isDeleted: false,
@@ -110,65 +181,47 @@ export class MessagesService {
       where: whereCondition,
       order: { createdAt: 'DESC', id: 'DESC' },
       take: limitPlusOne,
-      relations: ['sender', 'chat'],
+      relations: ['sender', 'currentContent'],
     });
 
     const hasMore = messages.length > limit;
-    const resultMessages = hasMore ? messages.slice(0, limit) : messages;
+    const result = hasMore ? messages.slice(0, limit) : messages;
+
     const nextCursor =
-      hasMore && resultMessages.length > 0
+      hasMore && result.length > 0
         ? createCompositeCursor(
-            resultMessages[resultMessages.length - 1].createdAt,
-            resultMessages[resultMessages.length - 1].id,
+            result[result.length - 1].createdAt,
+            result[result.length - 1].id,
           )
         : undefined;
 
-    return {
-      messages: resultMessages,
-      hasMore,
-      nextCursor,
-    };
+    return { messages: result, hasMore, nextCursor };
   }
 
   async markMessagesAsRead(chatId: string, userId: number): Promise<void> {
-    const chat = await this.chatRepository.findOne({ where: { id: chatId } });
-    if (!chat) throw new NotFoundException('Chat not found');
+    await this.getChatAndEnsureMembership(chatId, userId);
 
-    await this.messageRepository.update(
-      {
-        chat: { id: chatId },
-        isRead: false,
-        sender: { id: Not(userId) },
-      },
-      { isRead: true },
-    );
+    await this.messageRepository.manager.transaction(async (manager) => {
+      await manager
+        .createQueryBuilder()
+        .update(Message)
+        .set({ isRead: true })
+        .where('chatId = :chatId', { chatId })
+        .andWhere('isDeleted = false')
+        .andWhere('isRead = false')
+        .andWhere('senderId != :userId', { userId })
+        .execute();
 
-    await this.resetUnreadCount(chat, userId);
-    this.chatGateway.sendReadReceipt(chatId, userId);
-  }
-
-  private async updateChatLastMessage(
-    chat: Chat,
-    message: Message,
-  ): Promise<void> {
-    await this.chatRepository.update(chat.id, {
-      lastMessageContent:
-        message.type === 'voice' ? '🎤 Voice message' : message.content,
-      lastMessageCreatedAt: message.createdAt,
+      const unread = await manager.findOne(UnreadChat, {
+        where: { chat: { id: chatId }, user: { id: userId } },
+        relations: ['chat', 'user'],
+      });
+      if (unread) {
+        unread.unreadCount = 0;
+        await manager.save(UnreadChat, unread);
+      }
     });
-  }
 
-  private async incrementUnreadCount(chat: Chat, sender: User): Promise<void> {
-    const isSenderUserA = chat.userA.id === sender.id;
-    const field = isSenderUserA ? 'unreadCountForUserB' : 'unreadCountForUserA';
-
-    await this.chatRepository.increment({ id: chat.id }, field, 1);
-  }
-
-  private async resetUnreadCount(chat: Chat, userId: number): Promise<void> {
-    const isUserA = chat.userA.id === userId;
-    const field = isUserA ? 'unreadCountForUserA' : 'unreadCountForUserB';
-
-    await this.chatRepository.update(chat.id, { [field]: 0 });
+    this.chatGateway.sendReadReceipt(chatId, userId);
   }
 }

@@ -111,11 +111,6 @@ export class User {
   about: string;
 
   @ManyToMany(() => Chat, (chat) => chat.users)
-  @JoinTable({
-    name: 'chats_to_users',
-    joinColumn: { name: 'user_id', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'chat_id', referencedColumnName: 'id' },
-  })
   chats: Chat[];
 
   @ManyToMany(() => Chat, (chat) => chat.favoritedBy)
