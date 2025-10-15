@@ -293,24 +293,4 @@ export class ChatsService {
       return { isFavorite: true };
     }
   }
-
-  async toggleFavorite(chatId: string, userId: number): Promise<Chat> {
-    const chat = await this.findChatById(chatId);
-
-    const isUserA = chat.userA.id === userId;
-    const isUserB = chat.userB.id === userId;
-
-    if (!isUserA && !isUserB) {
-      throw new NotFoundException(ERROR_MESSAGES.CHAT.NOT_FOUND);
-    }
-
-    if (isUserA) {
-      chat.isFavoriteForUserA = !chat.isFavoriteForUserA;
-    } else {
-      chat.isFavoriteForUserB = !chat.isFavoriteForUserB;
-    }
-
-    await this.chatRepository.save(chat);
-    return chat;
-  }
 }
