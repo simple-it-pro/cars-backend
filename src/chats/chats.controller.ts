@@ -241,4 +241,13 @@ export class ChatsController {
   ) {
     return this.chatsService.toggleFavorite(chatId, userId);
   }
+
+  @Post(':chatId/favorite')
+  @ApiOperation({ summary: 'Добавить/убрать чат из избранного' })
+  async toggleFavorite(
+    @Param('chatId') chatId: string,
+    @AuthUser() { sub: userId }: JwtUserData,
+  ) {
+    return this.chatsService.toggleFavorite(chatId, userId);
+  }
 }
