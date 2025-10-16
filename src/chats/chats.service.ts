@@ -29,8 +29,9 @@ export class ChatsService {
   ) {}
 
   async findOrCreatePrivateChat(userA: User, userB: User): Promise<Chat> {
-    const userIds = [userA.id, userB.id].sort();
-    const uniqueKey = `private_${userIds[0]}-${userIds[1]}`;
+    const aId = Math.min(userA.id, userB.id);
+    const bId = Math.max(userA.id, userB.id);
+    const uniqueKey = `private_${aId}-${bId}`;
 
     let chat = await this.chatRepository.findOne({
       where: { uniqueKey },
@@ -50,14 +51,12 @@ export class ChatsService {
       const savedChat = await this.chatRepository.save(chat);
       await this.initializeChatData(savedChat, [userA, userB]);
       return savedChat;
-    } catch (err: any) {
-      if (err?.code === '23505') {
-        const existing = await this.chatRepository.findOne({
-          where: { uniqueKey },
-          relations: ['users'],
-        });
-        if (existing) return existing;
-      }
+    } catch (err) {
+      const existing = await this.chatRepository.findOne({
+        where: { uniqueKey },
+        relations: ['users'],
+      });
+      if (existing) return existing;
       throw err;
     }
   }

@@ -4,7 +4,7 @@ export const ERROR_MESSAGES = {
     NICKNAME_DUPLICATE: 'Пользователь с таким никнеймом уже существует',
     EMAIL_DUPLICATE: 'Пользователь с таким email уже существует',
     SOME_NOT_FOUND: 'Один или несколько пользователей не найдены',
-    SOME_NOT_FOUND_WITH_IDS_PREFIX: 'Пользователи с id не найдены: ', // далее подставляем список id
+    SOME_NOT_FOUND_WITH_IDS_PREFIX: 'Пользователи с id не найдены: ',
   },
   AUTH: {
     SMS_FAIL: 'Не удалось отправить SMS',
