@@ -9,6 +9,7 @@ services:
       - "5462:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init-scripts:/docker-entrypoint-initdb.d
 
   redis-cars:
     container_name: redis-cars

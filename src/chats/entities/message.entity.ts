@@ -6,10 +6,13 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   JoinColumn,
+  OneToOne,
+  OneToMany,
 } from 'typeorm';
 import { Chat } from './chat.entity';
 import { User } from '../../users/entities/user.entity';
 import { ApiProperty } from '@nestjs/swagger';
+import { MessageContent } from './message-content.entity';
 
 @Entity()
 export class Message {
@@ -93,4 +96,11 @@ export class Message {
   })
   @Column({ default: false })
   isDeleted: boolean;
+
+  @OneToOne(() => MessageContent, { eager: true })
+  @JoinColumn({ name: 'current_content_id' })
+  currentContent: MessageContent;
+
+  @OneToMany(() => MessageContent, (messageContent) => messageContent.message)
+  contentHistory: MessageContent[];
 }
