@@ -9,6 +9,7 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { SmsModule } from './sms/sms.module';
 import { ChatsModule } from './chats/chats.module';
+import { ReviewsModule } from './reviews/reviews.module';
 import configuration from './config/configuration';
 import * as path from 'path';
 
@@ -45,6 +46,7 @@ import * as path from 'path';
     UsersModule,
     SmsModule,
     ChatsModule,
+    ReviewsModule,
   ],
   controllers: [],
   providers: [JwtStrategy],
