@@ -110,20 +110,6 @@ export class Chat {
   @ManyToMany(() => User, (user) => user.favoriteChats)
   favoritedBy: User[];
 
-  @ApiProperty({
-    example: false,
-    description: 'Добавлен ли чат в избранное у первого пользователя',
-  })
-  @Column({ default: false })
-  isFavoriteForUserA: boolean;
-
-  @ApiProperty({
-    example: false,
-    description: 'Добавлен ли чат в избранное у второго пользователя',
-  })
-  @Column({ default: false })
-  isFavoriteForUserB: boolean;
-
   @OneToMany(() => Message, (message) => message.chat)
   messages: Message[];
 
