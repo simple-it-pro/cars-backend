@@ -195,6 +195,7 @@ export class AuthService {
       sub: user.id,
       phone: user.phone,
       type: 'access',
+      role: user.role,
     };
 
     const refreshPayload = {

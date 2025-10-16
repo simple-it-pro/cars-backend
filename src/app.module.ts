@@ -4,12 +4,14 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { SmsModule } from './sms/sms.module';
 import { ChatsModule } from './chats/chats.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { AdminModule } from './admin/admin.module';
 import configuration from './config/configuration';
 import * as path from 'path';
 
@@ -19,6 +21,10 @@ import * as path from 'path';
       isGlobal: true,
       load: [configuration],
       envFilePath: '.env',
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: path.join(__dirname, '..', 'public'),
+      serveRoot: '/',
     }),
     TypeOrmModule.forRoot({
       type: 'postgres',
@@ -47,6 +53,7 @@ import * as path from 'path';
     SmsModule,
     ChatsModule,
     ReviewsModule,
+    AdminModule,
   ],
   controllers: [],
   providers: [JwtStrategy],
