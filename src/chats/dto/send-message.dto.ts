@@ -7,6 +7,7 @@ import {
   IsUrl,
   IsNumber,
   IsString,
+  IsUUID,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
@@ -65,4 +66,22 @@ export class SendMessageDto {
   @IsOptional()
   @IsUrl({}, { message: 'Invalid voice URL' })
   voiceUrl?: string;
+
+  @ApiProperty({
+    required: false,
+    description: 'ID исходного сообщения для ответа',
+    example: '9c9a6b7c-1234-5678-9abc-def012345678',
+  })
+  @IsOptional()
+  @IsUUID()
+  replyToMessageId?: string;
+
+  @ApiProperty({
+    required: false,
+    description: 'ID исходного сообщения для пересылки',
+    example: '9c9a6b7c-1234-5678-9abc-def012345678',
+  })
+  @IsOptional()
+  @IsUUID()
+  forwardFromMessageId?: string;
 }

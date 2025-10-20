@@ -9,7 +9,6 @@ services:
       - "5462:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./docker/postgres/init-scripts:/docker-entrypoint-initdb.d
 
   redis-cars:
     container_name: redis-cars
@@ -19,8 +18,8 @@ services:
     volumes:
       - redis_data:/data
 
-  app-cars:
-    container_name: app-cars
+  cars-backend:
+    container_name: cars-backend
     build:
       context: .
     env_file:
@@ -30,12 +29,16 @@ services:
     depends_on:
       - postgres-cars
     restart: unless-stopped
+    volumes:
+      - /etc/letsencrypt/live/simpleit-gitlab.ru/fullchain.pem:/app/ssl/certs/fullchain.pem:ro
+      - /etc/letsencrypt/live/simpleit-gitlab.ru/privkey.pem:/app/ssl/private/privkey.pem:ro
 
 networks:
   default:
     driver: bridge
     driver_opts:
-      com.docker.network.driver.mtu: 1450
+      # нужно для того, чтобы корректно устанавливались зависимости во время билда
+      com.docker.network.driver.mtu: 1428
 
 volumes:
   postgres_data:

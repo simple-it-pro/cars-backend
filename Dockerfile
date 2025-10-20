@@ -13,8 +13,5 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 
-RUN mkdir -p /etc/letsencrypt && \
-    chmod 755 /etc/letsencrypt
-
 EXPOSE 3000 3000
 CMD ["node", "dist/main.js"]

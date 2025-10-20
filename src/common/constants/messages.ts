@@ -23,8 +23,22 @@ export const ERROR_MESSAGES = {
     NO_CREATOR: 'Нельзя создать групповой чат без создателя',
   },
   MESSAGE: {
-    EMPTY: 'Сообщение должно содержать текст или голосовое вложение',
+    EMPTY: 'Сообщение должно содержать текст, вложение или голосовое сообщение',
+
     RELOAD_FAIL: 'Сообщение сохранено, но не удалось его перечитать',
+    NOT_FOUND: 'Сообщение не найдено',
+
+    REPLY_TARGET_NOT_FOUND:
+      'Сообщение, на которое выполняется ответ, не найдено',
+    REPLY_ID_NOT_ALLOWED_HERE:
+      'Параметр replyToMessageId недопустим для этого запроса',
+
+    FORWARD_SOURCE_NOT_FOUND: 'Исходное сообщение для пересылки не найдено',
+    FORWARD_ID_NOT_ALLOWED_HERE:
+      'Параметр forwardFromMessageId недопустим для этого запроса',
+
+    REPLY_AND_FORWARD_CONFLICT:
+      'Нельзя одновременно указывать replyToMessageId и forwardFromMessageId',
   },
 } as const;
 

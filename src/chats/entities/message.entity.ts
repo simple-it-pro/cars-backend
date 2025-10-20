@@ -1,3 +1,4 @@
+// entities/message.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -6,8 +7,8 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   JoinColumn,
-  OneToOne,
   OneToMany,
+  OneToOne,
 } from 'typeorm';
 import { Chat } from './chat.entity';
 import { User } from '../../users/entities/user.entity';
@@ -103,4 +104,24 @@ export class Message {
 
   @OneToMany(() => MessageContent, (messageContent) => messageContent.message)
   contentHistory: MessageContent[];
+
+  @ManyToOne(() => Message, (m) => m.replies, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'replied_message_id' })
+  repliedMessage?: Message | null;
+
+  @OneToMany(() => Message, (m) => m.repliedMessage)
+  replies: Message[];
+
+  @ManyToOne(() => Message, (m) => m.forwardChildren, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'forwarded_from_id' })
+  forwardedFrom?: Message | null;
+
+  @OneToMany(() => Message, (m) => m.forwardedFrom)
+  forwardChildren: Message[];
 }

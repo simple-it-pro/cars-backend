@@ -5,13 +5,16 @@ import {
   ForbiddenException,
   Get,
   Param,
+  ParseUUIDPipe,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiOperation,
+  ApiParam,
   ApiQuery,
   ApiResponse,
 } from '@nestjs/swagger';
@@ -205,6 +208,94 @@ export class ChatsController {
       throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
     }
     return this.messagesService.sendMessage(chatId, sender, sendMessageDto);
+  }
+
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Ответ на сообщение' })
+  @ApiParam({ name: 'chatId', description: 'ID чата' })
+  @ApiParam({
+    name: 'messageId',
+    description: 'ID сообщения, на которое отвечаем',
+  })
+  @ApiResponse({ status: 201, type: Message, description: 'Ответ отправлен' })
+  @ApiResponse({
+    status: 400,
+    description: 'Чат/пользователь не найден или некорректное тело запроса',
+  })
+  @ApiResponse({ status: 403, description: 'Недостаточно прав' })
+  @ApiBody({
+    description:
+      'Передай content/attachments/voiceUrl. replyToMessageId не нужен — берётся из URL.',
+    examples: {
+      replyText: { summary: 'Ответ текстом', value: { content: 'Ок!' } },
+      replyVoice: {
+        summary: 'Ответ голосом',
+        value: { voiceUrl: 'https://cdn.example.com/v/123.ogg' },
+      },
+    },
+  })
+  @Post(':chatId/messages/:messageId/reply')
+  async replyToMessage(
+    @Param('chatId', new ParseUUIDPipe()) chatId: string,
+    @Param('messageId', new ParseUUIDPipe()) messageId: string,
+    @AuthUser() { sub: userId }: JwtUserData,
+    @Body() body: SendMessageDto,
+  ) {
+    const sender = await this.usersService.getUserById(userId);
+    if (!sender) throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
+
+    if (body.forwardFromMessageId) {
+      throw new BadRequestException(
+        ERROR_MESSAGES.MESSAGE.FORWARD_ID_NOT_ALLOWED_HERE,
+      );
+    }
+
+    const dto: SendMessageDto = { ...body, replyToMessageId: messageId };
+    return this.messagesService.sendMessage(chatId, sender, dto);
+  }
+
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Переслать сообщение' })
+  @ApiParam({ name: 'chatId', description: 'ID чата-получателя' })
+  @ApiParam({
+    name: 'messageId',
+    description: 'ID исходного сообщения (источник пересылки)',
+  })
+  @ApiResponse({ status: 201, type: Message, description: 'Переслано' })
+  @ApiResponse({
+    status: 400,
+    description: 'Чат/пользователь не найден или некорректное тело запроса',
+  })
+  @ApiResponse({ status: 403, description: 'Недостаточно прав' })
+  @ApiBody({
+    description:
+      'Опционально можно добавить комментарий (content) и/или вложения. forwardFromMessageId не нужен — берётся из URL.',
+    examples: {
+      forwardPlain: { summary: 'Чистая пересылка', value: {} },
+      forwardWithComment: {
+        summary: 'Пересылка с комментарием',
+        value: { content: 'Смотри' },
+      },
+    },
+  })
+  @Post(':chatId/messages/:messageId/forward')
+  async forwardMessage(
+    @Param('chatId') chatId: string,
+    @Param('messageId') messageId: string,
+    @AuthUser() { sub: userId }: JwtUserData,
+    @Body() body: SendMessageDto,
+  ) {
+    const sender = await this.usersService.getUserById(userId);
+    if (!sender) throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
+
+    if (body.replyToMessageId) {
+      throw new BadRequestException(
+        ERROR_MESSAGES.MESSAGE.REPLY_ID_NOT_ALLOWED_HERE,
+      );
+    }
+
+    const dto: SendMessageDto = { ...body, forwardFromMessageId: messageId };
+    return this.messagesService.sendMessage(chatId, sender, dto);
   }
 
   @ApiBearerAuth('JWT-auth')

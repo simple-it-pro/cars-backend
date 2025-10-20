@@ -1,10 +1,33 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import * as fs from 'fs';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  let app: INestApplication;
+
+  const sslKeyPath = process.env.SSL_KEY_PATH;
+  const sslCertPath = process.env.SSL_CERT_PATH;
+
+  if (
+    sslKeyPath &&
+    sslCertPath &&
+    fs.existsSync(sslKeyPath) &&
+    fs.existsSync(sslCertPath)
+  ) {
+    const httpsOptions = {
+      key: fs.readFileSync(sslKeyPath),
+      cert: fs.readFileSync(sslCertPath),
+    };
+    app = await NestFactory.create(AppModule, {
+      httpsOptions,
+    });
+    console.log('Running in HTTPS mode');
+  } else {
+    app = await NestFactory.create(AppModule);
+    console.log('Running in HTTP mode');
+  }
 
   app.useGlobalPipes(new ValidationPipe());
 
