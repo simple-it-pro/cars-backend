@@ -51,6 +51,32 @@ export class MessagesService {
     return chat;
   }
 
+  private async getReplyParentOrFail(chatId: string, parentId: string) {
+    const parent = await this.messageRepository.findOne({
+      where: { id: parentId, chat: { id: chatId }, isDeleted: false },
+      relations: ['sender', 'currentContent', 'chat'],
+    });
+    if (!parent) {
+      throw new NotFoundException(ERROR_MESSAGES.MESSAGE.NOT_FOUND);
+    }
+    return parent;
+  }
+
+  private async getForwardSourceOrFail(sourceId: string, requesterId: number) {
+    const source = await this.messageRepository.findOne({
+      where: { id: sourceId, isDeleted: false },
+      relations: ['sender', 'currentContent', 'chat', 'chat.users'],
+    });
+    if (!source) {
+      throw new NotFoundException(ERROR_MESSAGES.MESSAGE.NOT_FOUND);
+    }
+    const isMember = source.chat.users.some((u) => u.id === requesterId);
+    if (!isMember) {
+      throw new ForbiddenException(ERROR_MESSAGES.AUTH.NO_PERMISSIONS);
+    }
+    return source;
+  }
+
   async sendMessage(
     chatId: string,
     sender: User,
@@ -58,8 +84,16 @@ export class MessagesService {
   ): Promise<Message> {
     const hasText = Boolean(dto.content && dto.content.trim().length > 0);
     const hasVoice = Boolean(dto.voiceUrl && dto.voiceUrl.trim().length > 0);
+    const hasAttachments =
+      Array.isArray(dto.attachments) && dto.attachments.length > 0;
 
-    if (!hasText && !hasVoice) {
+    if (
+      !hasText &&
+      !hasVoice &&
+      !hasAttachments &&
+      !dto.forwardFromMessageId &&
+      !dto.replyToMessageId
+    ) {
       throw new BadRequestException(ERROR_MESSAGES.MESSAGE.EMPTY);
     }
 
@@ -69,6 +103,14 @@ export class MessagesService {
     const type: 'text' | 'voice' = hasVoice ? 'voice' : 'text';
     const normalizedContent = hasText ? dto.content!.trim() : '';
 
+    const repliedMessage = dto.replyToMessageId
+      ? await this.getReplyParentOrFail(chatId, dto.replyToMessageId)
+      : null;
+
+    const forwardedFrom = dto.forwardFromMessageId
+      ? await this.getForwardSourceOrFail(dto.forwardFromMessageId, sender.id)
+      : null;
+
     const saved = await this.messageRepository.manager.transaction(
       async (manager) => {
         let message = manager.create(Message, {
@@ -76,11 +118,14 @@ export class MessagesService {
           sender,
           content: normalizedContent,
           attachments,
-          voiceUrl: hasVoice ? dto.voiceUrl : null,
+          voiceUrl: hasVoice ? dto.voiceUrl! : null,
           type,
           isRead: false,
           isDeleted: false,
+          repliedMessage,
+          forwardedFrom,
         } as Partial<Message>);
+
         message = await manager.save(Message, message);
 
         let version = manager.create(MessageContent, {
@@ -94,12 +139,20 @@ export class MessagesService {
         message.currentContent = version;
         message = await manager.save(Message, message);
 
+        let snippet = normalizedContent;
+        if (forwardedFrom && !snippet) {
+          snippet = 'Пересланное сообщение';
+        } else if (type === 'voice' && !snippet) {
+          snippet = 'Голосовое сообщение';
+        } else if (repliedMessage && !snippet && type !== 'voice') {
+          snippet = 'Ответить';
+        }
+
         await manager.update(
           Chat,
           { id: chat.id },
           {
-            lastMessageContent:
-              type === 'voice' ? '🎤 Voice message' : normalizedContent,
+            lastMessageContent: snippet,
             lastMessageCreatedAt: message.createdAt,
           },
         );
@@ -126,7 +179,7 @@ export class MessagesService {
                 chat,
                 user: { id: rid } as User,
                 unreadCount: 0,
-              } as Partial<UnreadChat>);
+              });
             row.unreadCount = (row.unreadCount ?? 0) + 1;
             toSave.push(row);
           }
@@ -144,7 +197,16 @@ export class MessagesService {
 
     const full = await this.messageRepository.findOne({
       where: { id: saved.id },
-      relations: ['sender', 'currentContent'],
+      relations: [
+        'sender',
+        'currentContent',
+        'repliedMessage',
+        'repliedMessage.sender',
+        'repliedMessage.currentContent',
+        'forwardedFrom',
+        'forwardedFrom.sender',
+        'forwardedFrom.currentContent',
+      ],
     });
 
     if (!full) {
@@ -181,7 +243,16 @@ export class MessagesService {
       where: whereCondition,
       order: { createdAt: 'DESC', id: 'DESC' },
       take: limitPlusOne,
-      relations: ['sender', 'currentContent'],
+      relations: [
+        'sender',
+        'currentContent',
+        'repliedMessage',
+        'repliedMessage.sender',
+        'repliedMessage.currentContent',
+        'forwardedFrom',
+        'forwardedFrom.sender',
+        'forwardedFrom.currentContent',
+      ],
     });
 
     const hasMore = messages.length > limit;
