@@ -21,6 +21,7 @@ import { ChatsGateway } from './chats.gateway';
 import { ERROR_MESSAGES } from '../common/constants/messages';
 import { UnreadChat } from './entities/unread-chat.entity';
 import { MessageContent } from './entities/message-content.entity';
+import { EditMessageDto } from './dto/edit-message.dto';
 
 @Injectable()
 export class MessagesService {
@@ -124,6 +125,7 @@ export class MessagesService {
           isDeleted: false,
           repliedMessage,
           forwardedFrom,
+          quotedText: dto.quotedText,
         } as Partial<Message>);
 
         message = await manager.save(Message, message);
@@ -267,6 +269,108 @@ export class MessagesService {
         : undefined;
 
     return { messages: result, hasMore, nextCursor };
+  }
+
+  async editMessage(
+    chatId: string,
+    messageId: string,
+    editorId: number,
+    dto: EditMessageDto,
+  ): Promise<Message> {
+    const newTextRaw = (dto.content ?? '').trim();
+    if (!newTextRaw.length) {
+      throw new BadRequestException(ERROR_MESSAGES.MESSAGE.EMPTY);
+    }
+
+    const chat = await this.getChatAndEnsureMembership(chatId, editorId);
+
+    return await this.messageRepository.manager.transaction(async (manager) => {
+      const message = await manager
+        .getRepository(Message)
+        .createQueryBuilder('m')
+        .setLock('pessimistic_write')
+        .where('m.id = :messageId', { messageId })
+        .andWhere('m.isDeleted = false')
+        .andWhere('m.chatId = :chatId', { chatId })
+        .getOne();
+
+      if (!message) {
+        throw new NotFoundException(ERROR_MESSAGES.MESSAGE.NOT_FOUND);
+      }
+
+      const author = await manager
+        .getRepository(Message)
+        .createQueryBuilder('m')
+        .leftJoinAndSelect('m.sender', 'sender')
+        .where('m.id = :id', { id: message.id })
+        .getOne();
+
+      if (!author || author.sender.id !== editorId) {
+        throw new ForbiddenException(ERROR_MESSAGES.AUTH.NO_PERMISSIONS);
+      }
+
+      const withCurrent = await manager.findOne(Message, {
+        where: { id: message.id },
+        relations: ['currentContent'],
+      });
+
+      const prevVersion = withCurrent?.currentContent?.version ?? 0;
+      const prevAttachments = withCurrent?.currentContent?.attachments ?? [];
+      const prevText =
+        withCurrent?.currentContent?.content ?? withCurrent?.content ?? '';
+
+      if (prevText === newTextRaw) {
+        throw new BadRequestException(ERROR_MESSAGES.MESSAGE.NO_CHANGES);
+      }
+
+      const newVersion = await manager.save(
+        manager.create(MessageContent, {
+          message,
+          content: newTextRaw,
+          attachments: prevAttachments,
+          version: prevVersion + 1,
+        }),
+      );
+
+      message.content = newTextRaw;
+      message.currentContent = newVersion;
+      await manager.save(Message, message);
+
+      if (
+        chat.lastMessageCreatedAt &&
+        message.createdAt &&
+        chat.lastMessageCreatedAt.getTime() === message.createdAt.getTime()
+      ) {
+        await manager.update(
+          Chat,
+          { id: chat.id },
+          { lastMessageContent: newTextRaw },
+        );
+      }
+
+      const full = await manager.findOne(Message, {
+        where: { id: message.id },
+        relations: [
+          'sender',
+          'currentContent',
+          'contentHistory',
+          'repliedMessage',
+          'repliedMessage.sender',
+          'repliedMessage.currentContent',
+          'forwardedFrom',
+          'forwardedFrom.sender',
+          'forwardedFrom.currentContent',
+        ],
+      });
+
+      if (!full) {
+        throw new NotFoundException(ERROR_MESSAGES.MESSAGE.RELOAD_FAIL);
+      }
+
+      this.chatGateway.broadcastMessageEdited(chat.id, full);
+
+      return full;
+    });
   }
 
   async markMessagesAsRead(chatId: string, userId: number): Promise<void> {

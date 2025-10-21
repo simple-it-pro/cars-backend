@@ -39,6 +39,8 @@ export const ERROR_MESSAGES = {
 
     REPLY_AND_FORWARD_CONFLICT:
       'Нельзя одновременно указывать replyToMessageId и forwardFromMessageId',
+
+    NO_CHANGES: 'Нечего обновлять: содержимое не изменилось',
   },
 } as const;
 
