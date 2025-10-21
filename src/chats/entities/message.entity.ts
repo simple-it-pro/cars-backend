@@ -124,4 +124,8 @@ export class Message {
 
   @OneToMany(() => Message, (m) => m.forwardedFrom)
   forwardChildren: Message[];
+
+  @ApiProperty({ example: 'Фрагмент исходного сообщения', required: false })
+  @Column('text', { nullable: true })
+  quotedText?: string | null;
 }

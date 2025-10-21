@@ -24,9 +24,7 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(ChatsGateway.name);
   private connectedUsers = new Map<number, string>();
 
-  constructor(
-    private readonly authService: AuthService,
-  ) {}
+  constructor(private readonly authService: AuthService) {}
 
   async handleConnection(socket: Socket) {
     try {
@@ -107,6 +105,18 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       userId,
       readAt: new Date(),
     });
+  }
+
+  sendMessageEditedToUser(chatId: string, message: any, recipientId: number) {
+    this.server
+      .to(`user_${recipientId}`)
+      .emit('message_edited', { chatId, message });
+  }
+
+  broadcastMessageEdited(chatId: string, message: any) {
+    this.server
+      .to(`chat_${chatId}`)
+      .emit('message_edited', { chatId, message });
   }
 
   private getUserIdFromSocket(socket: Socket): number | null {

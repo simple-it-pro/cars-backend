@@ -6,6 +6,7 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -31,6 +32,7 @@ import { Chat } from './entities/chat.entity';
 import { Message } from './entities/message.entity';
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../common/constants/messages';
 import { CreateGroupChatDto } from './dto/create-group-chat.dto';
+import { EditMessageDto } from './dto/edit-message.dto';
 
 @Controller('chats')
 @UseGuards(JwtGuard)
@@ -208,6 +210,28 @@ export class ChatsController {
       throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
     }
     return this.messagesService.sendMessage(chatId, sender, sendMessageDto);
+  }
+
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Редактирование сообщения' })
+  @ApiParam({ name: 'chatId', description: 'ID чата' })
+  @ApiParam({ name: 'messageId', description: 'ID сообщения' })
+  @ApiResponse({
+    status: 200,
+    type: Message,
+    description: 'Сообщение отредактировано',
+  })
+  @ApiResponse({ status: 400, description: 'Пустой текст или нет изменений' })
+  @ApiResponse({ status: 403, description: 'Недостаточно прав' })
+  @ApiResponse({ status: 404, description: 'Сообщение или чат не найдены' })
+  @Patch(':chatId/messages/:messageId')
+  async editMessage(
+    @Param('chatId', new ParseUUIDPipe()) chatId: string,
+    @Param('messageId', new ParseUUIDPipe()) messageId: string,
+    @AuthUser() { sub: userId }: JwtUserData,
+    @Body() dto: EditMessageDto,
+  ) {
+    return this.messagesService.editMessage(chatId, messageId, userId, dto);
   }
 
   @ApiBearerAuth('JWT-auth')

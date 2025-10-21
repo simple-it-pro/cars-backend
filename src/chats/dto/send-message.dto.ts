@@ -84,4 +84,13 @@ export class SendMessageDto {
   @IsOptional()
   @IsUUID()
   forwardFromMessageId?: string;
+
+  @ApiProperty({
+    required: false,
+    description: 'Текст цитируемой части сообщения',
+    example: 'Это цитата из сообщения',
+  })
+  @IsOptional()
+  @IsString()
+  quotedText?: string;
 }
