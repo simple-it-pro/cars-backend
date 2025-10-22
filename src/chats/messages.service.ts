@@ -4,6 +4,7 @@ import {
   forwardRef,
   Inject,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -400,6 +401,37 @@ export class MessagesService {
 
       return full;
     });
+  }
+  async deleteMessage(chatId: string, messageId: string, userId: number) {
+    const message = await this.messageRepository.findOne({
+      where: { id: messageId, chat: { id: chatId }, isDeleted: false },
+      relations: ['attachments'],
+    });
+
+    if (!message) {
+      throw new NotFoundException(ERROR_MESSAGES.MESSAGE.NOT_FOUND);
+    }
+
+    if (message.sender.id !== userId) {
+      throw new ForbiddenException(ERROR_MESSAGES.AUTH.NO_PERMISSIONS);
+    }
+
+    if (message.attachments && message.attachments.length > 0) {
+      for (const attachment of message.attachments) {
+        try {
+          await this.storageService.deleteFile(attachment.url);
+        } catch (error) {
+          throw new InternalServerErrorException('Не удалось удалить файл');
+        }
+      }
+    }
+
+    message.isDeleted = true;
+    await this.messageRepository.save(message);
+
+    return {
+      message: 'Message and attachments deleted successfully',
+    };
   }
 
   async deleteMessage(chatId: string, messageId: string, userId: number) {

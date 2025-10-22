@@ -261,6 +261,17 @@ export class ChatsService {
     return Number(result?.total ?? 0);
   }
 
+  async getUnreadCountForChat(userId: number, chatId: string): Promise<number> {
+    const result = await this.unreadChatRepository
+      .createQueryBuilder('unreadChat')
+      .select('COALESCE(SUM(unreadChat.unreadCount), 0)', 'total')
+      .where('unreadChat.userId = :userId', { userId })
+      .andWhere('unreadChat.chatId = :chatId', { chatId })
+      .getRawOne<{ total: string }>();
+
+    return Number(result?.total ?? 0);
+  }
+
   async toggleFavorite(
     chatId: string,
     userId: number,
