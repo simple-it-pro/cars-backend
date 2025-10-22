@@ -77,8 +77,30 @@ export class ChatsController {
   })
   @ApiResponse(CHAT_RESPONSES.UNREAD_COUNT)
   @Get('unread-count')
-  async getTotalUnreadCount(@AuthUser() { sub: userId }: JwtUserData) {
-    const unreadCount = await this.chatsService.getTotalUnreadCount(userId);
+  async getUnreadCountForChat(
+    @AuthUser() { sub: userId }: JwtUserData,
+    @Param('chatId', new ParseUUIDPipe()) chatId: string,
+  ) {
+    const unreadCount = await this.chatsService.getUnreadCountForChat(
+      userId,
+      chatId,
+    );
+    return { unreadCount };
+  }
+
+  @ApiOperation({
+    summary: 'Получение количества непрочитанных сообщений для чата',
+  })
+  @ApiResponse(CHAT_RESPONSES.UNREAD_COUNT)
+  @Get('unread-count/:chatId')
+  async getUnreadCountForChat(
+    @AuthUser() { sub: userId }: JwtUserData,
+    @Param() { chatId }: ChatIdParamsDto,
+  ) {
+    const unreadCount = await this.chatsService.getUnreadCountForChat(
+      userId,
+      chatId,
+    );
     return { unreadCount };
   }
 

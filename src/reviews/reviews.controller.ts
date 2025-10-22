@@ -81,7 +81,11 @@ export class ReviewsController {
     @Param() { userId }: UserReviewsParamsDto,
     @Query() { page, limit }: UserReviewsQueryDto,
   ) {
-    return this.reviewsService.getUserReceivedReviews(userId, page, limit);
+    return await this.reviewsService.getUserReceivedReviews(
+      userId,
+      page,
+      limit,
+    );
   }
 
   @Get('user/:userId/authored')
@@ -90,7 +94,11 @@ export class ReviewsController {
     @Param() { userId }: UserReviewsParamsDto,
     @Query() { page, limit }: UserReviewsQueryDto,
   ) {
-    return this.reviewsService.getUserAuthoredReviews(userId, page, limit);
+    return await this.reviewsService.getUserAuthoredReviews(
+      userId,
+      page,
+      limit,
+    );
   }
 
   @Get(':id')
@@ -106,7 +114,7 @@ export class ReviewsController {
     @AuthUser() { sub: userId }: JwtUserData,
     @Body() answerReviewDto: AnswerReviewDto,
   ) {
-    return this.reviewsService.answerReview(id, userId, answerReviewDto);
+    return await this.reviewsService.answerReview(id, userId, answerReviewDto);
   }
 
   @Patch(':id/verify')
