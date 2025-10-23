@@ -402,10 +402,10 @@ export class MessagesService {
       return full;
     });
   }
+
   async deleteMessage(chatId: string, messageId: string, userId: number) {
     const message = await this.messageRepository.findOne({
       where: { id: messageId, chat: { id: chatId }, isDeleted: false },
-      relations: ['attachments'],
     });
 
     if (!message) {
@@ -423,6 +423,17 @@ export class MessagesService {
         } catch (error) {
           throw new InternalServerErrorException('Не удалось удалить файл');
         }
+      }
+    }
+
+    if (message.voiceUrl) {
+      try {
+        await this.storageService.deleteFile(message.voiceUrl);
+      } catch (error) {
+        console.error(
+          `Failed to delete voice file: ${message.voiceUrl}`,
+          error,
+        );
       }
     }
 
