@@ -37,9 +37,7 @@ export class ChatsService {
       where: { uniqueKey },
       relations: ['users'],
     });
-    if (chat) {
-      return chat;
-    }
+    if (chat) return chat;
 
     chat = this.chatRepository.create({
       type: 'private',
@@ -68,9 +66,7 @@ export class ChatsService {
     const { name, userIds, description } = createGroupChatDto;
 
     const creator = await this.usersService.getUserById(userId);
-    if (!creator) {
-      throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
-    }
+    if (!creator) throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
 
     const participantIds = [...new Set(userIds)].filter((id) => id !== userId);
 
@@ -128,7 +124,7 @@ export class ChatsService {
 
     const qb = this.chatRepository
       .createQueryBuilder('chat')
-      .innerJoin('chat.users', 'cu', 'cu.id = :userId', { userId });
+      .innerJoin('chat.users', 'user', '"user"."id" = :userId', { userId });
 
     if (pagination.cursor) {
       const { date, id } = parseCompositeCursor(pagination.cursor);
@@ -152,8 +148,8 @@ export class ChatsService {
           .subQuery()
           .select('1')
           .from('favorite_chats', 'fc')
-          .where('fc.chat_id = chat.id')
-          .andWhere('fc.user_id = :userId')
+          .where('"fc"."chat_id" = chat.id')
+          .andWhere('"fc"."user_id" = :userId')
           .getQuery();
         return `EXISTS (${sq})`;
       });
@@ -165,9 +161,9 @@ export class ChatsService {
           .subQuery()
           .select('1')
           .from(UnreadChat, 'uc')
-          .where('uc.chatId = chat.id')
-          .andWhere('uc.userId = :userId')
-          .andWhere('uc.unreadCount > 0')
+          .where('"uc"."chatId" = chat.id')
+          .andWhere('"uc"."userId" = :userId')
+          .andWhere('"uc"."unreadCount" > 0')
           .getQuery();
         return `EXISTS (${sq})`;
       });
@@ -180,11 +176,11 @@ export class ChatsService {
         LOWER(chat.name) LIKE :term
         OR EXISTS (
           SELECT 1
-          FROM chat_users cu2
-          JOIN users u ON u.id = cu2.user_id
-          WHERE cu2.chat_id = chat.id
-            AND u.id <> :userId
-            AND (LOWER(u.name) LIKE :term OR LOWER(u.nickname) LIKE :term)
+          FROM "chat_users" "cu"
+          JOIN "users" "u" ON "u"."id" = "cu"."user_id" 
+          WHERE "cu"."chat_id" = chat.id
+            AND "u"."id" <> :userId
+            AND (LOWER("u"."name") LIKE :term OR LOWER("u"."nickname") LIKE :term)
         )
       `,
         { term, userId },
@@ -204,20 +200,18 @@ export class ChatsService {
     const hasMore = ids.length > limit;
     const pageIds = hasMore ? ids.slice(0, limit) : ids;
 
-    if (pageIds.length === 0) {
-      return { chats: [], hasMore: false };
-    }
+    if (pageIds.length === 0) return { chats: [], hasMore: false };
 
     const chats = await this.chatRepository
       .createQueryBuilder('chat')
       .leftJoinAndSelect('chat.users', 'users')
       .leftJoinAndSelect(
-        'chat.unreadChats',
-        'unreadChats',
-        'unreadChats.userId = :userId',
+        '"chat"."unreadChats"',
+        '"unreadChats"',
+        '"unreadChats"."userId" = :userId',
         { userId },
       )
-      .leftJoinAndSelect('chat.createdBy', 'createdBy')
+      .leftJoinAndSelect('"chat"."createdBy"', '"createdBy"')
       .where('chat.id IN (:...ids)', { ids: pageIds })
       .getMany();
 
@@ -241,17 +235,27 @@ export class ChatsService {
       where: { id: chatId },
       relations: ['users', 'createdBy'],
     });
-    if (!chat) {
-      throw new NotFoundException(ERROR_MESSAGES.CHAT.NOT_FOUND);
-    }
+    if (!chat) throw new NotFoundException(ERROR_MESSAGES.CHAT.NOT_FOUND);
+
     return chat;
   }
 
   async getTotalUnreadCount(userId: number): Promise<number> {
     const result = await this.unreadChatRepository
-      .createQueryBuilder('unreadChat')
-      .select('COALESCE(SUM(unreadChat.unreadCount), 0)', 'total')
-      .where('unreadChat.userId = :userId', { userId })
+      .createQueryBuilder()
+      .select('COALESCE(SUM("unreadCount"), 0)', 'total')
+      .where('"userId" = :userId', { userId })
+      .getRawOne<{ total: string }>();
+
+    return Number(result?.total ?? 0);
+  }
+
+  async getUnreadCountForChat(userId: number, chatId: string): Promise<number> {
+    const result = await this.unreadChatRepository
+      .createQueryBuilder()
+      .select('COALESCE(SUM("unreadCount"), 0)', 'total')
+      .where('"userId" = :userId', { userId })
+      .andWhere('"chatId" = :chatId', { chatId })
       .getRawOne<{ total: string }>();
 
     return Number(result?.total ?? 0);
@@ -264,17 +268,14 @@ export class ChatsService {
     const chat = await this.findChatById(chatId);
 
     const isParticipant = chat.users.some((user) => user.id === userId);
-    if (!isParticipant) {
+    if (!isParticipant)
       throw new ForbiddenException(ERROR_MESSAGES.AUTH.NO_PERMISSIONS);
-    }
 
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['favoriteChats'],
     });
-    if (!user) {
-      throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
-    }
+    if (!user) throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
 
     const isCurrentlyFavorite = user.favoriteChats.some(
       (favChat) => favChat.id === chatId,

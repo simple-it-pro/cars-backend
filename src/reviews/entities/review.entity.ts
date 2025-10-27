@@ -11,6 +11,12 @@ import { ArrayMaxSize, IsArray, ValidateNested } from 'class-validator';
 import { User } from '../../users/entities/user.entity';
 import { reviewLength } from '../../common/constants/reviews';
 
+export interface Image {
+  url: string;
+  name: string;
+  size: number;
+}
+
 @Entity({ name: 'reviews' })
 export class Review {
   @PrimaryGeneratedColumn()
@@ -69,11 +75,7 @@ export class Review {
   @ValidateNested({ each: true })
   @ArrayMaxSize(5, { message: 'Максимум можно добавить 5 изображений' })
   @Column('jsonb', { default: [] })
-  images: Array<{
-    url: string;
-    name: string;
-    size: number;
-  }>;
+  images: Array<Image>;
 
   @ApiProperty({
     type: () => User,

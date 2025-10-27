@@ -11,12 +11,14 @@ import { AuthModule } from '../auth/auth.module';
 import { UnreadChat } from './entities/unread-chat.entity';
 import { User } from '../users/entities/user.entity';
 import { MessageContent } from './entities/message-content.entity';
+import { StorageModule } from '../storage/storage.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Chat, Message, UnreadChat, User, MessageContent]),
     UsersModule,
     AuthModule,
+    StorageModule,
   ],
   controllers: [ChatsController],
   providers: [ChatsService, MessagesService, ChatsGateway],
