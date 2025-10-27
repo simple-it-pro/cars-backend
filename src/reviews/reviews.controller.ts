@@ -3,124 +3,121 @@ import {
   Controller,
   Get,
   Param,
-  ParseIntPipe,
   Patch,
   Post,
   Query,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import ReviewsService from './reviews.service';
 import { CreateReviewDto } from './dto/create-review.dto';
-import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiOperation,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { AnswerReviewDto } from './dto/answer-review.dto';
 import { JwtGuard } from '../guard/jwt.guard';
 import { AuthUser } from '../decorators/user.decorator';
 import { JwtUserData } from '../users/types';
+import { FilesInterceptor } from '@nestjs/platform-express';
+
+import { GetReviewsQueryDto } from './dto/queries/get-reviews.query.dto';
+import {
+  UserReviewsParamsDto,
+  UserReviewsQueryDto,
+} from './dto/queries/user-reviews.query.dto';
+import { ReviewIdParamsDto } from './dto/params/review-id.params.dto';
 
 @Controller('reviews')
+@ApiBearerAuth('JWT-auth')
+@UseGuards(JwtGuard)
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
-  @ApiBearerAuth('JWT-auth')
   @Post()
   @ApiOperation({ summary: 'Создать отзыв' })
+  @ApiConsumes('multipart/form-data')
   @ApiResponse({ status: 201, description: 'Отзыв создан' })
   @ApiResponse({ status: 400, description: 'Неверные данные' })
-  @UseGuards(JwtGuard)
-  create(
+  @UseInterceptors(FilesInterceptor('images', 5))
+  async create(
     @Body() createReviewDto: CreateReviewDto,
     @AuthUser() user: JwtUserData,
+    @UploadedFiles() images: Express.Multer.File[],
   ) {
-    return this.reviewsService.create(createReviewDto, user);
+    return this.reviewsService.create(createReviewDto, user, images);
   }
 
-  @ApiBearerAuth('JWT-auth')
   @Get()
   @ApiOperation({ summary: 'Получить все отзывы (с пагинацией)' })
-  @UseGuards(JwtGuard)
-  findAll(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
-    @Query('userId') userId?: number,
+  async findAll(
+    @Query() getReviewsQueryDto: GetReviewsQueryDto,
     @AuthUser() author?: JwtUserData,
   ) {
     return this.reviewsService.findAll({
-      page,
-      limit,
-      userId,
+      page: getReviewsQueryDto.page,
+      limit: getReviewsQueryDto.limit,
+      userId: getReviewsQueryDto.userId,
       authorId: author?.sub,
     });
   }
 
-  @ApiBearerAuth('JWT-auth')
   @Get('verified')
   @ApiOperation({ summary: 'Получить верифицированные отзывы' })
-  @UseGuards(JwtGuard)
-  getVerifiedReviews(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
-    @Query('userId') userId?: number,
-  ) {
-    return this.reviewsService.getVerifiedReviews(userId, page, limit);
+  async getVerifiedReviews(@Query() getReviewsQueryDto: GetReviewsQueryDto) {
+    return this.reviewsService.getVerifiedReviews(
+      getReviewsQueryDto.userId,
+      getReviewsQueryDto.page,
+      getReviewsQueryDto.limit,
+    );
   }
 
-  @ApiBearerAuth('JWT-auth')
   @Get('user/:userId/received')
   @ApiOperation({ summary: 'Получить отзывы, полученные пользователем' })
-  @UseGuards(JwtGuard)
-  getUserReceivedReviews(
-    @Param('userId', ParseIntPipe) userId: number,
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
+  async getUserReceivedReviews(
+    @Param() { userId }: UserReviewsParamsDto,
+    @Query() { page, limit }: UserReviewsQueryDto,
   ) {
     return this.reviewsService.getUserReceivedReviews(userId, page, limit);
   }
 
-  @ApiBearerAuth('JWT-auth')
   @Get('user/:userId/authored')
   @ApiOperation({ summary: 'Получить отзывы, написанные пользователем' })
-  @UseGuards(JwtGuard)
-  getUserAuthoredReviews(
-    @Param('userId', ParseIntPipe) userId: number,
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
+  async getUserAuthoredReviews(
+    @Param() { userId }: UserReviewsParamsDto,
+    @Query() { page, limit }: UserReviewsQueryDto,
   ) {
     return this.reviewsService.getUserAuthoredReviews(userId, page, limit);
   }
 
-  @ApiBearerAuth('JWT-auth')
   @Get(':id')
   @ApiOperation({ summary: 'Получить отзыв по ID' })
-  @UseGuards(JwtGuard)
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  async findOne(@Param() { id }: ReviewIdParamsDto) {
     return this.reviewsService.findOne(id);
   }
 
-  @ApiBearerAuth('JWT-auth')
   @Patch(':id/answer')
   @ApiOperation({ summary: 'Ответить на отзыв' })
-  @UseGuards(JwtGuard)
-  answerReview(
-    @Param('id', ParseIntPipe) id: number,
+  async answerReview(
+    @Param() { id }: ReviewIdParamsDto,
     @AuthUser() { sub: userId }: JwtUserData,
     @Body() answerReviewDto: AnswerReviewDto,
   ) {
     return this.reviewsService.answerReview(id, userId, answerReviewDto);
   }
 
-  @ApiBearerAuth('JWT-auth')
   @Patch(':id/verify')
   @ApiOperation({ summary: 'Верифицировать отзыв (для админа)' })
-  @UseGuards(JwtGuard)
-  verifyReview(@Param('id', ParseIntPipe) id: number) {
+  async verifyReview(@Param() { id }: ReviewIdParamsDto) {
     return this.reviewsService.verifyReview(id);
   }
 
-  @ApiBearerAuth('JWT-auth')
   @Patch(':id/unverify')
   @ApiOperation({ summary: 'Снять верификацию с отзыва (для админа)' })
-  @UseGuards(JwtGuard)
-  unverifyReview(@Param('id', ParseIntPipe) id: number) {
+  async unverifyReview(@Param() { id }: ReviewIdParamsDto) {
     return this.reviewsService.unverifyReview(id);
   }
 }

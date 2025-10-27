@@ -12,7 +12,7 @@ import {
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
-class AttachmentDto {
+export class AttachmentDto {
   @ApiProperty({
     example: 'image',
     description: 'Тип вложения',

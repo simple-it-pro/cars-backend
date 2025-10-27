@@ -6,12 +6,14 @@ import {
 } from '@nestjs/common';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Review } from './entities/review.entity';
+import { Image, Review } from './entities/review.entity';
 import { Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { reviewLength } from 'src/common/constants/reviews';
 import { AnswerReviewDto } from './dto/answer-review.dto';
 import { JwtUserData } from '../users/types';
+import { StorageService } from 'src/storage/storage.service';
+import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../common/constants/messages';
 
 @Injectable()
 export class ReviewsService {
@@ -20,45 +22,77 @@ export class ReviewsService {
     private readonly reviewsRepository: Repository<Review>,
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
+    private readonly storageService: StorageService,
   ) {}
-  async create(createReviewDto: CreateReviewDto, userData: JwtUserData) {
-    const { content, userId, rank, images, authorId } = createReviewDto;
 
-    if (userData.sub !== authorId) {
-      throw new ForbiddenException(
-        'Нельзя оставить отзыв от имени другого пользователя',
-      );
+  private validateImageFiles(files: Express.Multer.File[]): void {
+    const allowedMimeTypes = [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+    ];
+    for (const file of files) {
+      if (!allowedMimeTypes.includes(file.mimetype)) {
+        throw new BadRequestException(
+          `${ERROR_MESSAGES.REVIEW.INVALID_FILE_TYPE}. Разрешенные типы: ${allowedMimeTypes.join(', ')}`,
+        );
+      }
     }
+  }
+  async create(
+    createReviewDto: CreateReviewDto,
+    userData: JwtUserData,
+    images: Express.Multer.File[],
+  ) {
+    const { content, userId, rank, authorId } = createReviewDto;
 
-    if (userId === authorId) {
-      throw new BadRequestException('Нельзя оставить отзыв самому себе');
-    }
+    if (userData.sub !== authorId)
+      throw new ForbiddenException(ERROR_MESSAGES.REVIEW.FORBIDDEN_AUTHOR);
+
+    if (userId === authorId)
+      throw new BadRequestException(ERROR_MESSAGES.REVIEW.SELF_REVIEW);
 
     const [user, author] = await Promise.all([
       this.usersRepository.findOne({ where: { id: userId } }),
       this.usersRepository.findOne({ where: { id: authorId } }),
     ]);
 
-    if (!user) {
-      throw new NotFoundException('Пользователь не найден');
-    }
-    if (!author) {
-      throw new NotFoundException('Автор не найден');
-    }
+    if (!user)
+      throw new NotFoundException(ERROR_MESSAGES.REVIEW.USER_NOT_FOUND);
 
-    if (images && images.length > 5) {
-      throw new BadRequestException('Можно прикрепить не более 5 изображений');
+    if (!author)
+      throw new NotFoundException(ERROR_MESSAGES.REVIEW.AUTHOR_NOT_FOUND);
+
+    if (images && images.length > 5)
+      throw new BadRequestException(ERROR_MESSAGES.REVIEW.TOO_MANY_IMAGES);
+    if (images) this.validateImageFiles(images);
+
+    const reviewImages: Image[] = [];
+
+    if (images) {
+      for (const image of images) {
+        const signedUrl = await this.storageService.uploadFile(image);
+        const url = await this.storageService.getFileUrl(signedUrl);
+        reviewImages.push({
+          url,
+          size: image.size,
+          name: image.originalname,
+        });
+      }
     }
 
     const review = this.reviewsRepository.create({
       content,
       rank,
-      images: images || [],
+      images: reviewImages,
       user,
       author,
     });
 
-    return this.reviewsRepository.save(review);
+    await this.reviewsRepository.save(review);
+    return { message: SUCCESS_MESSAGES.REVIEW.CREATED, review };
   }
 
   async findAll(options?: {
@@ -85,17 +119,13 @@ export class ReviewsService {
       .skip(skip)
       .take(limit);
 
-    if (userId) {
-      queryBuilder.andWhere('review.userId = :userId', { userId });
-    }
+    if (userId) queryBuilder.andWhere('review.userId = :userId', { userId });
 
-    if (authorId) {
+    if (authorId)
       queryBuilder.andWhere('review.authorId = :authorId', { authorId });
-    }
 
-    if (isVerified !== undefined) {
+    if (isVerified !== undefined)
       queryBuilder.andWhere('review.isVerified = :isVerified', { isVerified });
-    }
 
     const [reviews, total] = await queryBuilder.getManyAndCount();
 
@@ -116,9 +146,7 @@ export class ReviewsService {
       relations: ['user', 'author'],
     });
 
-    if (!review) {
-      throw new NotFoundException('Отзыв не найден');
-    }
+    if (!review) throw new NotFoundException(ERROR_MESSAGES.REVIEW.NOT_FOUND);
 
     return review;
   }
@@ -128,7 +156,7 @@ export class ReviewsService {
     page: number = 1,
     limit: number = 10,
   ) {
-    return this.findAll({
+    return await this.findAll({
       page,
       limit,
       userId,
@@ -164,32 +192,31 @@ export class ReviewsService {
     const review = await this.findOne(id);
     const { answer } = answerDto;
 
-    if (review.user.id !== userId) {
-      throw new BadRequestException('Вы можете отвечать только на свои отзывы');
-    }
+    if (review.user.id !== userId)
+      throw new BadRequestException(ERROR_MESSAGES.REVIEW.ANSWER_FORBIDDEN);
 
-    if (answer.length > reviewLength) {
-      throw new BadRequestException(
-        `Текст ответа не должен превышать ${reviewLength} символов`,
-      );
-    }
+    if (answer.length > reviewLength)
+      throw new BadRequestException(ERROR_MESSAGES.REVIEW.ANSWER_TOO_LONG);
 
     review.answer = answer;
     review.answeredAt = new Date();
 
-    return this.reviewsRepository.save(review);
+    await this.reviewsRepository.save(review);
+    return { message: SUCCESS_MESSAGES.REVIEW.ANSWERED, review };
   }
 
   async verifyReview(id: number) {
     const review = await this.findOne(id);
     review.isVerified = true;
-    return this.reviewsRepository.save(review);
+    await this.reviewsRepository.save(review);
+    return { message: SUCCESS_MESSAGES.REVIEW.VERIFIED, review };
   }
 
   async unverifyReview(id: number) {
     const review = await this.findOne(id);
     review.isVerified = false;
-    return this.reviewsRepository.save(review);
+    await this.reviewsRepository.save(review);
+    return { message: SUCCESS_MESSAGES.REVIEW.UNVERIFIED, review };
   }
 }
 

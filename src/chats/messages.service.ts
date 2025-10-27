@@ -18,10 +18,11 @@ import {
   parseCompositeCursor,
 } from '../common/dto/pagination.dto';
 import { ChatsGateway } from './chats.gateway';
-import { ERROR_MESSAGES } from '../common/constants/messages';
+import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../common/constants/messages';
 import { UnreadChat } from './entities/unread-chat.entity';
 import { MessageContent } from './entities/message-content.entity';
 import { EditMessageDto } from './dto/edit-message.dto';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class MessagesService {
@@ -32,6 +33,7 @@ export class MessagesService {
     private readonly chatRepository: Repository<Chat>,
     @Inject(forwardRef(() => ChatsGateway))
     private readonly chatGateway: ChatsGateway,
+    private readonly storageService: StorageService,
   ) {}
 
   private async getChatAndEnsureMembership(
@@ -42,13 +44,12 @@ export class MessagesService {
       where: { id: chatId },
       relations: ['users'],
     });
-    if (!chat) {
-      throw new NotFoundException(ERROR_MESSAGES.CHAT.NOT_FOUND);
-    }
+    if (!chat) throw new NotFoundException(ERROR_MESSAGES.CHAT.NOT_FOUND);
+
     const isParticipant = chat.users.some((u) => u.id === userId);
-    if (!isParticipant) {
+    if (!isParticipant)
       throw new ForbiddenException(ERROR_MESSAGES.AUTH.NO_PERMISSIONS);
-    }
+
     return chat;
   }
 
@@ -57,9 +58,8 @@ export class MessagesService {
       where: { id: parentId, chat: { id: chatId }, isDeleted: false },
       relations: ['sender', 'currentContent', 'chat'],
     });
-    if (!parent) {
-      throw new NotFoundException(ERROR_MESSAGES.MESSAGE.NOT_FOUND);
-    }
+    if (!parent) throw new NotFoundException(ERROR_MESSAGES.MESSAGE.NOT_FOUND);
+
     return parent;
   }
 
@@ -72,9 +72,9 @@ export class MessagesService {
       throw new NotFoundException(ERROR_MESSAGES.MESSAGE.NOT_FOUND);
     }
     const isMember = source.chat.users.some((u) => u.id === requesterId);
-    if (!isMember) {
+    if (!isMember)
       throw new ForbiddenException(ERROR_MESSAGES.AUTH.NO_PERMISSIONS);
-    }
+
     return source;
   }
 
@@ -82,6 +82,7 @@ export class MessagesService {
     chatId: string,
     sender: User,
     dto: SendMessageDto,
+    files?: Express.Multer.File[],
   ): Promise<Message> {
     const hasText = Boolean(dto.content && dto.content.trim().length > 0);
     const hasVoice = Boolean(dto.voiceUrl && dto.voiceUrl.trim().length > 0);
@@ -100,7 +101,41 @@ export class MessagesService {
 
     const chat = await this.getChatAndEnsureMembership(chatId, sender.id);
 
-    const attachments = Array.isArray(dto.attachments) ? dto.attachments : [];
+    const uploadedAttachments: Array<{
+      type: 'image' | 'video' | 'file' | 'voice';
+      url: string;
+      name: string;
+      size: number;
+    }> = [];
+
+    if (files && files.length > 0) {
+      for (const file of files) {
+        const fileKey = await this.storageService.uploadFile(file);
+        const fileUrl = await this.storageService.getFileUrl(fileKey);
+
+        let fileType: 'image' | 'video' | 'file' | 'voice' = 'file';
+        if (file.mimetype.startsWith('image/')) {
+          fileType = 'image';
+        } else if (file.mimetype.startsWith('video/')) {
+          fileType = 'video';
+        } else if (file.mimetype.startsWith('audio/')) {
+          fileType = 'voice';
+        }
+
+        uploadedAttachments.push({
+          type: fileType,
+          url: fileUrl,
+          name: file.originalname,
+          size: file.size,
+        });
+      }
+    }
+
+    const dtoAttachments = Array.isArray(dto.attachments)
+      ? dto.attachments
+      : [];
+
+    const attachments = [...uploadedAttachments, ...dtoAttachments];
     const type: 'text' | 'voice' = hasVoice ? 'voice' : 'text';
     const normalizedContent = hasText ? dto.content!.trim() : '';
 
@@ -211,9 +246,8 @@ export class MessagesService {
       ],
     });
 
-    if (!full) {
-      throw new NotFoundException(ERROR_MESSAGES.MESSAGE.RELOAD_FAIL);
-    }
+    if (!full) throw new NotFoundException(ERROR_MESSAGES.MESSAGE.RELOAD_FAIL);
+
     return full;
   }
 
@@ -278,9 +312,8 @@ export class MessagesService {
     dto: EditMessageDto,
   ): Promise<Message> {
     const newTextRaw = (dto.content ?? '').trim();
-    if (!newTextRaw.length) {
+    if (!newTextRaw.length)
       throw new BadRequestException(ERROR_MESSAGES.MESSAGE.EMPTY);
-    }
 
     const chat = await this.getChatAndEnsureMembership(chatId, editorId);
 
@@ -294,9 +327,8 @@ export class MessagesService {
         .andWhere('m.chatId = :chatId', { chatId })
         .getOne();
 
-      if (!message) {
+      if (!message)
         throw new NotFoundException(ERROR_MESSAGES.MESSAGE.NOT_FOUND);
-      }
 
       const author = await manager
         .getRepository(Message)
@@ -305,9 +337,8 @@ export class MessagesService {
         .where('m.id = :id', { id: message.id })
         .getOne();
 
-      if (!author || author.sender.id !== editorId) {
+      if (!author || author.sender.id !== editorId)
         throw new ForbiddenException(ERROR_MESSAGES.AUTH.NO_PERMISSIONS);
-      }
 
       const withCurrent = await manager.findOne(Message, {
         where: { id: message.id },
@@ -319,9 +350,8 @@ export class MessagesService {
       const prevText =
         withCurrent?.currentContent?.content ?? withCurrent?.content ?? '';
 
-      if (prevText === newTextRaw) {
+      if (prevText === newTextRaw)
         throw new BadRequestException(ERROR_MESSAGES.MESSAGE.NO_CHANGES);
-      }
 
       const newVersion = await manager.save(
         manager.create(MessageContent, {
@@ -363,14 +393,70 @@ export class MessagesService {
         ],
       });
 
-      if (!full) {
+      if (!full)
         throw new NotFoundException(ERROR_MESSAGES.MESSAGE.RELOAD_FAIL);
-      }
 
       this.chatGateway.broadcastMessageEdited(chat.id, full);
 
       return full;
     });
+  }
+
+  async deleteMessage(chatId: string, messageId: string, userId: number) {
+    const message = await this.messageRepository.findOne({
+      where: { id: messageId, chat: { id: chatId }, isDeleted: false },
+      relations: ['sender'],
+    });
+
+    if (!message) throw new NotFoundException(ERROR_MESSAGES.MESSAGE.NOT_FOUND);
+
+    if (message.sender.id !== userId)
+      throw new ForbiddenException(ERROR_MESSAGES.AUTH.NO_PERMISSIONS);
+
+    const deletionErrors: string[] = [];
+
+    if (message.attachments && message.attachments.length > 0) {
+      for (const attachment of message.attachments) {
+        try {
+          await this.storageService.deleteFile(attachment.url);
+        } catch (error) {
+          const errorMsg = `${ERROR_MESSAGES.FILE.DELETION_FAILED}: ${attachment.name || attachment.url}`;
+          deletionErrors.push(errorMsg);
+          console.error(errorMsg, error);
+        }
+      }
+    }
+
+    if (message.voiceUrl) {
+      try {
+        await this.storageService.deleteFile(message.voiceUrl);
+      } catch (error) {
+        const errorMsg = `${ERROR_MESSAGES.FILE.VOICE_DELETION_FAILED}: ${message.voiceUrl}`;
+        deletionErrors.push(errorMsg);
+        console.error(errorMsg, error);
+      }
+    }
+
+    message.isDeleted = true;
+    await this.messageRepository.save(message);
+
+    if (deletionErrors.length > 0) {
+      console.warn(
+        `При удалении сообщения ${messageId} возникли ошибки с файлами:`,
+        deletionErrors,
+      );
+
+      return {
+        success: true,
+        message: SUCCESS_MESSAGES.MESSAGE.DELETED_WITH_WARNINGS,
+        warnings: deletionErrors,
+      };
+    }
+
+    return {
+      success: true,
+      message: SUCCESS_MESSAGES.MESSAGE.DELETED,
+    };
   }
 
   async markMessagesAsRead(chatId: string, userId: number): Promise<void> {

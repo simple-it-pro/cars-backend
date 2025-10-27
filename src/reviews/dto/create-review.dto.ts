@@ -1,41 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
-  IsArray,
   IsInt,
   IsNotEmpty,
   IsNumber,
-  IsOptional,
   IsString,
-  IsUrl,
   Max,
   MaxLength,
   Min,
-  ValidateNested,
 } from 'class-validator';
 import { reviewLength } from '../../common/constants/reviews';
-
-class ImageDto {
-  @ApiProperty({
-    example: 'https://example.com/image.jpg',
-    description: 'URL изображения',
-  })
-  @IsUrl()
-  url: string;
-
-  @ApiProperty({
-    example: 'photo.jpg',
-    description: 'Название изображения',
-  })
-  @IsNotEmpty()
-  name: string;
-
-  @ApiProperty({
-    example: 1024000,
-    description: 'Размер изображения в байтах',
-  })
-  @IsNumber()
-  size: number;
-}
 
 export class CreateReviewDto {
   @ApiProperty({
@@ -72,14 +45,4 @@ export class CreateReviewDto {
   @Max(5)
   @IsNotEmpty()
   rank: number;
-
-  @ApiProperty({
-    type: [ImageDto],
-    description: 'Вложения к сообщению',
-    required: false,
-  })
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  images?: ImageDto[];
 }

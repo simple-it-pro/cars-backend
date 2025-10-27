@@ -2,20 +2,22 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   Param,
-  ParseUUIDPipe,
   Patch,
   Post,
   Query,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiConsumes,
   ApiOperation,
-  ApiParam,
   ApiQuery,
   ApiResponse,
 } from '@nestjs/swagger';
@@ -33,9 +35,22 @@ import { Message } from './entities/message.entity';
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../common/constants/messages';
 import { CreateGroupChatDto } from './dto/create-group-chat.dto';
 import { EditMessageDto } from './dto/edit-message.dto';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import {
+  API_CONSUMES,
+  CHAT_QUERIES,
+  CHAT_RESPONSES,
+  MESSAGE_BODIES,
+} from './chats.swagger';
+import { ChatIdParamsDto } from './dto/params/chat-id.params.dto';
+import { DeleteMessageParamsDto } from './dto/params/delete-message.params.dto';
+import { EditMessageParamsDto } from './dto/params/edit-message.params.dto';
+import { ReplyMessageParamsDto } from './dto/params/reply-message.params.dto';
+import { ForwardMessageParamsDto } from './dto/params/forward-message.params.dto';
 
 @Controller('chats')
 @UseGuards(JwtGuard)
+@ApiBearerAuth('JWT-auth')
 export class ChatsController {
   constructor(
     private readonly chatsService: ChatsService,
@@ -43,36 +58,10 @@ export class ChatsController {
     private readonly usersService: UsersService,
   ) {}
 
-  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Получение списка чатов пользователя' })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      type: 'object',
-      properties: {
-        chats: { type: 'array', items: { $ref: '#/components/schemas/Chat' } },
-        hasMore: { type: 'boolean', example: true },
-        nextCursor: {
-          type: 'string',
-          nullable: true,
-          example: '2025-09-14T08:57:59.589Z_9c9a6b7c',
-        },
-      },
-    },
-    description: 'Список чатов пользователя с пагинацией-курсором',
-  })
-  @ApiQuery({
-    name: 'filter',
-    required: false,
-    enum: ['all', 'unread', 'favorite'],
-    description: 'Фильтр списка чатов',
-  })
-  @ApiQuery({
-    name: 'search',
-    required: false,
-    type: String,
-    description: 'Поиск по названию чата или имени/нику собеседника',
-  })
+  @ApiResponse(CHAT_RESPONSES.PAGINATED_CHATS)
+  @ApiQuery(CHAT_QUERIES.FILTER)
+  @ApiQuery(CHAT_QUERIES.SEARCH)
   @Get()
   async getUserChats(
     @AuthUser() { sub: userId }: JwtUserData,
@@ -83,25 +72,32 @@ export class ChatsController {
     return this.chatsService.getUserChats(userId, pagination, filter, search);
   }
 
-  @ApiBearerAuth('JWT-auth')
   @ApiOperation({
     summary: 'Получение общего количества непрочитанных сообщений',
   })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      type: 'object',
-      properties: { unreadCount: { type: 'number', example: 5 } },
-    },
-    description: 'Количество непрочитанных сообщений по всем чатам',
-  })
+  @ApiResponse(CHAT_RESPONSES.UNREAD_COUNT)
   @Get('unread-count')
   async getTotalUnreadCount(@AuthUser() { sub: userId }: JwtUserData) {
     const unreadCount = await this.chatsService.getTotalUnreadCount(userId);
     return { unreadCount };
   }
 
-  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Получение количества непрочитанных сообщений для чата',
+  })
+  @ApiResponse(CHAT_RESPONSES.UNREAD_COUNT)
+  @Get('unread-count/:chatId')
+  async getUnreadCountForChat(
+    @AuthUser() { sub: userId }: JwtUserData,
+    @Param() { chatId }: ChatIdParamsDto,
+  ) {
+    const unreadCount = await this.chatsService.getUnreadCountForChat(
+      userId,
+      chatId,
+    );
+    return { unreadCount };
+  }
+
   @ApiOperation({ summary: 'Получение чата по ID' })
   @ApiResponse({ status: 200, type: Chat, description: 'Данные чата' })
   @ApiResponse({
@@ -121,7 +117,6 @@ export class ChatsController {
     return chat;
   }
 
-  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Создание нового чата с пользователем' })
   @ApiResponse({
     status: 201,
@@ -145,7 +140,6 @@ export class ChatsController {
     return this.chatsService.findOrCreatePrivateChat(user, partner);
   }
 
-  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Создание группового чата' })
   @ApiResponse({ status: 201, type: Chat, description: 'Групповой чат создан' })
   @ApiResponse({ status: 400, description: 'Один из пользователей не найден' })
@@ -157,38 +151,19 @@ export class ChatsController {
     return this.chatsService.createGroupChat(userId, createGroupChatDto);
   }
 
-  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Получение сообщений чата' })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      type: 'object',
-      properties: {
-        messages: {
-          type: 'array',
-          items: { $ref: '#/components/schemas/Message' },
-        },
-        hasMore: { type: 'boolean', example: true },
-        nextCursor: {
-          type: 'string',
-          nullable: true,
-          example: '2025-09-14T08:57:59.589Z_9c9a6b7c',
-        },
-      },
-    },
-    description: 'Сообщения чата с пагинацией-курсером',
-  })
+  @ApiResponse(CHAT_RESPONSES.PAGINATED_MESSAGES)
   @Get(':chatId/messages')
   async getMessages(
     @AuthUser() { sub: userId }: JwtUserData,
-    @Param('chatId') chatId: string,
+    @Param() { chatId }: ChatIdParamsDto,
     @Query() pagination: CursorPaginationDto,
   ) {
     return this.messagesService.getMessages(chatId, pagination, userId);
   }
-
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Отправка сообщения в чат' })
+  @ApiOperation({ summary: 'Отправить сообщение в чат' })
+  @ApiConsumes(API_CONSUMES.MULTIPART_FORM_DATA)
+  @ApiBody(MESSAGE_BODIES.SEND_MESSAGE)
   @ApiResponse({
     status: 201,
     type: Message,
@@ -200,22 +175,26 @@ export class ChatsController {
     description: 'Пользователь не имеет доступа к чату',
   })
   @Post(':chatId/messages')
+  @UseInterceptors(FilesInterceptor('files', 10))
   async sendMessage(
-    @Param('chatId') chatId: string,
+    @Param() { chatId }: ChatIdParamsDto,
     @AuthUser() { sub: userId }: JwtUserData,
     @Body() sendMessageDto: SendMessageDto,
+    @UploadedFiles() files?: Express.Multer.File[],
   ) {
     const sender = await this.usersService.getUserById(userId);
     if (!sender) {
       throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
     }
-    return this.messagesService.sendMessage(chatId, sender, sendMessageDto);
+    return this.messagesService.sendMessage(
+      chatId,
+      sender,
+      sendMessageDto,
+      files,
+    );
   }
 
-  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Редактирование сообщения' })
-  @ApiParam({ name: 'chatId', description: 'ID чата' })
-  @ApiParam({ name: 'messageId', description: 'ID сообщения' })
   @ApiResponse({
     status: 200,
     type: Message,
@@ -226,44 +205,41 @@ export class ChatsController {
   @ApiResponse({ status: 404, description: 'Сообщение или чат не найдены' })
   @Patch(':chatId/messages/:messageId')
   async editMessage(
-    @Param('chatId', new ParseUUIDPipe()) chatId: string,
-    @Param('messageId', new ParseUUIDPipe()) messageId: string,
+    @Param() { chatId, messageId }: EditMessageParamsDto,
     @AuthUser() { sub: userId }: JwtUserData,
     @Body() dto: EditMessageDto,
   ) {
     return this.messagesService.editMessage(chatId, messageId, userId, dto);
   }
 
-  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Удаление сообщения' })
+  @ApiResponse(CHAT_RESPONSES.SUCCESS_RESPONSE)
+  @ApiResponse({ status: 404, description: 'Сообщение не найдено' })
+  @ApiResponse({ status: 403, description: 'Недостаточно прав для удаления' })
+  @Delete(':chatId/messages/:messageId')
+  async deleteMessage(
+    @Param() { chatId, messageId }: DeleteMessageParamsDto,
+    @AuthUser() { sub: userId }: JwtUserData,
+  ) {
+    return this.messagesService.deleteMessage(chatId, messageId, userId);
+  }
+
   @ApiOperation({ summary: 'Ответ на сообщение' })
-  @ApiParam({ name: 'chatId', description: 'ID чата' })
-  @ApiParam({
-    name: 'messageId',
-    description: 'ID сообщения, на которое отвечаем',
-  })
+  @ApiConsumes(API_CONSUMES.MULTIPART_FORM_DATA)
+  @ApiBody(MESSAGE_BODIES.REPLY_MESSAGE)
   @ApiResponse({ status: 201, type: Message, description: 'Ответ отправлен' })
   @ApiResponse({
     status: 400,
     description: 'Чат/пользователь не найден или некорректное тело запроса',
   })
   @ApiResponse({ status: 403, description: 'Недостаточно прав' })
-  @ApiBody({
-    description:
-      'Передай content/attachments/voiceUrl. replyToMessageId не нужен — берётся из URL.',
-    examples: {
-      replyText: { summary: 'Ответ текстом', value: { content: 'Ок!' } },
-      replyVoice: {
-        summary: 'Ответ голосом',
-        value: { voiceUrl: 'https://cdn.example.com/v/123.ogg' },
-      },
-    },
-  })
   @Post(':chatId/messages/:messageId/reply')
+  @UseInterceptors(FilesInterceptor('files', 10))
   async replyToMessage(
-    @Param('chatId', new ParseUUIDPipe()) chatId: string,
-    @Param('messageId', new ParseUUIDPipe()) messageId: string,
+    @Param() { chatId, messageId }: ReplyMessageParamsDto,
     @AuthUser() { sub: userId }: JwtUserData,
     @Body() body: SendMessageDto,
+    @UploadedFiles() files?: Express.Multer.File[],
   ) {
     const sender = await this.usersService.getUserById(userId);
     if (!sender) throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
@@ -275,39 +251,25 @@ export class ChatsController {
     }
 
     const dto: SendMessageDto = { ...body, replyToMessageId: messageId };
-    return this.messagesService.sendMessage(chatId, sender, dto);
+    return this.messagesService.sendMessage(chatId, sender, dto, files);
   }
 
-  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Переслать сообщение' })
-  @ApiParam({ name: 'chatId', description: 'ID чата-получателя' })
-  @ApiParam({
-    name: 'messageId',
-    description: 'ID исходного сообщения (источник пересылки)',
-  })
+  @ApiConsumes(API_CONSUMES.MULTIPART_FORM_DATA)
+  @ApiBody(MESSAGE_BODIES.FORWARD_MESSAGE)
   @ApiResponse({ status: 201, type: Message, description: 'Переслано' })
   @ApiResponse({
     status: 400,
     description: 'Чат/пользователь не найден или некорректное тело запроса',
   })
   @ApiResponse({ status: 403, description: 'Недостаточно прав' })
-  @ApiBody({
-    description:
-      'Опционально можно добавить комментарий (content) и/или вложения. forwardFromMessageId не нужен — берётся из URL.',
-    examples: {
-      forwardPlain: { summary: 'Чистая пересылка', value: {} },
-      forwardWithComment: {
-        summary: 'Пересылка с комментарием',
-        value: { content: 'Смотри' },
-      },
-    },
-  })
   @Post(':chatId/messages/:messageId/forward')
+  @UseInterceptors(FilesInterceptor('files', 10))
   async forwardMessage(
-    @Param('chatId') chatId: string,
-    @Param('messageId') messageId: string,
+    @Param() { chatId, messageId }: ForwardMessageParamsDto,
     @AuthUser() { sub: userId }: JwtUserData,
     @Body() body: SendMessageDto,
+    @UploadedFiles() files?: Express.Multer.File[],
   ) {
     const sender = await this.usersService.getUserById(userId);
     if (!sender) throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
@@ -319,39 +281,29 @@ export class ChatsController {
     }
 
     const dto: SendMessageDto = { ...body, forwardFromMessageId: messageId };
-    return this.messagesService.sendMessage(chatId, sender, dto);
+    return this.messagesService.sendMessage(chatId, sender, dto, files);
   }
 
-  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Отметить сообщения как прочитанные' })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean', example: true },
-        message: {
-          type: 'string',
-          example: 'Сообщения отмечены как прочитанные',
-        },
-      },
-    },
-    description: 'Сообщения отмечены как прочитанные',
-  })
+  @ApiResponse(CHAT_RESPONSES.SUCCESS_RESPONSE)
   @Post(':chatId/read')
   async markAsRead(
-    @Param('chatId') chatId: string,
+    @Param() { chatId }: ChatIdParamsDto,
     @AuthUser() { sub: userId }: JwtUserData,
   ) {
     await this.messagesService.markMessagesAsRead(chatId, userId);
     return { success: true, message: SUCCESS_MESSAGES.CHAT.MARK_READ };
   }
 
-  @ApiBearerAuth('JWT-auth')
-  @Post(':chatId/favorite')
   @ApiOperation({ summary: 'Добавить/убрать чат из избранного' })
+  @ApiResponse({
+    status: 200,
+    type: Chat,
+    description: 'Статус избранного изменен',
+  })
+  @Post(':chatId/favorite')
   async toggleFavorite(
-    @Param('chatId') chatId: string,
+    @Param() { chatId }: ChatIdParamsDto,
     @AuthUser() { sub: userId }: JwtUserData,
   ) {
     return this.chatsService.toggleFavorite(chatId, userId);
