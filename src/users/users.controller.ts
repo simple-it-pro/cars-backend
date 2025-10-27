@@ -1,13 +1,30 @@
-import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Patch,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
-import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { User } from './entities/user.entity';
 import { JwtGuard } from '../guard/jwt.guard';
 import { AuthUser } from '../decorators/user.decorator';
 import { JwtUserData } from './types';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { USERS_BODIES } from './users.swagger';
 
 @Controller('users')
+@UseGuards(JwtGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -17,7 +34,6 @@ export class UsersController {
     status: 200,
     type: User,
   })
-  @UseGuards(JwtGuard)
   @Get('me')
   async getMe(@AuthUser() { sub: id }: JwtUserData) {
     return this.usersService.getUserById(id);
@@ -29,12 +45,15 @@ export class UsersController {
     status: 200,
     type: User,
   })
-  @UseGuards(JwtGuard)
+  @ApiBody(USERS_BODIES.UPDATE_ME)
   @Patch('me')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FilesInterceptor('image'))
   async updateMe(
     @AuthUser() { sub: id }: JwtUserData,
     @Body() updateUserDto: UpdateUserDto,
+    @UploadedFile() image: Express.Multer.File,
   ) {
-    return this.usersService.updateUserById(id, updateUserDto);
+    return this.usersService.updateUserById(id, updateUserDto, image);
   }
 }

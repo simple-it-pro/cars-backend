@@ -58,6 +58,7 @@ export const ERROR_MESSAGES = {
   STORAGE: {
     MISSING_ENV: 'Нет обязательных переменных окружения для S3-хранилища',
     NO_FILE: 'Необходимо приложить файл',
+    UPLOAD_FAILED: 'Не удалось сохранить файл',
   },
   FILE: {
     DELETION_FAILED: 'Не удалось удалить файл',

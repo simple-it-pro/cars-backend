@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { Message } from './message.entity';
 import { ApiProperty } from '@nestjs/swagger';
+import { Asset } from '../../common/types/assets';
 
 @Entity()
 export class MessageContent {
@@ -41,12 +42,7 @@ export class MessageContent {
     ],
   })
   @Column('jsonb', { default: [] })
-  attachments: Array<{
-    type: 'image' | 'video' | 'file' | 'voice';
-    url: string;
-    name: string;
-    size: number;
-  }>;
+  attachments: Array<Asset>;
 
   @ApiProperty({ example: 1 })
   @Column({ default: 1 })

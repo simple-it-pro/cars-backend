@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Image, Review } from './entities/review.entity';
+import { Review } from './entities/review.entity';
 import { Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { reviewLength } from 'src/common/constants/reviews';
@@ -14,6 +14,7 @@ import { AnswerReviewDto } from './dto/answer-review.dto';
 import { JwtUserData } from '../users/types';
 import { StorageService } from 'src/storage/storage.service';
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../common/constants/messages';
+import { Image } from '../common/types/assets';
 
 @Injectable()
 export class ReviewsService {

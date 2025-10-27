@@ -10,12 +10,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { ArrayMaxSize, IsArray, ValidateNested } from 'class-validator';
 import { User } from '../../users/entities/user.entity';
 import { reviewLength } from '../../common/constants/reviews';
-
-export interface Image {
-  url: string;
-  name: string;
-  size: number;
-}
+import { Image } from '../../common/types/assets';
 
 @Entity({ name: 'reviews' })
 export class Review {

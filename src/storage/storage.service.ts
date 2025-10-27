@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   DeleteObjectCommand,
@@ -49,16 +53,24 @@ export class StorageService {
       throw new BadRequestException(ERROR_MESSAGES.STORAGE.NO_FILE);
     }
 
-    const key = this.generateKey(file.originalname);
-    const command = new PutObjectCommand({
-      Bucket: this.bucketName,
-      Key: key,
-      Body: file.buffer,
-      ContentType: file.mimetype,
-    });
+    try {
+      const key = this.generateKey(file.originalname);
+      const command = new PutObjectCommand({
+        Bucket: this.bucketName,
+        Key: key,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+      });
 
-    await this.s3Client.send(command);
-    return key;
+      await this.s3Client.send(command);
+      return key;
+    } catch (error) {
+      console.error('S3 upload error:', error);
+
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.STORAGE.UPLOAD_FAILED,
+      );
+    }
   }
 
   async getFileUrl(key: string): Promise<string> {

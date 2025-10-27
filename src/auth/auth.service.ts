@@ -75,41 +75,44 @@ export class AuthService {
     ip?: string,
   ): Promise<{ accessToken: string; refreshToken: string; user: User }> {
     const normalizedPhone = this.normalizePhone(phone);
+    const isTestMode = process.env.SMS_TEST_MODE;
 
-    const verification = await this.smsVerificationRepository.findOne({
-      where: {
-        phone: normalizedPhone,
-        expiresAt: MoreThan(new Date()),
-      },
-    });
+    if (!isTestMode) {
+      const verification = await this.smsVerificationRepository.findOne({
+        where: {
+          phone: normalizedPhone,
+          expiresAt: MoreThan(new Date()),
+        },
+      });
 
-    if (!verification) {
-      throw new BadRequestException(ERROR_MESSAGES.AUTH.CODE_EXPIRED);
-    }
-
-    if (verification.blockedUntil && verification.blockedUntil > new Date()) {
-      throw new ForbiddenException(ERROR_MESSAGES.AUTH.TOO_MANY_ATTEMPTS);
-    }
-
-    const isValid = await bcrypt.compare(code, verification.codeHash);
-
-    if (!isValid) {
-      verification.attempts += 1;
-
-      if (
-        verification.attempts >= Number(this.verificationConfig.maxAttempts)
-      ) {
-        verification.isBlocked = true;
-        verification.blockedUntil = new Date(
-          Date.now() + Number(this.verificationConfig.blockTime),
-        );
+      if (!verification) {
+        throw new BadRequestException(ERROR_MESSAGES.AUTH.CODE_EXPIRED);
       }
 
-      await this.smsVerificationRepository.save(verification);
-      throw new BadRequestException(ERROR_MESSAGES.AUTH.WRONG_CODE);
-    }
+      if (verification.blockedUntil && verification.blockedUntil > new Date()) {
+        throw new ForbiddenException(ERROR_MESSAGES.AUTH.TOO_MANY_ATTEMPTS);
+      }
 
-    await this.smsVerificationRepository.delete(verification.id);
+      const isValid = await bcrypt.compare(code, verification.codeHash);
+
+      if (!isValid) {
+        verification.attempts += 1;
+
+        if (
+          verification.attempts >= Number(this.verificationConfig.maxAttempts)
+        ) {
+          verification.isBlocked = true;
+          verification.blockedUntil = new Date(
+            Date.now() + Number(this.verificationConfig.blockTime),
+          );
+        }
+
+        await this.smsVerificationRepository.save(verification);
+        throw new BadRequestException(ERROR_MESSAGES.AUTH.WRONG_CODE);
+      }
+
+      await this.smsVerificationRepository.delete(verification.id);
+    }
 
     let user = await this.userRepository.findOne({
       where: { phone: normalizedPhone },

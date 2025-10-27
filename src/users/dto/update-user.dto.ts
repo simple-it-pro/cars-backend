@@ -60,7 +60,7 @@ export class UpdateUserDto {
   })
   @IsString()
   @IsOptional()
-  @MinLength(10)
+  @MinLength(3)
   city?: string;
 
   @ApiProperty({

@@ -11,8 +11,9 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
+import { Asset } from '../../common/types/assets';
 
-export class AttachmentDto {
+export class AttachmentDto implements Asset {
   @ApiProperty({
     example: 'image',
     description: 'Тип вложения',

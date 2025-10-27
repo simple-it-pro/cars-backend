@@ -1,4 +1,3 @@
-// entities/message.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -14,6 +13,7 @@ import { Chat } from './chat.entity';
 import { User } from '../../users/entities/user.entity';
 import { ApiProperty } from '@nestjs/swagger';
 import { MessageContent } from './message-content.entity';
+import { Asset } from '../../common/types/assets';
 
 @Entity()
 export class Message {
@@ -71,12 +71,7 @@ export class Message {
     description: 'Вложения к сообщению',
   })
   @Column('jsonb', { default: [] })
-  attachments: Array<{
-    type: 'image' | 'video' | 'file' | 'voice';
-    url: string;
-    name: string;
-    size: number;
-  }>;
+  attachments: Array<Asset>;
 
   @Column({ nullable: true })
   voiceUrl?: string;
