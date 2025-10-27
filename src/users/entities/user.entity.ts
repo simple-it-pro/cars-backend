@@ -63,14 +63,14 @@ export class User {
   @ApiProperty({
     example: 'John',
   })
-  @Column({ nullable: true, unique: true })
+  @Column({ nullable: true, unique: true, length: 30 })
   nickname: string;
 
   @ApiProperty({
     example: 'John Doe',
   })
   @Column({ nullable: true })
-  name: string;
+  name?: string;
 
   @ApiProperty({
     example: '2000-09-01T08:57:59.589Z',
@@ -103,13 +103,13 @@ export class User {
     example: 'Москва',
   })
   @Column({ nullable: true })
-  city: string;
+  city?: string;
 
   @ApiProperty({
     example: 'Я новичок в этом деле, но уже имею опыт и хорошие авто в гараже',
   })
-  @Column({ nullable: true })
-  about: string;
+  @Column({ nullable: true, length: 500 })
+  about?: string;
 
   @ApiProperty({
     example: {

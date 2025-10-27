@@ -23,13 +23,16 @@ export class UsersService {
 
     if (!user) throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
 
+    if (user.image)
+      user.image.url = await this.storageService.getFileUrl(user.image.url);
+
     return instanceToPlain(user) as User;
   }
 
   async updateUserById(
     id: number,
     updateUserDto: UpdateUserDto,
-    image: Express.Multer.File,
+    image?: Express.Multer.File,
   ): Promise<User> {
     const user = await this.userRepository.findOne({ where: { id } });
 
@@ -42,6 +45,8 @@ export class UsersService {
 
       if (userWithSameNickname && userWithSameNickname.id !== user.id)
         throw new BadRequestException(ERROR_MESSAGES.USER.NICKNAME_DUPLICATE);
+
+      user.nickname = updateUserDto.nickname;
     }
 
     if (updateUserDto.email) {
@@ -51,25 +56,36 @@ export class UsersService {
 
       if (userWithSameEmail && userWithSameEmail.id !== user.id)
         throw new BadRequestException(ERROR_MESSAGES.USER.EMAIL_DUPLICATE);
+
+      user.email = updateUserDto.email;
+    }
+
+    if (updateUserDto.phone) {
+      const userWithSamePhone = await this.userRepository.findOne({
+        where: { phone: updateUserDto.phone },
+      });
+
+      if (userWithSamePhone && userWithSamePhone.id !== user.id)
+        throw new BadRequestException(ERROR_MESSAGES.USER.PHONE_DUPLICATE);
+
+      user.phone = updateUserDto.phone;
     }
 
     if (image) {
+      if (user.image) await this.storageService.deleteFile(user.image.url);
+
       const url = await this.storageService.uploadFile(image);
       user.image = {
         name: image.originalname,
         size: image.size,
         url,
       };
-
-      if (user.image) await this.storageService.deleteFile(user.image.url);
     }
 
     this.userRepository.merge(user, updateUserDto);
 
-    const updatedUser = instanceToPlain(await this.userRepository.save(user));
-    return {
-      ...updatedUser,
-      image: updatedUser.image ? updatedUser.image.url : null,
-    } as User;
+    const savedUser = await this.userRepository.save(user);
+
+    return instanceToPlain(savedUser) as User;
   }
 }

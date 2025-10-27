@@ -20,7 +20,7 @@ import { JwtGuard } from '../guard/jwt.guard';
 import { AuthUser } from '../decorators/user.decorator';
 import { JwtUserData } from './types';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { USERS_BODIES } from './users.swagger';
 
 @Controller('users')
@@ -48,11 +48,11 @@ export class UsersController {
   @ApiBody(USERS_BODIES.UPDATE_ME)
   @Patch('me')
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FilesInterceptor('image'))
+  @UseInterceptors(FileInterceptor('image'))
   async updateMe(
     @AuthUser() { sub: id }: JwtUserData,
     @Body() updateUserDto: UpdateUserDto,
-    @UploadedFile() image: Express.Multer.File,
+    @UploadedFile() image?: Express.Multer.File,
   ) {
     return this.usersService.updateUserById(id, updateUserDto, image);
   }
