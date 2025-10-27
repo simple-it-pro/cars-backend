@@ -1,5 +1,5 @@
 export interface JwtUserData {
-  sub: number;
-  phone: string;
-  type: 'access' | 'refresh';
+    sub: number;
+    phone: string;
+    type: 'access' | 'refresh';
 }
