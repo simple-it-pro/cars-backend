@@ -32,7 +32,6 @@ export class UsersService {
   async updateUserById(
     id: number,
     updateUserDto: UpdateUserDto,
-    image?: Express.Multer.File,
   ): Promise<User> {
     const user = await this.userRepository.findOne({ where: { id } });
 
@@ -71,18 +70,22 @@ export class UsersService {
       user.phone = updateUserDto.phone;
     }
 
-    if (image) {
-      if (user.image) await this.storageService.deleteFile(user.image.url);
-
-      const url = await this.storageService.uploadFile(image);
-      user.image = {
-        name: image.originalname,
-        size: image.size,
-        url,
-      };
-    }
-
     this.userRepository.merge(user, updateUserDto);
+
+    const savedUser = await this.userRepository.save(user);
+
+    return instanceToPlain(savedUser) as User;
+  }
+
+  async updateAvatar(id: number, image: Express.Multer.File) {
+    const user = await this.userRepository.findOne({ where: { id } });
+
+    if (!user) throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
+
+    if (user.image) await this.storageService.deleteFile(user.image.url);
+
+    const url = await this.storageService.uploadFile(image);
+    user.image = { url, size: image.size, name: image.originalname };
 
     const savedUser = await this.userRepository.save(user);
 

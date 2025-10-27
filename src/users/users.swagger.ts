@@ -12,6 +12,13 @@ export const USERS_BODIES = {
         phone: { type: 'string', example: '+79000000000' },
         city: { type: 'string', example: 'Moscow' },
         about: { type: 'string', example: 'Hello, I am John Doe' },
+      },
+    },
+  } as ApiBodyOptions,
+  UPDATE_AVATAR: {
+    schema: {
+      type: 'object',
+      properties: {
         image: { type: 'string', format: 'binary' },
       },
     },

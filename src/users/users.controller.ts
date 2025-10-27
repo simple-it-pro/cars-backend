@@ -25,10 +25,10 @@ import { USERS_BODIES } from './users.swagger';
 
 @Controller('users')
 @UseGuards(JwtGuard)
+@ApiBearerAuth('JWT-auth')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Получение данных об авторизованном пользователе' })
   @ApiResponse({
     status: 200,
@@ -39,7 +39,6 @@ export class UsersController {
     return this.usersService.getUserById(id);
   }
 
-  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Обновление пользователем своего профиля' })
   @ApiResponse({
     status: 200,
@@ -47,13 +46,26 @@ export class UsersController {
   })
   @ApiBody(USERS_BODIES.UPDATE_ME)
   @Patch('me')
-  @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('image'))
   async updateMe(
     @AuthUser() { sub: id }: JwtUserData,
     @Body() updateUserDto: UpdateUserDto,
-    @UploadedFile() image?: Express.Multer.File,
   ) {
-    return this.usersService.updateUserById(id, updateUserDto, image);
+    return this.usersService.updateUserById(id, updateUserDto);
+  }
+
+  @ApiOperation({ summary: 'Обновление аватара' })
+  @ApiResponse({
+    status: 200,
+    type: User,
+  })
+  @ApiBody(USERS_BODIES.UPDATE_AVATAR)
+  @Patch('me/avatar')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('image'))
+  async updateAvatar(
+    @AuthUser() { sub: id }: JwtUserData,
+    @UploadedFile() image: Express.Multer.File,
+  ) {
+    return this.usersService.updateAvatar(id, image);
   }
 }
