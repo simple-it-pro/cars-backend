@@ -17,6 +17,7 @@ import Review from './review.entity';
 import Chat from './chat.entity';
 import Message from './message.entity';
 import UnreadChat from './unread-chat.entity';
+import { Image } from '../interfaces';
 
 @Entity({ name: 'users' })
 class User {
@@ -63,7 +64,7 @@ class User {
     @ApiProperty({
         example: 'John',
     })
-    @Column({ nullable: true, unique: true })
+    @Column({ nullable: true, unique: true, length: 30 })
     nickname: string;
 
     @ApiProperty({
@@ -111,6 +112,16 @@ class User {
     })
     @Column({ nullable: true })
     about: string;
+
+    @ApiProperty({
+        example: {
+            url: 'https://example.com/image.jpg',
+            name: 'photo.jpg',
+            size: 1024000,
+        },
+    })
+    @Column({ type: 'jsonb', nullable: true })
+    image: Image;
 
     @ManyToMany(() => Chat, (chat) => chat.users)
     chats: Chat[];

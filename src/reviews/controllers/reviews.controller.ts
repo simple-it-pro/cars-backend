@@ -31,7 +31,7 @@ import {
 } from '../dto/queries';
 import { ReviewIdParamsDto } from '../dto/params';
 
-@Controller('reviews')
+@Controller()
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtGuard)
 export class ReviewsController {

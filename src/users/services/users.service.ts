@@ -10,12 +10,14 @@ import { instanceToPlain } from 'class-transformer';
 import { User } from '../../database/entities';
 import { UpdateUserDto } from '../dto';
 import { ERROR_MESSAGES } from '../../common/constants/messages';
+import { StorageService } from '../../storage/services';
 
 @Injectable()
 export class UsersService {
     constructor(
         @InjectRepository(User)
         private readonly userRepository: Repository<User>,
+        private readonly storageService: StorageService,
     ) {}
 
     async getUserById(id: number): Promise<User | null> {
@@ -62,9 +64,35 @@ export class UsersService {
             }
         }
 
+        if (updateUserDto.phone) {
+            const userWithSamePhone = await this.userRepository.findOne({
+                where: { phone: updateUserDto.phone },
+            });
+
+            if (userWithSamePhone && userWithSamePhone.id !== user.id) {
+                throw new BadRequestException(
+                    ERROR_MESSAGES.USER.PHONE_DUPLICATE,
+                );
+            }
+        }
+
         this.userRepository.merge(user, updateUserDto);
 
         const updatedUser = await this.userRepository.save(user);
         return instanceToPlain(updatedUser) as User;
+    }
+
+    async updateAvatar(id: number, image: Express.Multer.File) {
+        const user = await this.userRepository.findOne({ where: { id } });
+
+        if (!user) throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
+
+        if (user.image) await this.storageService.deleteFile(user.image.url);
+
+        const url = await this.storageService.uploadFile(image);
+        user.image = { url, size: image.size, name: image.originalname };
+
+        const savedUser = await this.userRepository.save(user);
+        return instanceToPlain(savedUser) as User;
     }
 }

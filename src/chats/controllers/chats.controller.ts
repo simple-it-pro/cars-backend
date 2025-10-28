@@ -54,7 +54,7 @@ import {
     ForwardMessageParamsDto,
 } from '../dto/params';
 
-@Controller('chats')
+@Controller()
 @UseGuards(JwtGuard)
 @ApiBearerAuth('JWT-auth')
 export class ChatsController {
