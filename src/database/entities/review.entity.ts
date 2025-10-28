@@ -11,7 +11,7 @@ import { ArrayMaxSize, IsArray, ValidateNested } from 'class-validator';
 
 import User from './user.entity';
 import { reviewLength } from '../../common/constants/reviews';
-import { ReviewImage } from '../interfaces';
+import { Image } from '../interfaces';
 
 @Entity({ name: 'reviews' })
 class Review {
@@ -71,7 +71,7 @@ class Review {
     @ValidateNested({ each: true })
     @ArrayMaxSize(5, { message: 'Максимум можно добавить 5 изображений' })
     @Column('jsonb', { default: [] })
-    images: Array<ReviewImage>;
+    images: Array<Image>;
 
     @ApiProperty({
         type: () => User,

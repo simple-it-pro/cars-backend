@@ -8,7 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { User, Review } from '../../database/entities';
-import { ReviewImage } from '../../database/interfaces';
+import { Image } from '../../database/interfaces';
 import { reviewLength } from '../../common/constants/reviews';
 import { AnswerReviewDto, CreateReviewDto } from '../dto';
 import { JwtUserData } from '../../users/types';
@@ -76,7 +76,7 @@ export class ReviewsService {
             );
         if (images) this.validateImageFiles(images);
 
-        const reviewImages: ReviewImage[] = [];
+        const reviewImages: Image[] = [];
 
         if (images) {
             for (const image of images) {

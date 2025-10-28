@@ -1,23 +1,23 @@
 import {
-    Controller,
-    Post,
     Body,
-    HttpCode,
-    UseGuards,
-    Req,
+    Controller,
     Get,
+    HttpCode,
+    Post,
+    Req,
+    UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 
 import { AuthService } from '../services';
 import {
+    RefreshTokenDto,
+    RequestCodeDto,
     TokensResponseDto,
     TokensResponseDtoWithUser,
-    WSTokenResponseDto,
-    RefreshTokenDto,
     VerifyCodeDto,
-    RequestCodeDto,
+    WSTokenResponseDto,
 } from '../dto';
 import { JwtGuard, JwtRefreshGuard } from '../guards';
 import { AuthUser } from '../decorators';
@@ -91,7 +91,7 @@ export class AuthController {
     @UseGuards(JwtGuard)
     @ApiOperation({ summary: 'Запрос на получение токена веб-сокета' })
     @ApiResponse({ status: 200, type: WSTokenResponseDto })
-    async requestWebSocketToken(@AuthUser() { sub: id }: JwtUserData) {
+    requestWebSocketToken(@AuthUser() { sub: id }: JwtUserData) {
         return this.authService.generateWebSocketToken(id);
     }
 }
