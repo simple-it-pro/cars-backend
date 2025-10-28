@@ -1,98 +1,98 @@
 import { reviewLength } from './reviews';
 
 export const ERROR_MESSAGES = {
-  USER: {
-    NOT_FOUND: 'Пользователь с данным id не найден',
-    NICKNAME_DUPLICATE: 'Пользователь с таким никнеймом уже существует',
-    EMAIL_DUPLICATE: 'Пользователь с таким email уже существует',
-    SOME_NOT_FOUND: 'Один или несколько пользователей не найдены',
-    SOME_NOT_FOUND_WITH_IDS_PREFIX: 'Пользователи с id не найдены: ',
-  },
-  AUTH: {
-    SMS_FAIL: 'Не удалось отправить SMS',
-    CODE_EXPIRED: 'Код не найден или истек',
-    TOO_MANY_ATTEMPTS: 'Слишком много попыток. Попробуйте позже',
-    WRONG_CODE: 'Неверный код подтверждения',
-    INVALID_REFRESH_TOKEN: 'Невалидный refresh token',
-    WRONG_TOKEN_TYPE: 'Неверный тип токена',
-    REFRESH_TOKEN_NOT_FOUND: 'Refresh token не найден или уже использован',
-    INVALID_WEBSOCKET_TOKEN: 'Невалидный websocket token',
-    NO_PERMISSIONS: 'Недостаточно прав',
-  },
-  CHAT: {
-    NOT_FOUND: 'Чат с данным id не найден',
-    NO_PERMISSIONS: 'Пользователь не имеет доступа к чату',
-    NO_CREATOR: 'Нельзя создать групповой чат без создателя',
-  },
-  REVIEW: {
-    NOT_FOUND: 'Отзыв не найден',
-    FORBIDDEN_AUTHOR: 'Нельзя оставить отзыв от имени другого пользователя',
-    SELF_REVIEW: 'Нельзя оставить отзыв самому себе',
-    TOO_MANY_IMAGES: 'Можно прикрепить не более 5 изображений',
-    ANSWER_FORBIDDEN: 'Вы можете отвечать только на свои отзывы',
-    ANSWER_TOO_LONG: `Текст ответа не должен превышать ${reviewLength} символов`,
-    INVALID_FILE_TYPE: 'Можно загружать только файлы изображений',
-    USER_NOT_FOUND: 'Пользователь не найден',
-    AUTHOR_NOT_FOUND: 'Автор не найден',
-  },
-  MESSAGE: {
-    EMPTY: 'Сообщение должно содержать текст, вложение или голосовое сообщение',
+    USER: {
+        NOT_FOUND: 'Пользователь с данным id не найден',
+        NICKNAME_DUPLICATE: 'Пользователь с таким никнеймом уже существует',
+        EMAIL_DUPLICATE: 'Пользователь с таким email уже существует',
+        SOME_NOT_FOUND: 'Один или несколько пользователей не найдены',
+        SOME_NOT_FOUND_WITH_IDS_PREFIX: 'Пользователи с id не найдены: ',
+    },
+    AUTH: {
+        SMS_FAIL: 'Не удалось отправить SMS',
+        CODE_EXPIRED: 'Код не найден или истек',
+        TOO_MANY_ATTEMPTS: 'Слишком много попыток. Попробуйте позже',
+        WRONG_CODE: 'Неверный код подтверждения',
+        INVALID_REFRESH_TOKEN: 'Невалидный refresh token',
+        WRONG_TOKEN_TYPE: 'Неверный тип токена',
+        REFRESH_TOKEN_NOT_FOUND: 'Refresh token не найден или уже использован',
+        INVALID_WEBSOCKET_TOKEN: 'Невалидный websocket token',
+        NO_PERMISSIONS: 'Недостаточно прав',
+    },
+    CHAT: {
+        NOT_FOUND: 'Чат с данным id не найден',
+        NO_PERMISSIONS: 'Пользователь не имеет доступа к чату',
+        NO_CREATOR: 'Нельзя создать групповой чат без создателя',
+    },
+    REVIEW: {
+        NOT_FOUND: 'Отзыв не найден',
+        FORBIDDEN_AUTHOR: 'Нельзя оставить отзыв от имени другого пользователя',
+        SELF_REVIEW: 'Нельзя оставить отзыв самому себе',
+        TOO_MANY_IMAGES: 'Можно прикрепить не более 5 изображений',
+        ANSWER_FORBIDDEN: 'Вы можете отвечать только на свои отзывы',
+        ANSWER_TOO_LONG: `Текст ответа не должен превышать ${reviewLength} символов`,
+        INVALID_FILE_TYPE: 'Можно загружать только файлы изображений',
+        USER_NOT_FOUND: 'Пользователь не найден',
+        AUTHOR_NOT_FOUND: 'Автор не найден',
+    },
+    MESSAGE: {
+        EMPTY: 'Сообщение должно содержать текст, вложение или голосовое сообщение',
 
-    RELOAD_FAIL: 'Сообщение сохранено, но не удалось его перечитать',
-    NOT_FOUND: 'Сообщение не найдено',
+        RELOAD_FAIL: 'Сообщение сохранено, но не удалось его перечитать',
+        NOT_FOUND: 'Сообщение не найдено',
 
-    REPLY_TARGET_NOT_FOUND:
-      'Сообщение, на которое выполняется ответ, не найдено',
-    REPLY_ID_NOT_ALLOWED_HERE:
-      'Параметр replyToMessageId недопустим для этого запроса',
+        REPLY_TARGET_NOT_FOUND:
+            'Сообщение, на которое выполняется ответ, не найдено',
+        REPLY_ID_NOT_ALLOWED_HERE:
+            'Параметр replyToMessageId недопустим для этого запроса',
 
-    FORWARD_SOURCE_NOT_FOUND: 'Исходное сообщение для пересылки не найдено',
-    FORWARD_ID_NOT_ALLOWED_HERE:
-      'Параметр forwardFromMessageId недопустим для этого запроса',
+        FORWARD_SOURCE_NOT_FOUND: 'Исходное сообщение для пересылки не найдено',
+        FORWARD_ID_NOT_ALLOWED_HERE:
+            'Параметр forwardFromMessageId недопустим для этого запроса',
 
-    REPLY_AND_FORWARD_CONFLICT:
-      'Нельзя одновременно указывать replyToMessageId и forwardFromMessageId',
+        REPLY_AND_FORWARD_CONFLICT:
+            'Нельзя одновременно указывать replyToMessageId и forwardFromMessageId',
 
-    NO_CHANGES: 'Нечего обновлять: содержимое не изменилось',
-  },
-  STORAGE: {
-    MISSING_ENV: 'Нет обязательных переменных окружения для S3-хранилища',
-    NO_FILE: 'Необходимо приложить файл',
-  },
-  FILE: {
-    DELETION_FAILED: 'Не удалось удалить файл',
-    VOICE_DELETION_FAILED: 'Не удалось удалить голосовое сообщение',
-  },
-  DELETION: {
-    FILES_PARTIAL_FAILURE: 'Некоторые файлы не были удалены из хранилища',
-  },
+        NO_CHANGES: 'Нечего обновлять: содержимое не изменилось',
+    },
+    STORAGE: {
+        MISSING_ENV: 'Нет обязательных переменных окружения для S3-хранилища',
+        NO_FILE: 'Необходимо приложить файл',
+    },
+    FILE: {
+        DELETION_FAILED: 'Не удалось удалить файл',
+        VOICE_DELETION_FAILED: 'Не удалось удалить голосовое сообщение',
+    },
+    DELETION: {
+        FILES_PARTIAL_FAILURE: 'Некоторые файлы не были удалены из хранилища',
+    },
 } as const;
 
 export const SUCCESS_MESSAGES = {
-  AUTH: {
-    SMS_SUCCESS: 'Код подтверждения отправлен',
-  },
-  CHAT: {
-    MARK_READ: 'Сообщения отмечены как прочитанные',
-  },
-  REVIEW: {
-    CREATED: 'Отзыв успешно создан',
-    ANSWERED: 'Ответ на отзыв успешно добавлен',
-    VERIFIED: 'Отзыв верифицирован',
-    UNVERIFIED: 'Отзыв снят с верификации',
-  },
-  STORAGE: {
-    DELETED_SUCCESS: 'Файл успешно удалён',
-  },
-  MESSAGE: {
-    DELETED: 'Сообщение и все вложения успешно удалены',
-    DELETED_WITH_WARNINGS:
-      'Сообщение удалено, но некоторые файлы не были удалены из хранилища',
-  },
+    AUTH: {
+        SMS_SUCCESS: 'Код подтверждения отправлен',
+    },
+    CHAT: {
+        MARK_READ: 'Сообщения отмечены как прочитанные',
+    },
+    REVIEW: {
+        CREATED: 'Отзыв успешно создан',
+        ANSWERED: 'Ответ на отзыв успешно добавлен',
+        VERIFIED: 'Отзыв верифицирован',
+        UNVERIFIED: 'Отзыв снят с верификации',
+    },
+    STORAGE: {
+        DELETED_SUCCESS: 'Файл успешно удалён',
+    },
+    MESSAGE: {
+        DELETED: 'Сообщение и все вложения успешно удалены',
+        DELETED_WITH_WARNINGS:
+            'Сообщение удалено, но некоторые файлы не были удалены из хранилища',
+    },
 } as const;
 
 export const WARNING_MESSAGES = {
-  MESSAGE: {
-    FILES_DELETION_FAILED: 'Некоторые файлы не были удалены из хранилища',
-  },
+    MESSAGE: {
+        FILES_DELETION_FAILED: 'Некоторые файлы не были удалены из хранилища',
+    },
 } as const;

@@ -1,56 +1,25 @@
 import { Module } from '@nestjs/common';
+import { RouterModule } from '@nestjs/core';
 
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
-import { JwtStrategy } from './strategies/jwt.strategy';
+import { SharedModule } from './shared/shared.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { SmsModule } from './sms/sms.module';
 import { ChatsModule } from './chats/chats.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { StorageModule } from './storage/storage.module';
-import configuration from './config/configuration';
-import * as path from 'path';
+import ROUTES from './routes';
 
 @Module({
-  imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      load: [configuration],
-      envFilePath: '.env',
-    }),
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.POSTGRES_HOST,
-      port: parseInt(process.env.POSTGRES_PORT || '5432'),
-      username: process.env.POSTGRES_USER,
-      password: process.env.POSTGRES_PASSWORD,
-      database: process.env.POSTGRES_DB,
-      schema: process.env.POSTGRES_SCHEMA || 'public',
-      entities: [
-        path.join(__dirname, '**', 'entities', '*{.ts,.js}'),
-      ],
-      synchronize: false,
-    }),
-    PassportModule,
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get('jwt.accessSecret'),
-        signOptions: { expiresIn: configService.get('jwt.accessExpiresIn') },
-      }),
-      inject: [ConfigService],
-    }),
-    AuthModule,
-    UsersModule,
-    SmsModule,
-    ChatsModule,
-    ReviewsModule,
-    StorageModule,
-  ],
-  controllers: [],
-  providers: [JwtStrategy],
+    imports: [
+        SharedModule,
+        AuthModule,
+        UsersModule,
+        SmsModule,
+        ChatsModule,
+        ReviewsModule,
+        StorageModule,
+        RouterModule.register(ROUTES),
+    ],
 })
 export class AppModule {}
