@@ -8,6 +8,7 @@ export const ERROR_MESSAGES = {
         PHONE_DUPLICATE: 'Пользователь с таким номером телефона уже существует',
         SOME_NOT_FOUND: 'Один или несколько пользователей не найдены',
         SOME_NOT_FOUND_WITH_IDS_PREFIX: 'Пользователи с id не найдены: ',
+        CITY_NOT_FOUND: 'Не найден город',
     },
     AUTH: {
         SMS_FAIL: 'Не удалось отправить SMS',

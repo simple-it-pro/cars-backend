@@ -56,6 +56,19 @@ export class UsersController {
         return this.usersService.updateUserById(id, updateUserDto);
     }
 
+    @ApiBearerAuth('JWT-auth')
+    @ApiOperation({
+        summary: 'Получение пользователей',
+    })
+    @ApiResponse({
+        status: 200,
+        type: User,
+    })
+    @Get('getAll')
+    async getAll() {
+        return this.usersService.getAll();
+    }
+
     @ApiOperation({ summary: 'Обновление аватара' })
     @ApiResponse({
         status: 200,

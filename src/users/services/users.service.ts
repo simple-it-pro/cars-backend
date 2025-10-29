@@ -6,7 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { instanceToPlain } from 'class-transformer';
-
+import * as cities from '../../common/constants/json/russian-cities.json';
 import { User } from '../../database/entities';
 import { UpdateUserDto } from '../dto';
 import { ERROR_MESSAGES } from '../../common/constants/messages';
@@ -76,10 +76,41 @@ export class UsersService {
             }
         }
 
+        if (updateUserDto.city) {
+            const city = cities.find(
+                (city) => city.name === updateUserDto.city,
+            );
+            if (!city) {
+                throw new BadRequestException(
+                    ERROR_MESSAGES.USER.CITY_NOT_FOUND,
+                );
+            }
+            user.city = city.name;
+        }
+
         this.userRepository.merge(user, updateUserDto);
 
         const updatedUser = await this.userRepository.save(user);
         return instanceToPlain(updatedUser) as User;
+    }
+
+    async getAll() {
+        return this.userRepository.find({
+            select: {
+                id: true,
+                createdAt: true,
+                updatedAt: true,
+                login: true,
+                password: false,
+                phone: true,
+                nickname: true,
+                name: true,
+                birthdate: true,
+                city: true,
+                email: true,
+                role: true,
+            },
+        });
     }
 
     async updateAvatar(id: number, image: Express.Multer.File) {
