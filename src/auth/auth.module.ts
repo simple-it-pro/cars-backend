@@ -5,7 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { SmsModule } from '../sms/sms.module';
 import { AuthService } from './services';
 import { AuthController } from './controllers';
-import { JwtRefreshStrategy } from './strategies';
+import { JwtStrategy, JwtRefreshStrategy } from './strategies';
 import { User, SmsVerification, RefreshToken } from '../database/entities';
 
 @Module({
@@ -15,7 +15,7 @@ import { User, SmsVerification, RefreshToken } from '../database/entities';
         SmsModule,
     ],
     controllers: [AuthController],
-    providers: [AuthService, JwtRefreshStrategy],
+    providers: [AuthService, JwtStrategy, JwtRefreshStrategy],
     exports: [AuthService],
 })
 export class AuthModule {}
