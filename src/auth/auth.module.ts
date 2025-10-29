@@ -5,17 +5,19 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { SmsModule } from '../sms/sms.module';
 import { AuthService } from './services';
 import { AuthController } from './controllers';
-import { JwtRefreshStrategy } from './strategies';
+import { JwtStrategy, JwtRefreshStrategy } from './strategies';
 import { User, SmsVerification, RefreshToken } from '../database/entities';
+import { PassportModule } from '@nestjs/passport';
 
 @Module({
     imports: [
         TypeOrmModule.forFeature([User, SmsVerification, RefreshToken]),
+        PassportModule.register({ defaultStrategy: 'jwt' }),
         JwtModule,
         SmsModule,
     ],
     controllers: [AuthController],
-    providers: [AuthService, JwtRefreshStrategy],
-    exports: [AuthService],
+    providers: [AuthService, JwtStrategy, JwtRefreshStrategy],
+    exports: [AuthService, PassportModule],
 })
 export class AuthModule {}
