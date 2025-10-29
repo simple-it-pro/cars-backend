@@ -7,6 +7,7 @@ export default Joi.object({
     JWT_ACCESS_EXPIRES_IN: Joi.string().default('60m'),
     JWT_REFRESH_SECRET: Joi.string().required(),
     JWT_REFRESH_EXPIRES_IN: Joi.string().default('30d'),
+    JWT_WEBSOCKET_SECRET: Joi.string().required(),
     JWT_WEBSOCKET_EXPIRES_IN: Joi.string().default('24h'),
     PORT: Joi.number().default(3000),
     SMS_RU_API_ID: Joi.string().required(),

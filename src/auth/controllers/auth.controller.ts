@@ -7,7 +7,7 @@ import {
     Req,
     Get,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Request } from 'express';
 
 import { AuthService } from '../services';
@@ -24,6 +24,7 @@ import { AuthUser } from '../decorators';
 import { JwtUserData } from '../../users/types';
 
 @ApiTags('Auth')
+@ApiBearerAuth('JWT-auth')
 @Controller()
 export class AuthController {
     constructor(private readonly authService: AuthService) {}

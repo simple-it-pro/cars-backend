@@ -14,6 +14,7 @@ import { Repository, MoreThan } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { instanceToPlain } from 'class-transformer';
 import { randomUUID } from 'crypto';
+import { SignOptions } from 'jsonwebtoken';
 
 import { SmsService } from '../../sms/services';
 import { WSTokenResponseDto } from '../dto';
@@ -237,12 +238,14 @@ export class AuthService {
 
         const accessToken = this.jwtService.sign(accessPayload, {
             secret: this.authConfig.accessSecret,
-            expiresIn: Number(this.authConfig.accessExpiresIn),
+            expiresIn: this.authConfig
+                .accessExpiresIn as SignOptions['expiresIn'],
         });
 
         const refreshToken = this.jwtService.sign(refreshPayload, {
             secret: this.authConfig.refreshSecret,
-            expiresIn: Number(this.authConfig.refreshExpiresIn),
+            expiresIn: this.authConfig
+                .refreshExpiresIn as SignOptions['expiresIn'],
         });
 
         const tokenHash = await bcrypt.hash(refreshToken, 10);
@@ -318,7 +321,9 @@ export class AuthService {
                 type: 'websocket',
             },
             {
-                expiresIn: Number(this.authConfig.websocketExpiresIn),
+                secret: this.authConfig.websocketSecret,
+                expiresIn: this.authConfig
+                    .websocketExpiresIn as SignOptions['expiresIn'],
             },
         );
 
