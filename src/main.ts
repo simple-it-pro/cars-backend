@@ -22,7 +22,7 @@ async function bootstrap() {
             ? {
                   httpsOptions: {
                       key: fs.readFileSync(sslKeyPath),
-                      cert: fs.readFileSync(sslCertPath + '.pem'),
+                      cert: fs.readFileSync(sslCertPath),
                   },
               }
             : {};
@@ -56,4 +56,4 @@ async function bootstrap() {
     await app.listen(process.env.PORT ?? 3000);
 }
 
-void bootstrap();
+bootstrap();
