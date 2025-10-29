@@ -1,8 +1,11 @@
 import {
     Body,
     Controller,
+    Delete,
     Get,
+    Param,
     Patch,
+    Post,
     UploadedFile,
     UseGuards,
     UseInterceptors,
@@ -23,6 +26,10 @@ import { UpdateUserDto } from '../dto';
 import { User } from '../../database/entities';
 import { USERS_BODIES } from '../users.swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
+import {
+    Follower,
+    Subscription,
+} from '../../database/entities/subscription.entity';
 
 @Controller()
 @ApiBearerAuth('JWT-auth')
@@ -83,5 +90,59 @@ export class UsersController {
         @UploadedFile() image: Express.Multer.File,
     ) {
         return this.usersService.updateAvatar(id, image);
+    }
+
+    @ApiOperation({
+        summary: 'Подписка на пользователя',
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Вы успешно подписались на пользователя.',
+    })
+    @Post('subscribe')
+    async subscribeUser(
+        @AuthUser() { sub: userId }: JwtUserData,
+        @Body('targetUserId') targetUserId: number,
+    ) {
+        await this.usersService.subscribeUser(userId, targetUserId);
+        return { message: 'Вы успешно подписались на пользователя.' };
+    }
+
+    @ApiOperation({
+        summary: 'Отписка от пользователя',
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Вы успешно отписались от пользователя.',
+    })
+    @Delete('unsubscribe')
+    async unsubscribeUser(
+        @AuthUser() { sub: userId }: JwtUserData,
+        @Body('targetUserId') targetUserId: number,
+    ) {
+        await this.usersService.unsubscribeUser(userId, targetUserId);
+        return { message: 'Вы успешно отписались от пользователя.' };
+    }
+
+    @ApiOperation({ summary: 'Получение подписок пользователя' })
+    @ApiResponse({
+        status: 200,
+        type: Subscription,
+        isArray: true,
+    })
+    @Get('subscriptions/:userId')
+    async getUserSubscriptions(@Param('userId') userId: number) {
+        return this.usersService.getSubscriptions(userId);
+    }
+
+    @ApiOperation({ summary: 'Получение подписчиков пользователя' })
+    @ApiResponse({
+        status: 200,
+        type: Follower,
+        isArray: true,
+    })
+    @Get('followers/:userId')
+    async getUserFollowers(@Param('userId') userId: number) {
+        return this.usersService.getFollowers(userId);
     }
 }

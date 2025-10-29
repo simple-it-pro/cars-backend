@@ -11,6 +11,10 @@ import { User } from '../../database/entities';
 import { UpdateUserDto } from '../dto';
 import { ERROR_MESSAGES } from '../../common/constants/messages';
 import { StorageService } from '../../storage/services';
+import {
+    Follower,
+    Subscription,
+} from '../../database/entities/subscription.entity';
 
 @Injectable()
 export class UsersService {
@@ -18,6 +22,10 @@ export class UsersService {
         @InjectRepository(User)
         private readonly userRepository: Repository<User>,
         private readonly storageService: StorageService,
+        @InjectRepository(Subscription)
+        private readonly subscriptionRepository: Repository<Subscription>,
+        @InjectRepository(Follower)
+        private readonly followerRepository: Repository<Follower>,
     ) {}
 
     async getUserById(id: number): Promise<User | null> {
@@ -125,5 +133,63 @@ export class UsersService {
 
         const savedUser = await this.userRepository.save(user);
         return instanceToPlain(savedUser) as User;
+    }
+
+    async subscribeUser(userId: number, targetUserId: number): Promise<void> {
+        const user = await this.userRepository.findOne({
+            where: { id: userId },
+        });
+        const targetUser = await this.userRepository.findOne({
+            where: { id: targetUserId },
+        });
+
+        if (!user || !targetUser)
+            throw new BadRequestException('Пользователь не найден');
+
+        const existingSubscription = await this.subscriptionRepository.findOne({
+            where: { user, subscribedUser: targetUser },
+        });
+        if (existingSubscription)
+            throw new BadRequestException('Вы уже подписаны');
+
+        const subscription = this.subscriptionRepository.create({
+            user,
+            subscribedUser: targetUser,
+        });
+        await this.subscriptionRepository.save(subscription);
+    }
+
+    async unsubscribeUser(userId: number, targetUserId: number): Promise<void> {
+        const user = await this.userRepository.findOne({
+            where: { id: userId },
+        });
+        const targetUser = await this.userRepository.findOne({
+            where: { id: targetUserId },
+        });
+
+        if (!user || !targetUser)
+            throw new BadRequestException('Пользователь не найден');
+
+        const subscription = await this.subscriptionRepository.findOne({
+            where: { user, subscribedUser: targetUser },
+        });
+
+        if (!subscription) throw new BadRequestException('Вы не подписаны');
+
+        await this.subscriptionRepository.remove(subscription);
+    }
+
+    async getSubscriptions(userId: number): Promise<Subscription[]> {
+        return this.subscriptionRepository.find({
+            where: { user: { id: userId } },
+            relations: ['subscribedUser'],
+        });
+    }
+
+    async getFollowers(userId: number): Promise<Follower[]> {
+        return this.followerRepository.find({
+            where: { subscribedUser: { id: userId } },
+            relations: ['follower'],
+        });
     }
 }

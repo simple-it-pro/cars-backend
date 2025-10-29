@@ -18,6 +18,7 @@ import Chat from './chat.entity';
 import Message from './message.entity';
 import UnreadChat from './unread-chat.entity';
 import { Image } from '../interfaces';
+import { Follower, Subscription } from './subscription.entity';
 
 @Entity({ name: 'users' })
 class User {
@@ -123,6 +124,10 @@ class User {
     @Column({ type: 'jsonb', nullable: true })
     image: Image;
 
+    @ApiProperty()
+    @Column({ type: 'float', nullable: true })
+    rating: number;
+
     @ManyToMany(() => Chat, (chat) => chat.users)
     chats: Chat[];
 
@@ -133,6 +138,12 @@ class User {
         inverseJoinColumn: { name: 'chat_id', referencedColumnName: 'id' },
     })
     favoriteChats: Chat[];
+
+    @OneToMany(() => Subscription, (subscription) => subscription.user)
+    subscriptions: Subscription[];
+
+    @OneToMany(() => Follower, (follower) => follower.follower)
+    followers: Follower[];
 
     @OneToMany(() => UnreadChat, (unreadChat) => unreadChat.user)
     unreadChats: UnreadChat[];
