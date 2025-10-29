@@ -8,7 +8,7 @@ import { JwtUserData } from '../types';
 import { UpdateUserDto } from '../dto';
 import { User } from '../../database/entities';
 
-@Controller('users')
+@Controller()
 export class UsersController {
     constructor(private readonly usersService: UsersService) {}
 

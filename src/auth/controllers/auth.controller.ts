@@ -24,7 +24,7 @@ import { AuthUser } from '../decorators';
 import { JwtUserData } from '../../users/types';
 
 @ApiTags('Auth')
-@Controller('auth')
+@Controller()
 export class AuthController {
     constructor(private readonly authService: AuthService) {}
 
