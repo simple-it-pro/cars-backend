@@ -17,6 +17,7 @@ import {
     ERROR_MESSAGES,
     SUCCESS_MESSAGES,
 } from '../../common/constants/messages';
+import { UsersService } from '../../users/services';
 
 @Injectable()
 export class ReviewsService {
@@ -26,6 +27,7 @@ export class ReviewsService {
         @InjectRepository(User)
         private readonly usersRepository: Repository<User>,
         private readonly storageService: StorageService,
+        private readonly usersService: UsersService,
     ) {}
 
     private validateImageFiles(files: Express.Multer.File[]): void {
@@ -97,6 +99,8 @@ export class ReviewsService {
             user,
             author,
         });
+
+        await this.usersService.updateUserRating(userId);
 
         await this.reviewsRepository.save(review);
         return { message: SUCCESS_MESSAGES.REVIEW.CREATED, review };

@@ -7,7 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { instanceToPlain } from 'class-transformer';
 import * as cities from '../../common/constants/json/russian-cities.json';
-import { User } from '../../database/entities';
+import { Review, User } from '../../database/entities';
 import { UpdateUserDto } from '../dto';
 import { ERROR_MESSAGES } from '../../common/constants/messages';
 import { StorageService } from '../../storage/services';
@@ -26,6 +26,8 @@ export class UsersService {
         private readonly subscriptionRepository: Repository<Subscription>,
         @InjectRepository(Follower)
         private readonly followerRepository: Repository<Follower>,
+        @InjectRepository(Review)
+        private readonly reviewRepository: Repository<Review>,
     ) {}
 
     async getUserById(id: number): Promise<User | null> {
@@ -191,5 +193,32 @@ export class UsersService {
             where: { subscribedUser: { id: userId } },
             relations: ['follower'],
         });
+    }
+
+    async calculateUserRating(userId: number): Promise<number> {
+        const reviews = await this.reviewRepository.find({
+            where: { user: { id: userId } },
+        });
+
+        if (!reviews.length) return 0;
+
+        const totalRating = reviews.reduce(
+            (sum, review) => sum + review.rank,
+            0,
+        );
+        const averageRating = totalRating / reviews.length;
+        return parseFloat(averageRating.toFixed(2)); // Возвращаем среднее значение с округлением
+    }
+
+    async updateUserRating(userId: number): Promise<void> {
+        const rating = await this.calculateUserRating(userId);
+        const user = await this.userRepository.findOne({
+            where: { id: userId },
+        });
+
+        if (user) {
+            user.rating = rating;
+            await this.userRepository.save(user);
+        }
     }
 }
