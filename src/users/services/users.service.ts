@@ -67,4 +67,23 @@ export class UsersService {
         const updatedUser = await this.userRepository.save(user);
         return instanceToPlain(updatedUser) as User;
     }
+
+    async getAll() {
+        return this.userRepository.find({
+            select: {
+                id: true,
+                createdAt: true,
+                updatedAt: true,
+                login: true,
+                password: false,
+                phone: true,
+                nickname: true,
+                name: true,
+                birthdate: true,
+                city: true,
+                email: true,
+                role: true,
+            },
+        });
+    }
 }

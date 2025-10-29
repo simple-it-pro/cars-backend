@@ -7,7 +7,12 @@ import {
     Req,
     Get,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+    ApiTags,
+    ApiOperation,
+    ApiResponse,
+    ApiBearerAuth,
+} from '@nestjs/swagger';
 import { Request } from 'express';
 
 import { AuthService } from '../services';
@@ -90,6 +95,7 @@ export class AuthController {
 
     @Get('websocket-token')
     @UseGuards(JwtGuard)
+    @ApiBearerAuth('JWT-auth')
     @ApiOperation({ summary: 'Запрос на получение токена веб-сокета' })
     @ApiResponse({ status: 200, type: WSTokenResponseDto })
     async requestWebSocketToken(@AuthUser() { sub: id }: JwtUserData) {

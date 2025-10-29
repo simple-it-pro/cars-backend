@@ -139,10 +139,10 @@ export class ChatsService {
             qb.andWhere(
                 `
           (
-            COALESCE(chat."lastMessageCreatedAt", chat."createdAt") < :date
+            COALESCE("chat"."lastMessageCreatedAt", "chat"."createdAt") < :date
             OR (
-              COALESCE(chat."lastMessageCreatedAt", chat."createdAt") = :date
-              AND chat.id < :id
+              COALESCE("chat"."lastMessageCreatedAt", "chat"."createdAt") = :date
+              AND "chat"."id" < :id
             )
           )
         `,
@@ -156,7 +156,7 @@ export class ChatsService {
                     .subQuery()
                     .select('1')
                     .from('favorite_chats', 'fc')
-                    .where('"fc"."chat_id" = chat.id')
+                    .where('"fc"."chat_id" = "chat"."id"')
                     .andWhere('"fc"."user_id" = :userId')
                     .getQuery();
                 return `EXISTS (${sq})`;
@@ -169,7 +169,7 @@ export class ChatsService {
                     .subQuery()
                     .select('1')
                     .from(UnreadChat, 'uc')
-                    .where('"uc"."chatId" = chat.id')
+                    .where('"uc"."chatId" = "chat"."id"')
                     .andWhere('"uc"."userId" = :userId')
                     .andWhere('"uc"."unreadCount" > 0')
                     .getQuery();
@@ -181,12 +181,12 @@ export class ChatsService {
             const term = `%${search.trim().toLowerCase()}%`;
             qb.andWhere(
                 `
-          LOWER(chat.name) LIKE :term
+          LOWER("chat"."name") LIKE :term
           OR EXISTS (
             SELECT 1
             FROM "chat_users" "cu"
             JOIN "users" "u" ON "u"."id" = "cu"."user_id" 
-            WHERE "cu"."chat_id" = chat.id
+            WHERE "cu"."chat_id" = "chat"."id"
               AND "u"."id" <> :userId
               AND (LOWER("u"."name") LIKE :term OR LOWER("u"."nickname") LIKE :term)
           )
@@ -196,11 +196,11 @@ export class ChatsService {
         }
 
         qb.orderBy(
-            'COALESCE(chat."lastMessageCreatedAt", chat."createdAt")',
+            'COALESCE("chat"."lastMessageCreatedAt", "chat"."createdAt")',
             'DESC',
         )
-            .addOrderBy('chat.id', 'DESC')
-            .select('chat.id', 'id')
+            .addOrderBy('"chat"."id"', 'DESC')
+            .select('"chat"."id"', 'id')
             .limit(limitPlusOne);
 
         const rows = await qb.getRawMany<{ id: string }>();
@@ -214,13 +214,13 @@ export class ChatsService {
             .createQueryBuilder('chat')
             .leftJoinAndSelect('chat.users', 'users')
             .leftJoinAndSelect(
-                '"chat"."unreadChats"',
-                '"unreadChats"',
+                'chat.unreadChats',
+                'unreadChats',
                 '"unreadChats"."userId" = :userId',
                 { userId },
             )
-            .leftJoinAndSelect('"chat"."createdBy"', '"createdBy"')
-            .where('chat.id IN (:...ids)', { ids: pageIds })
+            .leftJoinAndSelect('chat.createdBy', 'createdBy')
+            .where('"chat"."id" IN (:...ids)', { ids: pageIds })
             .getMany();
 
         const order = new Map(pageIds.map((id, idx) => [id, idx]));

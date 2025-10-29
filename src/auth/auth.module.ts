@@ -7,15 +7,17 @@ import { AuthService } from './services';
 import { AuthController } from './controllers';
 import { JwtStrategy, JwtRefreshStrategy } from './strategies';
 import { User, SmsVerification, RefreshToken } from '../database/entities';
+import { PassportModule } from '@nestjs/passport';
 
 @Module({
     imports: [
         TypeOrmModule.forFeature([User, SmsVerification, RefreshToken]),
+        PassportModule.register({ defaultStrategy: 'jwt' }),
         JwtModule,
         SmsModule,
     ],
     controllers: [AuthController],
     providers: [AuthService, JwtStrategy, JwtRefreshStrategy],
-    exports: [AuthService],
+    exports: [AuthService, PassportModule],
 })
 export class AuthModule {}
