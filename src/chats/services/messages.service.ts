@@ -11,12 +11,12 @@ import { In, LessThan, Repository } from 'typeorm';
 
 import {
     Chat,
-    User,
     Message,
-    UnreadChat,
     MessageContent,
+    UnreadChat,
+    User,
 } from '../../database/entities';
-import { SendMessageDto, EditMessageDto } from '../dto';
+import { EditMessageDto, SendMessageDto } from '../dto';
 import {
     createCompositeCursor,
     CursorPaginationDto,
@@ -86,8 +86,6 @@ export class MessagesService {
 
         return source;
     }
-
-    // messages.service.ts
 
     async sendMessage(
         chatId: string,
@@ -260,10 +258,19 @@ export class MessagesService {
         if (!full)
             throw new NotFoundException(ERROR_MESSAGES.MESSAGE.RELOAD_FAIL);
 
-        const fullWithUrls = await this.addSignedUrlsToMessage(full);
-        return fullWithUrls;
+        return this.addSignedUrlsToMessage(full);
     }
+
     private async addSignedUrlsToMessage(message: Message): Promise<Message> {
+        if (message.attachments && message.attachments.length > 0) {
+            message.attachments = await Promise.all(
+                message.attachments.map(async (attachment) => ({
+                    ...attachment,
+                    url: await this.storageService.getFileUrl(attachment.url),
+                })),
+            );
+        }
+
         if (
             message.currentContent?.attachments &&
             message.currentContent.attachments.length > 0

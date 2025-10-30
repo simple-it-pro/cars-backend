@@ -12,7 +12,7 @@ export class RatingService {
         private readonly userRepository: Repository<User>,
     ) {}
 
-    async calculateUserRating(userId: number): Promise<number> {
+    private async calculateUserRating(userId: number): Promise<number> {
         const reviews = await this.reviewRepository.find({
             where: { user: { id: userId } },
         });

@@ -159,7 +159,7 @@ class User {
     @OneToMany(() => Subscription, (subscription) => subscription.user)
     subscriptions: Subscription[];
 
-    @OneToMany(() => Follower, (follower) => follower.follower)
+    @OneToMany(() => Follower, (follower) => follower.subscribedUser)
     followers: Follower[];
 
     @OneToMany(() => UnreadChat, (unreadChat) => unreadChat.user)

@@ -111,6 +111,15 @@ export class ChatsService {
     }
 
     private async addSignedUrlsToMessage(message: Message): Promise<Message> {
+        if (message.attachments && message.attachments.length > 0) {
+            message.attachments = await Promise.all(
+                message.attachments.map(async (attachment) => ({
+                    ...attachment,
+                    url: await this.storageService.getFileUrl(attachment.url),
+                })),
+            );
+        }
+
         if (message.currentContent?.attachments?.length > 0) {
             message.currentContent.attachments = await Promise.all(
                 message.currentContent.attachments.map(async (attachment) => ({
@@ -194,18 +203,10 @@ export class ChatsService {
 
         if (search?.trim()) {
             const term = `%${search.trim().toLowerCase()}%`;
-            qb.andWhere(
-                `
-          LOWER("chat"."name") LIKE :term
-          OR EXISTS (
-            SELECT 1
-            FROM "chat_users" "cu"
-            JOIN "users" "u" ON "u"."id" = "cu"."user_id" 
-            WHERE "cu"."chat_id" = "chat"."id"
-              AND "u"."id" <> :userId
-              AND (LOWER("u"."name") LIKE :term OR LOWER("u"."nickname") LIKE :term)
-          )
-        `,
+            qb.leftJoin('chat.users', 'searchUsers').andWhere(
+                '(LOWER("chat"."name") LIKE :term OR ' +
+                    '("searchUsers"."id" != :userId AND ' +
+                    '(LOWER("searchUsers"."name") LIKE :term OR LOWER("searchUsers"."nickname") LIKE :term)))',
                 { term, userId },
             );
         }

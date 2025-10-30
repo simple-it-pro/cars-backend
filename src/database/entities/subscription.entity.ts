@@ -5,7 +5,7 @@ import {
     ManyToOne,
     PrimaryGeneratedColumn,
 } from 'typeorm';
-import { User } from './index';
+import { User } from './';
 
 @Entity({ name: 'subscriptions' })
 export class Subscription {
@@ -16,7 +16,7 @@ export class Subscription {
     @JoinColumn({ name: 'user_id' })
     user: User;
 
-    @ManyToOne(() => User, (user) => user.followers)
+    @ManyToOne(() => User, (user) => user.subscriptions)
     @JoinColumn({ name: 'subscribed_user_id' })
     subscribedUser: User;
 
@@ -33,7 +33,7 @@ export class Follower {
     @JoinColumn({ name: 'follower_id' })
     follower: User;
 
-    @ManyToOne(() => User, (user) => user.subscriptions)
+    @ManyToOne(() => User, (user) => user.followers)
     @JoinColumn({ name: 'subscribed_user_id' })
     subscribedUser: User;
 
