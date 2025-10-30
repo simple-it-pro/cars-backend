@@ -1,29 +1,35 @@
 import {
-    Body,
     Controller,
-    Get,
-    HttpCode,
     Post,
-    Req,
+    Body,
+    HttpCode,
     UseGuards,
+    Req,
+    Get,
 } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+    ApiTags,
+    ApiOperation,
+    ApiResponse,
+    ApiBearerAuth,
+} from '@nestjs/swagger';
 import { Request } from 'express';
 
 import { AuthService } from '../services';
 import {
-    RefreshTokenDto,
-    RequestCodeDto,
     TokensResponseDto,
     TokensResponseDtoWithUser,
-    VerifyCodeDto,
     WSTokenResponseDto,
+    RefreshTokenDto,
+    VerifyCodeDto,
+    RequestCodeDto,
 } from '../dto';
 import { JwtGuard, JwtRefreshGuard } from '../guards';
 import { AuthUser } from '../decorators';
 import { JwtUserData } from '../../users/types';
 
 @ApiTags('Auth')
+@ApiBearerAuth('JWT-auth')
 @Controller()
 export class AuthController {
     constructor(private readonly authService: AuthService) {}
@@ -89,9 +95,10 @@ export class AuthController {
 
     @Get('websocket-token')
     @UseGuards(JwtGuard)
+    @ApiBearerAuth('JWT-auth')
     @ApiOperation({ summary: 'Запрос на получение токена веб-сокета' })
     @ApiResponse({ status: 200, type: WSTokenResponseDto })
-    requestWebSocketToken(@AuthUser() { sub: id }: JwtUserData) {
+    async requestWebSocketToken(@AuthUser() { sub: id }: JwtUserData) {
         return this.authService.generateWebSocketToken(id);
     }
 }

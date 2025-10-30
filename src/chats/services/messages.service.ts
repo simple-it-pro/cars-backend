@@ -97,8 +97,7 @@ export class MessagesService {
         const hasVoice = Boolean(
             dto.voiceUrl && dto.voiceUrl.trim().length > 0,
         );
-        const hasAttachments =
-            Array.isArray(dto.attachments) && dto.attachments.length > 0;
+        const hasAttachments = Array.isArray(files) && files.length > 0;
 
         if (
             !hasText &&

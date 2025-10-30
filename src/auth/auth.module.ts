@@ -5,7 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { SmsModule } from '../sms/sms.module';
 import { AuthService } from './services';
 import { AuthController } from './controllers';
-import { JwtRefreshStrategy, JwtStrategy } from './strategies';
+import { JwtStrategy, JwtRefreshStrategy } from './strategies';
 import { User, SmsVerification, RefreshToken } from '../database/entities';
 import { PassportModule } from '@nestjs/passport';
 
