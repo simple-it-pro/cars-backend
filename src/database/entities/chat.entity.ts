@@ -77,11 +77,6 @@ class Chat {
     lastMessage?: Message;
 
     @ApiProperty({
-        description: 'Является ли чат избранным для текущего пользователя',
-    })
-    isFavorite?: boolean;
-
-    @ApiProperty({
         type: () => User,
         description: 'Создатель чата',
         required: false,

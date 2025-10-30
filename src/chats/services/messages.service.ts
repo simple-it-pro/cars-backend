@@ -453,6 +453,7 @@ export class MessagesService {
             }
         }
 
+        this.chatGateway.broadcastMessageDeleted(chatId, message);
         message.isDeleted = true;
         await this.messageRepository.save(message);
 

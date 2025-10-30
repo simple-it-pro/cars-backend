@@ -110,16 +110,16 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         });
     }
 
-    sendMessageEditedToUser(chatId: string, message: any, recipientId: number) {
-        this.server
-            .to(`user_${recipientId}`)
-            .emit('message_edited', { chatId, message });
-    }
-
     broadcastMessageEdited(chatId: string, message: any) {
         this.server
             .to(`chat_${chatId}`)
             .emit('message_edited', { chatId, message });
+    }
+
+    broadcastMessageDeleted(chatId: string, message: any) {
+        this.server
+            .to(`chat_${chatId}`)
+            .emit('message_deleted', { chatId, message });
     }
 
     private getUserIdFromSocket(socket: Socket): number | null {
