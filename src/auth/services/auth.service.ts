@@ -332,7 +332,7 @@ export class AuthService {
 
     verifyWebSocketToken(token: string) {
         try {
-            const payload = this.jwtService.verify(token);
+            const payload = this.jwtService.verify(token, { secret: this.authConfig.websocketSecret });
             if (payload.type !== 'websocket') {
                 throw new Error(ERROR_MESSAGES.AUTH.WRONG_TOKEN_TYPE);
             }
