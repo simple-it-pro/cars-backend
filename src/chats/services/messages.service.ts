@@ -190,21 +190,11 @@ export class MessagesService {
                 message.currentContent = version;
                 message = await manager.save(Message, message);
 
-                let snippet = normalizedContent;
-                if (forwardedFrom && !snippet) {
-                    snippet = 'Пересланное сообщение';
-                } else if (type === 'voice' && !snippet) {
-                    snippet = 'Голосовое сообщение';
-                } else if (repliedMessage && !snippet && type !== 'voice') {
-                    snippet = 'Ответить';
-                }
-
                 await manager.update(
                     Chat,
                     { id: chat.id },
                     {
-                        lastMessageContent: snippet,
-                        lastMessageCreatedAt: message.createdAt,
+                        lastMessage: message,
                     },
                 );
 
@@ -330,7 +320,6 @@ export class MessagesService {
 
         return { messages: result, hasMore, nextCursor };
     }
-
     async editMessage(
         chatId: string,
         messageId: string,
@@ -401,19 +390,6 @@ export class MessagesService {
                 message.content = newTextRaw;
                 message.currentContent = newVersion;
                 await manager.save(Message, message);
-
-                if (
-                    chat.lastMessageCreatedAt &&
-                    message.createdAt &&
-                    chat.lastMessageCreatedAt.getTime() ===
-                        message.createdAt.getTime()
-                ) {
-                    await manager.update(
-                        Chat,
-                        { id: chat.id },
-                        { lastMessageContent: newTextRaw },
-                    );
-                }
 
                 const full = await manager.findOne(Message, {
                     where: { id: message.id },

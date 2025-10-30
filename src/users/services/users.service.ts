@@ -4,17 +4,13 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { instanceToPlain } from 'class-transformer';
 import * as cities from '../../common/constants/json/russian-cities.json';
-import { Review, User } from '../../database/entities';
+import { User, Follower, Subscription } from '../../database/entities';
 import { UpdateUserDto } from '../dto';
 import { ERROR_MESSAGES } from '../../common/constants/messages';
 import { StorageService } from '../../storage/services';
-import {
-    Follower,
-    Subscription,
-} from '../../database/entities/subscription.entity';
 
 @Injectable()
 export class UsersService {
@@ -26,12 +22,13 @@ export class UsersService {
         private readonly subscriptionRepository: Repository<Subscription>,
         @InjectRepository(Follower)
         private readonly followerRepository: Repository<Follower>,
-        @InjectRepository(Review)
-        private readonly reviewRepository: Repository<Review>,
     ) {}
 
     async getUserById(id: number): Promise<User | null> {
-        const user = await this.userRepository.findOne({ where: { id } });
+        const user = await this.userRepository.findOne({
+            where: { id },
+            withDeleted: false,
+        });
 
         if (!user) {
             throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
@@ -44,7 +41,9 @@ export class UsersService {
         id: number,
         updateUserDto: UpdateUserDto,
     ): Promise<User> {
-        const user = await this.userRepository.findOne({ where: { id } });
+        const user = await this.userRepository.findOne({
+            where: { id, deletedAt: IsNull() },
+        });
 
         if (!user) {
             throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
@@ -104,6 +103,7 @@ export class UsersService {
         return instanceToPlain(updatedUser) as User;
     }
 
+    /* надо будет удалить после тестирования или сделать безопасно */
     async getAll() {
         return this.userRepository.find({
             select: {
@@ -139,10 +139,10 @@ export class UsersService {
 
     async subscribeUser(userId: number, targetUserId: number): Promise<void> {
         const user = await this.userRepository.findOne({
-            where: { id: userId },
+            where: { id: userId, deletedAt: IsNull() },
         });
         const targetUser = await this.userRepository.findOne({
-            where: { id: targetUserId },
+            where: { id: targetUserId, deletedAt: IsNull() },
         });
 
         if (!user || !targetUser)
@@ -183,7 +183,7 @@ export class UsersService {
 
     async getSubscriptions(userId: number): Promise<Subscription[]> {
         return this.subscriptionRepository.find({
-            where: { user: { id: userId } },
+            where: { user: { id: userId, deletedAt: IsNull() } },
             relations: ['subscribedUser'],
         });
     }
@@ -195,30 +195,66 @@ export class UsersService {
         });
     }
 
-    async calculateUserRating(userId: number): Promise<number> {
-        const reviews = await this.reviewRepository.find({
-            where: { user: { id: userId } },
+    async getPublicProfile(id: number): Promise<Partial<User>> {
+        const user = await this.userRepository.findOne({
+            where: { id, deletedAt: IsNull() },
+            select: [
+                'id',
+                'nickname',
+                'name',
+                'city',
+                'about',
+                'image',
+                'rating',
+                'createdAt',
+            ],
         });
 
-        if (!reviews.length) return 0;
+        if (!user) {
+            throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
+        }
 
-        const totalRating = reviews.reduce(
-            (sum, review) => sum + review.rank,
-            0,
-        );
-        const averageRating = totalRating / reviews.length;
-        return parseFloat(averageRating.toFixed(2)); // Возвращаем среднее значение с округлением
+        return user;
     }
 
-    async updateUserRating(userId: number): Promise<void> {
-        const rating = await this.calculateUserRating(userId);
+    async deleteUser(id: number): Promise<void> {
         const user = await this.userRepository.findOne({
-            where: { id: userId },
+            where: { id },
+            withDeleted: false,
         });
 
-        if (user) {
-            user.rating = rating;
-            await this.userRepository.save(user);
+        if (!user) {
+            throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
         }
+
+        await this.userRepository.softDelete(id);
+    }
+
+    async deactivateUser(id: number): Promise<User> {
+        const user = await this.userRepository.findOne({
+            where: { id },
+            withDeleted: false,
+        });
+
+        if (!user) {
+            throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
+        }
+
+        user.isDeactivated = true;
+        return this.userRepository.save(user);
+    }
+
+    async activateUser(id: number): Promise<User> {
+        const user = await this.userRepository.findOne({
+            where: { id },
+            withDeleted: false,
+        });
+
+        if (!user) {
+            throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
+        }
+
+        user.isDeactivated = false;
+        return this.userRepository.save(user);
     }
 }

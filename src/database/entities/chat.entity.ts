@@ -3,6 +3,7 @@ import {
     CreateDateColumn,
     Entity,
     Index,
+    JoinColumn,
     JoinTable,
     ManyToMany,
     ManyToOne,
@@ -71,22 +72,14 @@ class Chat {
     @Index('idx_chat_unique_key')
     uniqueKey: string;
 
-    @ApiProperty({
-        example: 'Привет! Как дела?',
-        description: 'Текст последнего сообщения',
-        required: false,
-    })
-    @Column({ nullable: true })
-    lastMessageContent?: string;
+    @ManyToOne(() => Message, { nullable: true })
+    @JoinColumn()
+    lastMessage?: Message;
 
     @ApiProperty({
-        example: '2025-09-14T08:57:59.589Z',
-        description: 'Время создания последнего сообщения',
-        required: false,
+        description: 'Является ли чат избранным для текущего пользователя',
     })
-    @Index('idx_chat_last_message_created_at')
-    @Column({ nullable: true, type: 'timestamptz' })
-    lastMessageCreatedAt?: Date;
+    isFavorite?: boolean;
 
     @ApiProperty({
         type: () => User,

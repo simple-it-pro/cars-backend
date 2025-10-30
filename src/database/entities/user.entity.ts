@@ -7,6 +7,7 @@ import {
     OneToMany,
     ManyToMany,
     JoinTable,
+    DeleteDateColumn,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
@@ -39,6 +40,14 @@ class User {
     })
     @UpdateDateColumn({ type: 'timestamptz' })
     updatedAt: Date;
+
+    @ApiProperty({
+        example: '2025-09-14T08:57:59.589Z',
+        description: 'Дата удаления профиля',
+        required: false,
+    })
+    @DeleteDateColumn({ type: 'timestamptz', nullable: true })
+    deletedAt?: Date | null;
 
     @ApiProperty({
         example: UserRole.COMMON,
@@ -124,9 +133,17 @@ class User {
     @Column({ type: 'jsonb', nullable: true })
     image: Image;
 
-    @ApiProperty()
+    @ApiProperty({
+        example: 5,
+    })
     @Column({ type: 'float', nullable: true })
     rating: number;
+
+    @ApiProperty({
+        example: false,
+    })
+    @Column({ default: false })
+    isDeactivated: boolean;
 
     @ManyToMany(() => Chat, (chat) => chat.users)
     chats: Chat[];

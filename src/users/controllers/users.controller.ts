@@ -1,4 +1,5 @@
 import {
+    BadRequestException,
     Body,
     Controller,
     Delete,
@@ -23,13 +24,9 @@ import { JwtGuard } from '../../auth/guards';
 import { AuthUser } from '../../auth/decorators';
 import { JwtUserData } from '../types';
 import { UpdateUserDto } from '../dto';
-import { User } from '../../database/entities';
+import { User, Follower, Subscription } from '../../database/entities';
 import { USERS_BODIES } from '../users.swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
-import {
-    Follower,
-    Subscription,
-} from '../../database/entities/subscription.entity';
 
 @Controller()
 @ApiBearerAuth('JWT-auth')
@@ -144,5 +141,53 @@ export class UsersController {
     @Get('followers/:userId')
     async getUserFollowers(@Param('userId') userId: number) {
         return this.usersService.getFollowers(userId);
+    }
+
+    @ApiOperation({ summary: 'Получить публичный профиль пользователя' })
+    @ApiResponse({
+        status: 200,
+        type: User,
+    })
+    @Get('public/:id')
+    async getPublicProfile(@Param('id') id: number) {
+        return this.usersService.getPublicProfile(id);
+    }
+
+    @Delete('me')
+    @ApiOperation({ summary: 'Удаление профиля (soft delete)' })
+    @ApiResponse({
+        status: 200,
+        description: 'Профиль успешно удален.',
+    })
+    async deleteMe(
+        @AuthUser() { sub: id }: JwtUserData,
+        @Body('confirmation') confirmation: string,
+    ) {
+        if (confirmation !== 'DELETE_MY_ACCOUNT') {
+            throw new BadRequestException('Неверное подтверждение удаления');
+        }
+
+        await this.usersService.deleteUser(id);
+        return { message: 'Профиль успешно удален.' };
+    }
+
+    @Post('me/deactivate')
+    @ApiOperation({ summary: 'Деактивация профиля' })
+    @ApiResponse({
+        status: 200,
+        type: User,
+    })
+    async deactivateMe(@AuthUser() { sub: id }: JwtUserData) {
+        return this.usersService.deactivateUser(id);
+    }
+
+    @Post('me/activate')
+    @ApiOperation({ summary: 'Активация профиля' })
+    @ApiResponse({
+        status: 200,
+        type: User,
+    })
+    async activateMe(@AuthUser() { sub: id }: JwtUserData) {
+        return this.usersService.activateUser(id);
     }
 }

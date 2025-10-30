@@ -132,16 +132,17 @@ export class ChatsService {
             .createQueryBuilder('chat')
             .innerJoin('chat.users', 'user', '"user"."id" = :userId', {
                 userId,
-            });
+            })
+            .leftJoin('chat.lastMessage', 'lastMessage');
 
         if (pagination.cursor) {
             const { date, id } = parseCompositeCursor(pagination.cursor);
             qb.andWhere(
                 `
           (
-            COALESCE(chat."lastMessageCreatedAt", chat."createdAt") < :date
+            COALESCE(lastMessage."createdAt", chat."createdAt") < :date
             OR (
-              COALESCE(chat."lastMessageCreatedAt", chat."createdAt") = :date
+              COALESCE(lastMessage."createdAt", chat."createdAt") = :date
               AND chat.id < :id
             )
           )
@@ -196,7 +197,7 @@ export class ChatsService {
         }
 
         qb.orderBy(
-            'COALESCE(chat."lastMessageCreatedAt", chat."createdAt")',
+            'COALESCE(lastMessage."createdAt", chat."createdAt")',
             'DESC',
         )
             .addOrderBy('chat.id', 'DESC')
@@ -213,6 +214,9 @@ export class ChatsService {
         const chats = await this.chatRepository
             .createQueryBuilder('chat')
             .leftJoinAndSelect('chat.users', 'users')
+            .leftJoinAndSelect('chat.lastMessage', 'lastMessage')
+            .leftJoinAndSelect('lastMessage.sender', 'lastMessageSender')
+            .leftJoinAndSelect('lastMessage.currentContent', 'currentContent')
             .leftJoinAndSelect(
                 '"chat"."unreadChats"',
                 '"unreadChats"',
@@ -227,12 +231,10 @@ export class ChatsService {
         chats.sort((a, b) => order.get(a.id)! - order.get(b.id)!);
 
         const last = chats[chats.length - 1];
+        const lastMessageDate = last.lastMessage?.createdAt ?? last.createdAt;
         const nextCursor =
             hasMore && last
-                ? createCompositeCursor(
-                      last.lastMessageCreatedAt ?? last.createdAt,
-                      last.id,
-                  )
+                ? createCompositeCursor(lastMessageDate, last.id)
                 : undefined;
 
         return { chats, hasMore, nextCursor };

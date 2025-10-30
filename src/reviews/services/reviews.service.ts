@@ -7,7 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { User, Review } from '../../database/entities';
+import { Review, User } from '../../database/entities';
 import { Image } from '../../database/interfaces';
 import { reviewLength } from '../../common/constants/reviews';
 import { AnswerReviewDto, CreateReviewDto } from '../dto';
@@ -17,7 +17,7 @@ import {
     ERROR_MESSAGES,
     SUCCESS_MESSAGES,
 } from '../../common/constants/messages';
-import { UsersService } from '../../users/services';
+import { RatingService } from '../../users/services';
 
 @Injectable()
 export class ReviewsService {
@@ -27,7 +27,7 @@ export class ReviewsService {
         @InjectRepository(User)
         private readonly usersRepository: Repository<User>,
         private readonly storageService: StorageService,
-        private readonly usersService: UsersService,
+        private readonly ratingService: RatingService,
     ) {}
 
     private validateImageFiles(files: Express.Multer.File[]): void {
@@ -100,7 +100,7 @@ export class ReviewsService {
             author,
         });
 
-        await this.usersService.updateUserRating(userId);
+        await this.ratingService.calculateAndUpdateUserRating(userId);
 
         await this.reviewsRepository.save(review);
         return { message: SUCCESS_MESSAGES.REVIEW.CREATED, review };
