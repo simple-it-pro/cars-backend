@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import {
     ApiBearerAuth,
+    ApiBody,
     ApiConsumes,
     ApiOperation,
     ApiResponse,
@@ -30,6 +31,7 @@ import {
     GetReviewsQueryDto,
 } from '../dto/queries';
 import { ReviewIdParamsDto } from '../dto/params';
+import { REVIEWS_BODIES } from '../reviews.swagger';
 
 @Controller()
 @ApiBearerAuth('JWT-auth')
@@ -42,6 +44,7 @@ export class ReviewsController {
     @ApiConsumes('multipart/form-data')
     @ApiResponse({ status: 201, description: 'Отзыв создан' })
     @ApiResponse({ status: 400, description: 'Неверные данные' })
+    @ApiBody(REVIEWS_BODIES.CREATE_REVIEW)
     @UseInterceptors(FilesInterceptor('images', 5))
     async create(
         @Body() createReviewDto: CreateReviewDto,

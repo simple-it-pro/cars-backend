@@ -46,17 +46,14 @@ export class ReviewsService {
             }
         }
     }
+
     async create(
         createReviewDto: CreateReviewDto,
         userData: JwtUserData,
         images: Express.Multer.File[],
     ) {
-        const { content, userId, rank, authorId } = createReviewDto;
-
-        if (userData.sub !== authorId)
-            throw new ForbiddenException(
-                ERROR_MESSAGES.REVIEW.FORBIDDEN_AUTHOR,
-            );
+        const { content, userId, rank } = createReviewDto;
+        const authorId = userData.sub;
 
         if (userId === authorId)
             throw new BadRequestException(ERROR_MESSAGES.REVIEW.SELF_REVIEW);
@@ -76,16 +73,17 @@ export class ReviewsService {
             throw new BadRequestException(
                 ERROR_MESSAGES.REVIEW.TOO_MANY_IMAGES,
             );
+
         if (images) this.validateImageFiles(images);
 
         const reviewImages: Image[] = [];
 
         if (images) {
             for (const image of images) {
-                const signedUrl = await this.storageService.uploadFile(image);
-                const url = await this.storageService.getFileUrl(signedUrl);
+                const key = await this.storageService.uploadFile(image);
+
                 reviewImages.push({
-                    url,
+                    url: key,
                     size: image.size,
                     name: image.originalname,
                 });
@@ -103,7 +101,24 @@ export class ReviewsService {
         await this.ratingService.calculateAndUpdateUserRating(userId);
 
         await this.reviewsRepository.save(review);
-        return { message: SUCCESS_MESSAGES.REVIEW.CREATED, review };
+
+        const reviewWithUrls = await this.addSignedUrlsToReview(review);
+        return {
+            message: SUCCESS_MESSAGES.REVIEW.CREATED,
+            review: reviewWithUrls,
+        };
+    }
+
+    async findOne(id: number) {
+        const review = await this.reviewsRepository.findOne({
+            where: { id },
+            relations: ['user', 'author'],
+        });
+
+        if (!review)
+            throw new NotFoundException(ERROR_MESSAGES.REVIEW.NOT_FOUND);
+
+        return this.addSignedUrlsToReview(review);
     }
 
     async findAll(options?: {
@@ -142,9 +157,12 @@ export class ReviewsService {
             });
 
         const [reviews, total] = await queryBuilder.getManyAndCount();
+        const reviewsWithUrls = await Promise.all(
+            reviews.map((review) => this.addSignedUrlsToReview(review)),
+        );
 
         return {
-            reviews,
+            reviews: reviewsWithUrls,
             pagination: {
                 page,
                 limit,
@@ -152,18 +170,6 @@ export class ReviewsService {
                 pages: Math.ceil(total / limit),
             },
         };
-    }
-
-    async findOne(id: number) {
-        const review = await this.reviewsRepository.findOne({
-            where: { id },
-            relations: ['user', 'author'],
-        });
-
-        if (!review)
-            throw new NotFoundException(ERROR_MESSAGES.REVIEW.NOT_FOUND);
-
-        return review;
     }
 
     async getVerifiedReviews(
@@ -221,21 +227,49 @@ export class ReviewsService {
         review.answeredAt = new Date();
 
         await this.reviewsRepository.save(review);
-        return { message: SUCCESS_MESSAGES.REVIEW.ANSWERED, review };
+        const reviewWithUrls = await this.addSignedUrlsToReview(review);
+        return {
+            message: SUCCESS_MESSAGES.REVIEW.ANSWERED,
+            review: reviewWithUrls,
+        };
     }
 
     async verifyReview(id: number) {
         const review = await this.findOne(id);
         review.isVerified = true;
         await this.reviewsRepository.save(review);
-        return { message: SUCCESS_MESSAGES.REVIEW.VERIFIED, review };
+        const reviewWithUrls = await this.addSignedUrlsToReview(review);
+        return {
+            message: SUCCESS_MESSAGES.REVIEW.VERIFIED,
+            review: reviewWithUrls,
+        };
     }
 
     async unverifyReview(id: number) {
         const review = await this.findOne(id);
         review.isVerified = false;
         await this.reviewsRepository.save(review);
-        return { message: SUCCESS_MESSAGES.REVIEW.UNVERIFIED, review };
+        const reviewWithUrls = await this.addSignedUrlsToReview(review);
+        return {
+            message: SUCCESS_MESSAGES.REVIEW.UNVERIFIED,
+            review: reviewWithUrls,
+        };
+    }
+
+    private async addSignedUrlsToReview(review: Review): Promise<Review> {
+        if (review.images && review.images.length > 0) {
+            const imagesWithUrls = await Promise.all(
+                review.images.map(async (image) => ({
+                    ...image,
+                    url: await this.storageService.getFileUrl(image.url),
+                })),
+            );
+            return {
+                ...review,
+                images: imagesWithUrls,
+            };
+        }
+        return review;
     }
 }
 

@@ -15,7 +15,8 @@ import {
 } from '../../common/dto';
 import { ERROR_MESSAGES } from '../../common/constants/messages';
 import { UsersService } from '../../users/services';
-import { User, Chat, UnreadChat } from '../../database/entities';
+import { User, Chat, UnreadChat, Message } from '../../database/entities';
+import { StorageService } from '../../storage/services';
 
 @Injectable()
 export class ChatsService {
@@ -27,6 +28,7 @@ export class ChatsService {
         @InjectRepository(User)
         private readonly userRepository: Repository<User>,
         private readonly usersService: UsersService,
+        private readonly storageService: StorageService,
     ) {}
 
     async findOrCreatePrivateChat(userA: User, userB: User): Promise<Chat> {
@@ -106,6 +108,18 @@ export class ChatsService {
         await this.initializeChatData(savedChat, allUsers);
 
         return savedChat;
+    }
+
+    private async addSignedUrlsToMessage(message: Message): Promise<Message> {
+        if (message.currentContent?.attachments?.length > 0) {
+            message.currentContent.attachments = await Promise.all(
+                message.currentContent.attachments.map(async (attachment) => ({
+                    ...attachment,
+                    url: await this.storageService.getFileUrl(attachment.url),
+                })),
+            );
+        }
+        return message;
     }
 
     private async initializeChatData(chat: Chat, users: User[]): Promise<void> {
@@ -227,17 +241,32 @@ export class ChatsService {
             .where('"chat"."id" IN (:...ids)', { ids: pageIds })
             .getMany();
 
-        const order = new Map(pageIds.map((id, idx) => [id, idx]));
-        chats.sort((a, b) => order.get(a.id)! - order.get(b.id)!);
+        const chatsWithUrls = await Promise.all(
+            chats.map(async (chat) => {
+                if (chat.lastMessage) {
+                    const messageWithUrls = await this.addSignedUrlsToMessage(
+                        chat.lastMessage,
+                    );
+                    return {
+                        ...chat,
+                        lastMessage: messageWithUrls,
+                    };
+                }
+                return chat;
+            }),
+        );
 
-        const last = chats[chats.length - 1];
+        const order = new Map(pageIds.map((id, idx) => [id, idx]));
+        chatsWithUrls.sort((a, b) => order.get(a.id)! - order.get(b.id)!);
+
+        const last = chatsWithUrls[chatsWithUrls.length - 1];
         const lastMessageDate = last.lastMessage?.createdAt ?? last.createdAt;
         const nextCursor =
             hasMore && last
                 ? createCompositeCursor(lastMessageDate, last.id)
                 : undefined;
 
-        return { chats, hasMore, nextCursor };
+        return { chats: chatsWithUrls, hasMore, nextCursor };
     }
 
     async findChatById(chatId: string): Promise<Chat> {

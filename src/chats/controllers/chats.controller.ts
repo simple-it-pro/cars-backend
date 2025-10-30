@@ -179,6 +179,7 @@ export class ChatsController {
     ) {
         return this.messagesService.getMessages(chatId, pagination, userId);
     }
+
     @ApiOperation({ summary: 'Отправить сообщение в чат' })
     @ApiConsumes(API_CONSUMES.MULTIPART_FORM_DATA)
     @ApiBody(MESSAGE_BODIES.SEND_MESSAGE)

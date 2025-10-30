@@ -34,7 +34,8 @@ export class UsersService {
             throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
         }
 
-        return instanceToPlain(user) as User;
+        const userWithUrl = await this.addSignedUrlToUser(user);
+        return instanceToPlain(userWithUrl) as User;
     }
 
     async updateUserById(
@@ -130,11 +131,12 @@ export class UsersService {
 
         if (user.image) await this.storageService.deleteFile(user.image.url);
 
-        const url = await this.storageService.uploadFile(image);
-        user.image = { url, size: image.size, name: image.originalname };
+        const key = await this.storageService.uploadFile(image);
+        user.image = { url: key, size: image.size, name: image.originalname };
 
         const savedUser = await this.userRepository.save(user);
-        return instanceToPlain(savedUser) as User;
+        const userWithUrl = await this.addSignedUrlToUser(savedUser);
+        return instanceToPlain(userWithUrl) as User;
     }
 
     async subscribeUser(userId: number, targetUserId: number): Promise<void> {
@@ -214,7 +216,7 @@ export class UsersService {
             throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
         }
 
-        return user;
+        return this.addSignedUrlToUser(user);
     }
 
     async deleteUser(id: number): Promise<void> {
@@ -256,5 +258,21 @@ export class UsersService {
 
         user.isDeactivated = false;
         return this.userRepository.save(user);
+    }
+
+    private async addSignedUrlToUser(user: User): Promise<User> {
+        if (user.image?.url) {
+            const signedUrl = await this.storageService.getFileUrl(
+                user.image.url,
+            );
+            return {
+                ...user,
+                image: {
+                    ...user.image,
+                    url: signedUrl,
+                },
+            };
+        }
+        return user;
     }
 }

@@ -87,6 +87,8 @@ export class MessagesService {
         return source;
     }
 
+    // messages.service.ts
+
     async sendMessage(
         chatId: string,
         sender: User,
@@ -121,7 +123,6 @@ export class MessagesService {
         if (files && files.length > 0) {
             for (const file of files) {
                 const fileKey = await this.storageService.uploadFile(file);
-                const fileUrl = await this.storageService.getFileUrl(fileKey);
 
                 let fileType: 'image' | 'video' | 'file' | 'voice' = 'file';
                 if (file.mimetype.startsWith('image/')) {
@@ -134,7 +135,7 @@ export class MessagesService {
 
                 uploadedAttachments.push({
                     type: fileType,
-                    url: fileUrl,
+                    url: fileKey,
                     name: file.originalname,
                     size: file.size,
                 });
@@ -259,7 +260,57 @@ export class MessagesService {
         if (!full)
             throw new NotFoundException(ERROR_MESSAGES.MESSAGE.RELOAD_FAIL);
 
-        return full;
+        const fullWithUrls = await this.addSignedUrlsToMessage(full);
+        return fullWithUrls;
+    }
+    private async addSignedUrlsToMessage(message: Message): Promise<Message> {
+        if (
+            message.currentContent?.attachments &&
+            message.currentContent.attachments.length > 0
+        ) {
+            message.currentContent.attachments = await Promise.all(
+                message.currentContent.attachments.map(async (attachment) => ({
+                    ...attachment,
+                    url: await this.storageService.getFileUrl(attachment.url),
+                })),
+            );
+        }
+
+        if (
+            message.forwardedFrom?.currentContent?.attachments &&
+            message.forwardedFrom.currentContent.attachments.length > 0
+        ) {
+            message.forwardedFrom.currentContent.attachments =
+                await Promise.all(
+                    message.forwardedFrom.currentContent.attachments.map(
+                        async (attachment) => ({
+                            ...attachment,
+                            url: await this.storageService.getFileUrl(
+                                attachment.url,
+                            ),
+                        }),
+                    ),
+                );
+        }
+
+        if (
+            message.repliedMessage?.currentContent?.attachments &&
+            message.repliedMessage.currentContent.attachments.length > 0
+        ) {
+            message.repliedMessage.currentContent.attachments =
+                await Promise.all(
+                    message.repliedMessage.currentContent.attachments.map(
+                        async (attachment) => ({
+                            ...attachment,
+                            url: await this.storageService.getFileUrl(
+                                attachment.url,
+                            ),
+                        }),
+                    ),
+                );
+        }
+
+        return message;
     }
 
     async getMessages(
@@ -306,8 +357,14 @@ export class MessagesService {
             ],
         });
 
-        const hasMore = messages.length > limit;
-        const result = hasMore ? messages.slice(0, limit) : messages;
+        const messagesWithUrls = await Promise.all(
+            messages.map((message) => this.addSignedUrlsToMessage(message)),
+        );
+
+        const hasMore = messagesWithUrls.length > limit;
+        const result = hasMore
+            ? messagesWithUrls.slice(0, limit)
+            : messagesWithUrls;
 
         const nextCursor =
             hasMore && result.length > 0
@@ -319,6 +376,7 @@ export class MessagesService {
 
         return { messages: result, hasMore, nextCursor };
     }
+
     async editMessage(
         chatId: string,
         messageId: string,
@@ -410,9 +468,10 @@ export class MessagesService {
                         ERROR_MESSAGES.MESSAGE.RELOAD_FAIL,
                     );
 
-                this.chatGateway.broadcastMessageEdited(chat.id, full);
+                const fullWithUrls = await this.addSignedUrlsToMessage(full);
+                this.chatGateway.broadcastMessageEdited(chat.id, fullWithUrls);
 
-                return full;
+                return fullWithUrls;
             },
         );
     }
