@@ -1,8 +1,12 @@
 import { Module } from '@nestjs/common';
-import { ChatsService } from './services/chats.service';
+import { ChatsService } from './services';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { MessagesService } from './services';
+import {
+    MessagesService,
+    MessagesCoreService,
+    MessagesAttachmentService,
+} from './services';
 import { ChatsController } from './controllers';
 import { ChatsGateway } from './gateways';
 import { UsersModule } from '../users/users.module';
@@ -30,7 +34,18 @@ import {
         StorageModule,
     ],
     controllers: [ChatsController],
-    providers: [ChatsService, MessagesService, ChatsGateway],
-    exports: [ChatsService, MessagesService],
+    providers: [
+        ChatsService,
+        MessagesService,
+        MessagesCoreService,
+        MessagesAttachmentService,
+        ChatsGateway,
+    ],
+    exports: [
+        ChatsService,
+        MessagesService,
+        MessagesCoreService,
+        MessagesAttachmentService,
+    ],
 })
 export class ChatsModule {}
