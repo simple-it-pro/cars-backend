@@ -9,6 +9,7 @@ import {
 import { ApiProperty } from '@nestjs/swagger';
 
 import Message from './message.entity';
+import { Asset } from '../interfaces';
 
 @Entity({ name: 'message_contents' })
 class MessageContent {
@@ -42,12 +43,7 @@ class MessageContent {
         ],
     })
     @Column('jsonb', { default: [] })
-    attachments: Array<{
-        type: 'image' | 'video' | 'file' | 'voice';
-        url: string;
-        name: string;
-        size: number;
-    }>;
+    attachments: Array<Asset>;
 
     @ApiProperty({ example: 1 })
     @Column({ default: 1 })

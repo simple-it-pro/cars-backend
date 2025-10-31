@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { StorageService } from '../../storage/services';
 import { Message } from '../../database/entities';
 import { ERROR_MESSAGES } from '../../common/constants/messages';
+import { Asset } from '../../database/interfaces';
 
 @Injectable()
 export class MessagesAttachmentService {
@@ -21,42 +22,55 @@ export class MessagesAttachmentService {
         return await this.storageService.uploadFile(file);
     }
 
-    async processMessageAttachments(files?: Express.Multer.File[]): Promise<
-        Array<{
-            type: 'image' | 'video' | 'file';
-            url: string;
-            name: string;
-            size: number;
-        }>
-    > {
-        const uploadedAttachments: Array<{
-            type: 'image' | 'video' | 'file';
-            url: string;
-            name: string;
-            size: number;
+    async processMessageAttachments(files?: Express.Multer.File[]): Promise<{
+        attachments: Array<Asset>;
+        errors: Array<{
+            fileName: string;
+            error: string;
+        }>;
+    }> {
+        const uploadedAttachments: Array<Asset> = [];
+
+        const errors: Array<{
+            fileName: string;
+            error: string;
         }> = [];
 
         if (files && files.length > 0) {
             for (const file of files) {
-                const fileKey = await this.storageService.uploadFile(file);
+                try {
+                    const fileKey = await this.storageService.uploadFile(file);
 
-                let fileType: 'image' | 'video' | 'file' = 'file';
-                if (file.mimetype.startsWith('image/')) {
-                    fileType = 'image';
-                } else if (file.mimetype.startsWith('video/')) {
-                    fileType = 'video';
+                    let fileType: 'image' | 'video' | 'file' = 'file';
+                    if (file.mimetype.startsWith('image/')) {
+                        fileType = 'image';
+                    } else if (file.mimetype.startsWith('video/')) {
+                        fileType = 'video';
+                    }
+
+                    uploadedAttachments.push({
+                        type: fileType,
+                        url: fileKey,
+                        name: file.originalname,
+                        size: file.size,
+                    });
+                } catch (error) {
+                    console.error(
+                        `Failed to upload file ${file.originalname}:`,
+                        error,
+                    );
+                    errors.push({
+                        fileName: file.originalname,
+                        error: error.message || 'Unknown upload error',
+                    });
                 }
-
-                uploadedAttachments.push({
-                    type: fileType,
-                    url: fileKey,
-                    name: file.originalname,
-                    size: file.size,
-                });
             }
         }
 
-        return uploadedAttachments;
+        return {
+            attachments: uploadedAttachments,
+            errors,
+        };
     }
 
     async addSignedUrlsToMessage(message: Message): Promise<Message> {

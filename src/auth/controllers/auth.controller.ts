@@ -98,7 +98,7 @@ export class AuthController {
     @ApiBearerAuth('JWT-auth')
     @ApiOperation({ summary: 'Запрос на получение токена веб-сокета' })
     @ApiResponse({ status: 200, type: WSTokenResponseDto })
-    async requestWebSocketToken(@AuthUser() { sub: id }: JwtUserData) {
+    requestWebSocketToken(@AuthUser() { sub: id }: JwtUserData) {
         return this.authService.generateWebSocketToken(id);
     }
 }

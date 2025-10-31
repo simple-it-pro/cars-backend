@@ -82,14 +82,14 @@ export class MessagesCoreService {
         attachments: Asset[],
         versionNumber: number,
     ): Promise<MessageContent> {
-        let version = manager.create(MessageContent, {
+        const version = manager.create(MessageContent, {
             message,
             content,
             attachments,
             version: versionNumber,
         } as Partial<MessageContent>);
 
-        return await manager.save(MessageContent, version);
+        return manager.save(MessageContent, version);
     }
 
     async updateUnreadCounts(
@@ -200,10 +200,10 @@ export class MessagesCoreService {
                 .createQueryBuilder()
                 .update(Message)
                 .set({ isRead: true })
-                .where('chatId = :chatId', { chatId })
-                .andWhere('isDeleted = false')
-                .andWhere('isRead = false')
-                .andWhere('senderId != :userId', { userId })
+                .where('"chatId" = :chatId', { chatId })
+                .andWhere('"isDeleted" = false')
+                .andWhere('"isRead" = false')
+                .andWhere('"senderId" != :userId', { userId })
                 .execute();
 
             const unread = await manager.findOne(UnreadChat, {

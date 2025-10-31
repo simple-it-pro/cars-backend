@@ -9,7 +9,10 @@ import { instanceToPlain } from 'class-transformer';
 import * as cities from '../../common/constants/json/russian-cities.json';
 import { User, Follower, Subscription } from '../../database/entities';
 import { UpdateUserDto } from '../dto';
-import { ERROR_MESSAGES } from '../../common/constants/messages';
+import {
+    ERROR_MESSAGES,
+    WARNING_MESSAGES,
+} from '../../common/constants/messages';
 import { StorageService } from '../../storage/services';
 import { RatingService } from './rating.service';
 
@@ -131,20 +134,35 @@ export class UsersService {
 
         if (!user) throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
 
-        if (user.image) await this.storageService.deleteFile(user.image.url);
+        try {
+            if (user.image) {
+                await this.storageService.deleteFile(user.image.url);
+            }
+        } catch (error) {
+            console.warn(WARNING_MESSAGES.USER.AVATAR_DELETION_FAILED, error);
+        }
 
-        const key = await this.storageService.uploadFile(image);
-        user.image = { url: key, size: image.size, name: image.originalname };
+        try {
+            const key = await this.storageService.uploadFile(image);
+            user.image = {
+                url: key,
+                size: image.size,
+                name: image.originalname,
+            };
 
-        const savedUser = await this.userRepository.save(user);
-        const userWithUrl = await this.addSignedUrlToUser(savedUser);
-        return instanceToPlain(userWithUrl) as User;
+            const savedUser = await this.userRepository.save(user);
+            const userWithUrl = await this.addSignedUrlToUser(savedUser);
+            return instanceToPlain(userWithUrl) as User;
+        } catch (error) {
+            throw new BadRequestException(ERROR_MESSAGES.AVATAR.UPLOAD_FAILED);
+        }
     }
 
     async subscribeUser(userId: number, targetUserId: number): Promise<void> {
-        if (userId === targetUserId) {
-            throw new BadRequestException('Нельзя подписаться на самого себя');
-        }
+        if (userId === targetUserId)
+            throw new BadRequestException(
+                ERROR_MESSAGES.SUBSCRIPTION.SELF_SUBSCRIBE,
+            );
 
         const [user, targetUser] = await Promise.all([
             this.userRepository.findOne({
@@ -155,9 +173,10 @@ export class UsersService {
             }),
         ]);
 
-        if (!user || !targetUser) {
-            throw new BadRequestException('Пользователь не найден');
-        }
+        if (!(user && targetUser))
+            throw new BadRequestException(
+                ERROR_MESSAGES.SUBSCRIPTION.USER_NOT_FOUND,
+            );
 
         const existingSubscription = await this.subscriptionRepository.findOne({
             where: {
@@ -166,11 +185,10 @@ export class UsersService {
             },
         });
 
-        if (existingSubscription) {
+        if (existingSubscription)
             throw new BadRequestException(
-                'Вы уже подписаны на этого пользователя',
+                ERROR_MESSAGES.SUBSCRIPTION.ALREADY_SUBSCRIBED,
             );
-        }
 
         const subscription = this.subscriptionRepository.create({
             user: { id: userId },
@@ -194,7 +212,9 @@ export class UsersService {
         });
 
         if (!user || !targetUser)
-            throw new BadRequestException('Пользователь не найден');
+            throw new BadRequestException(
+                ERROR_MESSAGES.SUBSCRIPTION.USER_NOT_FOUND,
+            );
 
         const subscription = await this.subscriptionRepository.findOne({
             where: {
@@ -203,7 +223,11 @@ export class UsersService {
             },
         });
 
-        if (!subscription) throw new BadRequestException('Вы не подписаны');
+        if (!subscription)
+            throw new BadRequestException(
+                ERROR_MESSAGES.SUBSCRIPTION.NOT_SUBSCRIBED,
+            );
+
         await this.subscriptionRepository.remove(subscription);
 
         const follower = await this.followerRepository.findOne({

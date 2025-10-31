@@ -76,15 +76,32 @@ export class MessagesService {
             chatId,
             sender.id,
         );
-        const uploadedAttachments =
+
+        const uploadResult =
             await this.messagesAttachmentService.processMessageAttachments(
                 files,
             );
 
+        if (uploadResult.errors.length > 0) {
+            console.warn('Some files failed to upload:', uploadResult.errors);
+        }
+
         const dtoAttachments = Array.isArray(dto.attachments)
             ? dto.attachments
             : [];
-        const attachments = [...uploadedAttachments, ...dtoAttachments];
+        const attachments = [...uploadResult.attachments, ...dtoAttachments];
+
+        const hasSuccessfulContent =
+            dto.content?.trim() ||
+            attachments.length > 0 ||
+            dto.forwardFromMessageId ||
+            dto.replyToMessageId;
+
+        if (!hasSuccessfulContent && uploadResult.errors.length > 0) {
+            throw new BadRequestException(
+                `No valid content: ${uploadResult.errors.map((e) => `Failed to upload ${e.fileName}: ${e.error}`).join('; ')}`,
+            );
+        }
 
         const normalizedContent = dto.content?.trim() ?? '';
 

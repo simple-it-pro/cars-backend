@@ -39,25 +39,19 @@ export const ERROR_MESSAGES = {
     },
     MESSAGE: {
         EMPTY: 'Сообщение должно содержать текст, вложение или голосовое сообщение',
-
         RELOAD_FAIL: 'Сообщение сохранено, но не удалось его перечитать',
         NOT_FOUND: 'Сообщение не найдено',
-
         REPLY_TARGET_NOT_FOUND:
             'Сообщение, на которое выполняется ответ, не найдено',
         REPLY_ID_NOT_ALLOWED_HERE:
             'Параметр replyToMessageId недопустим для этого запроса',
-
         FILE_REQUIRED: 'Необходимо отправить файл',
         VOICE_REQUIRED: 'Файл должен содержать аудио',
-
         FORWARD_SOURCE_NOT_FOUND: 'Исходное сообщение для пересылки не найдено',
         FORWARD_ID_NOT_ALLOWED_HERE:
             'Параметр forwardFromMessageId недопустим для этого запроса',
-
         REPLY_AND_FORWARD_CONFLICT:
             'Нельзя одновременно указывать replyToMessageId и forwardFromMessageId',
-
         NO_CHANGES: 'Нечего обновлять: содержимое не изменилось',
     },
     STORAGE: {
@@ -71,6 +65,21 @@ export const ERROR_MESSAGES = {
     },
     DELETION: {
         FILES_PARTIAL_FAILURE: 'Некоторые файлы не были удалены из хранилища',
+    },
+
+    SUBSCRIPTION: {
+        SELF_SUBSCRIBE: 'Нельзя подписаться на самого себя',
+        USER_NOT_FOUND: 'Пользователь не найден',
+        ALREADY_SUBSCRIBED: 'Вы уже подписаны на этого пользователя',
+        NOT_SUBSCRIBED: 'Вы не подписаны',
+    },
+    AVATAR: {
+        UPLOAD_FAILED: 'Не удалось загрузить аватар',
+        DELETE_FAILED: 'Не удалось удалить старый аватар',
+    },
+    PROFILE: {
+        DEACTIVATION_FAILED: 'Не удалось деактивировать профиль',
+        ACTIVATION_FAILED: 'Не удалось активировать профиль',
     },
 } as const;
 
@@ -95,10 +104,25 @@ export const SUCCESS_MESSAGES = {
         DELETED_WITH_WARNINGS:
             'Сообщение удалено, но некоторые файлы не были удалены из хранилища',
     },
+
+    USER: {
+        UPDATED: 'Профиль успешно обновлен',
+        AVATAR_UPDATED: 'Аватар успешно обновлен',
+        SUBSCRIBED: 'Подписка успешно оформлена',
+        UNSUBSCRIBED: 'Подписка успешно отменена',
+        DEACTIVATED: 'Профиль успешно деактивирован',
+        ACTIVATED: 'Профиль успешно активирован',
+        DELETED: 'Профиль успешно удален',
+    },
 } as const;
 
 export const WARNING_MESSAGES = {
     MESSAGE: {
         FILES_DELETION_FAILED: 'Некоторые файлы не были удалены из хранилища',
+    },
+    USER: {
+        AVATAR_DELETION_FAILED:
+            'Не удалось удалить старый аватар, но новый был загружен',
+        PARTIAL_FILE_UPLOAD: 'Некоторые файлы не были загружены',
     },
 } as const;

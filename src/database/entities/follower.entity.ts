@@ -5,11 +5,11 @@ import {
     ManyToOne,
     PrimaryGeneratedColumn,
 } from 'typeorm';
-import { User } from './';
+import { User } from './index';
 import { ApiProperty } from '@nestjs/swagger';
 
-@Entity({ name: 'subscriptions' })
-class Subscription {
+@Entity({ name: 'followers' })
+class Follower {
     @ApiProperty({ example: 1 })
     @PrimaryGeneratedColumn()
     id: number;
@@ -18,13 +18,13 @@ class Subscription {
     @CreateDateColumn({ type: 'timestamptz' })
     createdAt: Date;
 
-    @ManyToOne(() => User, (user) => user.subscriptions)
-    @JoinColumn({ name: 'user_id' })
-    user: User;
+    @ManyToOne(() => User, (user) => user.followers)
+    @JoinColumn({ name: 'follower_id' })
+    follower: User;
 
-    @ManyToOne(() => User, (user) => user.subscriptions)
+    @ManyToOne(() => User, (user) => user.followers)
     @JoinColumn({ name: 'subscribed_user_id' })
     subscribedUser: User;
 }
 
-export default Subscription;
+export default Follower;

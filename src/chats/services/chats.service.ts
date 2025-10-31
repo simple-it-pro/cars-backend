@@ -295,9 +295,8 @@ export class ChatsService {
         if (!chat) throw new NotFoundException(ERROR_MESSAGES.CHAT.NOT_FOUND);
 
         const isParticipant = chat.users.some((user) => user.id === userId);
-        if (!isParticipant) {
+        if (!isParticipant)
             throw new ForbiddenException(ERROR_MESSAGES.AUTH.NO_PERMISSIONS);
-        }
 
         if (userId) {
             const userWithFavorites = await this.userRepository.findOne({

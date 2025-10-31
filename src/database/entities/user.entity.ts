@@ -13,13 +13,16 @@ import { Exclude } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
 import { UserRole } from '../../common/types/roles';
-import RefreshToken from './refresh-token.entity';
-import Review from './review.entity';
-import Chat from './chat.entity';
-import Message from './message.entity';
-import UnreadChat from './unread-chat.entity';
+import {
+    Chat,
+    Follower,
+    Message,
+    RefreshToken,
+    Review,
+    Subscription,
+    UnreadChat,
+} from './';
 import { Image } from '../interfaces';
-import { Follower, Subscription } from './subscription.entity';
 
 @Entity({ name: 'users' })
 class User {
