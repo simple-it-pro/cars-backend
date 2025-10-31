@@ -15,7 +15,8 @@ import {
 } from '../../common/dto';
 import { ERROR_MESSAGES } from '../../common/constants/messages';
 import { UsersService } from '../../users/services';
-import { User, Chat, UnreadChat } from '../../database/entities';
+import { User, Chat, UnreadChat, Message } from '../../database/entities';
+import { StorageService } from '../../storage/services';
 
 @Injectable()
 export class ChatsService {
@@ -27,6 +28,7 @@ export class ChatsService {
         @InjectRepository(User)
         private readonly userRepository: Repository<User>,
         private readonly usersService: UsersService,
+        private readonly storageService: StorageService,
     ) {}
 
     async findOrCreatePrivateChat(userA: User, userB: User): Promise<Chat> {
@@ -108,6 +110,27 @@ export class ChatsService {
         return savedChat;
     }
 
+    private async addSignedUrlsToMessage(message: Message): Promise<Message> {
+        if (message.attachments && message.attachments.length > 0) {
+            message.attachments = await Promise.all(
+                message.attachments.map(async (attachment) => ({
+                    ...attachment,
+                    url: await this.storageService.getFileUrl(attachment.url),
+                })),
+            );
+        }
+
+        if (message.currentContent?.attachments?.length > 0) {
+            message.currentContent.attachments = await Promise.all(
+                message.currentContent.attachments.map(async (attachment) => ({
+                    ...attachment,
+                    url: await this.storageService.getFileUrl(attachment.url),
+                })),
+            );
+        }
+        return message;
+    }
+
     private async initializeChatData(chat: Chat, users: User[]): Promise<void> {
         const unreadChats = users.map((user) =>
             this.unreadChatRepository.create({
@@ -132,16 +155,17 @@ export class ChatsService {
             .createQueryBuilder('chat')
             .innerJoin('chat.users', 'user', '"user"."id" = :userId', {
                 userId,
-            });
+            })
+            .leftJoin('chat.lastMessage', 'lastMessage');
 
         if (pagination.cursor) {
             const { date, id } = parseCompositeCursor(pagination.cursor);
             qb.andWhere(
                 `
           (
-            COALESCE("chat"."lastMessageCreatedAt", "chat"."createdAt") < :date
+            COALESCE("lastMessage"."createdAt", "chat"."createdAt") < :date
             OR (
-              COALESCE("chat"."lastMessageCreatedAt", "chat"."createdAt") = :date
+              COALESCE("lastMessage"."createdAt", "chat"."createdAt") = :date
               AND "chat"."id" < :id
             )
           )
@@ -179,24 +203,16 @@ export class ChatsService {
 
         if (search?.trim()) {
             const term = `%${search.trim().toLowerCase()}%`;
-            qb.andWhere(
-                `
-          LOWER("chat"."name") LIKE :term
-          OR EXISTS (
-            SELECT 1
-            FROM "chat_users" "cu"
-            JOIN "users" "u" ON "u"."id" = "cu"."user_id" 
-            WHERE "cu"."chat_id" = "chat"."id"
-              AND "u"."id" <> :userId
-              AND (LOWER("u"."name") LIKE :term OR LOWER("u"."nickname") LIKE :term)
-          )
-        `,
+            qb.leftJoin('chat.users', 'searchUsers').andWhere(
+                '(LOWER("chat"."name") LIKE :term OR ' +
+                    '("searchUsers"."id" != :userId AND ' +
+                    '(LOWER("searchUsers"."name") LIKE :term OR LOWER("searchUsers"."nickname") LIKE :term)))',
                 { term, userId },
             );
         }
 
         qb.orderBy(
-            'COALESCE("chat"."lastMessageCreatedAt", "chat"."createdAt")',
+            'COALESCE("lastMessage"."createdAt", "chat"."createdAt")',
             'DESC',
         )
             .addOrderBy('"chat"."id"', 'DESC')
@@ -210,9 +226,22 @@ export class ChatsService {
 
         if (pageIds.length === 0) return { chats: [], hasMore: false };
 
+        const userWithFavorites = await this.userRepository.findOne({
+            where: { id: userId },
+            relations: ['favoriteChats'],
+            select: ['id'],
+        });
+
+        const favoriteChatIds = new Set(
+            userWithFavorites?.favoriteChats?.map((chat) => chat.id) || [],
+        );
+
         const chats = await this.chatRepository
             .createQueryBuilder('chat')
             .leftJoinAndSelect('chat.users', 'users')
+            .leftJoinAndSelect('chat.lastMessage', 'lastMessage')
+            .leftJoinAndSelect('lastMessage.sender', 'lastMessageSender')
+            .leftJoinAndSelect('lastMessage.currentContent', 'currentContent')
             .leftJoinAndSelect(
                 'chat.unreadChats',
                 'unreadChats',
@@ -223,27 +252,69 @@ export class ChatsService {
             .where('"chat"."id" IN (:...ids)', { ids: pageIds })
             .getMany();
 
-        const order = new Map(pageIds.map((id, idx) => [id, idx]));
-        chats.sort((a, b) => order.get(a.id)! - order.get(b.id)!);
+        const chatsWithUrls = await Promise.all(
+            chats.map(async (chat) => {
+                if (chat.lastMessage) {
+                    const messageWithUrls = await this.addSignedUrlsToMessage(
+                        chat.lastMessage,
+                    );
+                    return {
+                        ...chat,
+                        lastMessage: messageWithUrls,
+                        isFavorite: favoriteChatIds.has(chat.id),
+                    };
+                }
+                return {
+                    ...chat,
+                    isFavorite: favoriteChatIds.has(chat.id),
+                };
+            }),
+        );
 
-        const last = chats[chats.length - 1];
+        const order = new Map(pageIds.map((id, idx) => [id, idx]));
+        chatsWithUrls.sort((a, b) => order.get(a.id)! - order.get(b.id)!);
+
+        const last = chatsWithUrls[chatsWithUrls.length - 1];
+        const lastMessageDate = last.lastMessage?.createdAt ?? last.createdAt;
         const nextCursor =
             hasMore && last
-                ? createCompositeCursor(
-                      last.lastMessageCreatedAt ?? last.createdAt,
-                      last.id,
-                  )
+                ? createCompositeCursor(lastMessageDate, last.id)
                 : undefined;
 
-        return { chats, hasMore, nextCursor };
+        return { chats: chatsWithUrls, hasMore, nextCursor };
     }
 
-    async findChatById(chatId: string): Promise<Chat> {
+    async findChatById(
+        chatId: string,
+        userId: number,
+    ): Promise<Chat & { isFavorite?: boolean }> {
         const chat = await this.chatRepository.findOne({
             where: { id: chatId },
             relations: ['users', 'createdBy'],
         });
         if (!chat) throw new NotFoundException(ERROR_MESSAGES.CHAT.NOT_FOUND);
+
+        const isParticipant = chat.users.some((user) => user.id === userId);
+        if (!isParticipant)
+            throw new ForbiddenException(ERROR_MESSAGES.AUTH.NO_PERMISSIONS);
+
+        if (userId) {
+            const userWithFavorites = await this.userRepository.findOne({
+                where: { id: userId },
+                relations: ['favoriteChats'],
+                select: ['id'],
+            });
+
+            const isFavorite =
+                userWithFavorites?.favoriteChats?.some(
+                    (favChat) => favChat.id === chatId,
+                ) || false;
+
+            return {
+                ...chat,
+                isFavorite,
+            };
+        }
 
         return chat;
     }
@@ -276,7 +347,7 @@ export class ChatsService {
         chatId: string,
         userId: number,
     ): Promise<{ isFavorite: boolean }> {
-        const chat = await this.findChatById(chatId);
+        const chat = await this.findChatById(chatId, userId);
 
         const isParticipant = chat.users.some((user) => user.id === userId);
         if (!isParticipant)

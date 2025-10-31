@@ -7,16 +7,22 @@ import {
     OneToMany,
     ManyToMany,
     JoinTable,
+    DeleteDateColumn,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
 import { UserRole } from '../../common/types/roles';
-import RefreshToken from './refresh-token.entity';
-import Review from './review.entity';
-import Chat from './chat.entity';
-import Message from './message.entity';
-import UnreadChat from './unread-chat.entity';
+import {
+    Chat,
+    Follower,
+    Message,
+    RefreshToken,
+    Review,
+    Subscription,
+    UnreadChat,
+} from './';
+import { Image } from '../interfaces';
 
 @Entity({ name: 'users' })
 class User {
@@ -37,6 +43,14 @@ class User {
     })
     @UpdateDateColumn({ type: 'timestamptz' })
     updatedAt: Date;
+
+    @ApiProperty({
+        example: '2025-09-14T08:57:59.589Z',
+        description: 'Дата удаления профиля',
+        required: false,
+    })
+    @DeleteDateColumn({ type: 'timestamptz', nullable: true })
+    deletedAt?: Date | null;
 
     @ApiProperty({
         example: UserRole.COMMON,
@@ -63,7 +77,7 @@ class User {
     @ApiProperty({
         example: 'John',
     })
-    @Column({ nullable: true, unique: true })
+    @Column({ nullable: true, unique: true, length: 30 })
     nickname: string;
 
     @ApiProperty({
@@ -112,6 +126,28 @@ class User {
     @Column({ nullable: true })
     about: string;
 
+    @ApiProperty({
+        example: {
+            url: 'https://example.com/image.jpg',
+            name: 'photo.jpg',
+            size: 1024000,
+        },
+    })
+    @Column({ type: 'jsonb', nullable: true })
+    image: Image;
+
+    @ApiProperty({
+        example: 5,
+    })
+    @Column({ type: 'float', nullable: true })
+    rating: number;
+
+    @ApiProperty({
+        example: false,
+    })
+    @Column({ default: false })
+    isDeactivated: boolean;
+
     @ManyToMany(() => Chat, (chat) => chat.users)
     chats: Chat[];
 
@@ -122,6 +158,12 @@ class User {
         inverseJoinColumn: { name: 'chat_id', referencedColumnName: 'id' },
     })
     favoriteChats: Chat[];
+
+    @OneToMany(() => Subscription, (subscription) => subscription.user)
+    subscriptions: Subscription[];
+
+    @OneToMany(() => Follower, (follower) => follower.subscribedUser)
+    followers: Follower[];
 
     @OneToMany(() => UnreadChat, (unreadChat) => unreadChat.user)
     unreadChats: UnreadChat[];

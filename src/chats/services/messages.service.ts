@@ -6,85 +6,62 @@ import {
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { In, LessThan, Repository } from 'typeorm';
 
-import {
-    Chat,
-    User,
-    Message,
-    UnreadChat,
-    MessageContent,
-} from '../../database/entities';
-import { SendMessageDto, EditMessageDto } from '../dto';
-import {
-    createCompositeCursor,
-    CursorPaginationDto,
-    parseCompositeCursor,
-} from '../../common/dto';
+import { Chat, Message, MessageContent, User } from '../../database/entities';
+import { EditMessageDto, SendMessageDto, SendVoiceMessageDto } from '../dto';
+import { CursorPaginationDto } from '../../common/dto';
 import { ChatsGateway } from '../gateways';
 import {
     ERROR_MESSAGES,
     SUCCESS_MESSAGES,
 } from '../../common/constants/messages';
-import { StorageService } from '../../storage/services';
+import { MessagesAttachmentService } from './messages-attachment.service';
+import { MessagesCoreService } from './messages-core.service';
+import { EntityManager, Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
 export class MessagesService {
     constructor(
-        @InjectRepository(Message)
-        private readonly messageRepository: Repository<Message>,
-        @InjectRepository(Chat)
-        private readonly chatRepository: Repository<Chat>,
+        private readonly messagesCoreService: MessagesCoreService,
+        private readonly messagesAttachmentService: MessagesAttachmentService,
         @Inject(forwardRef(() => ChatsGateway))
         private readonly chatGateway: ChatsGateway,
-        private readonly storageService: StorageService,
+        @InjectRepository(Message)
+        private readonly messageRepository: Repository<Message>,
     ) {}
 
-    private async getChatAndEnsureMembership(
-        chatId: string,
-        userId: number,
-    ): Promise<Chat> {
-        const chat = await this.chatRepository.findOne({
-            where: { id: chatId },
-            relations: ['users'],
-        });
-        if (!chat) throw new NotFoundException(ERROR_MESSAGES.CHAT.NOT_FOUND);
-
-        const isParticipant = chat.users.some((u) => u.id === userId);
-        if (!isParticipant)
-            throw new ForbiddenException(ERROR_MESSAGES.AUTH.NO_PERMISSIONS);
-
-        return chat;
-    }
-
-    private async getReplyParentOrFail(chatId: string, parentId: string) {
-        const parent = await this.messageRepository.findOne({
-            where: { id: parentId, chat: { id: chatId }, isDeleted: false },
-            relations: ['sender', 'currentContent', 'chat'],
-        });
-        if (!parent)
-            throw new NotFoundException(ERROR_MESSAGES.MESSAGE.NOT_FOUND);
-
-        return parent;
-    }
-
-    private async getForwardSourceOrFail(
-        sourceId: string,
-        requesterId: number,
-    ) {
-        const source = await this.messageRepository.findOne({
-            where: { id: sourceId, isDeleted: false },
-            relations: ['sender', 'currentContent', 'chat', 'chat.users'],
-        });
-        if (!source) {
-            throw new NotFoundException(ERROR_MESSAGES.MESSAGE.NOT_FOUND);
+    private sendNotificationsToRecipients(
+        chat: Chat,
+        message: Message,
+        senderId: number,
+    ): void {
+        for (const user of chat.users) {
+            if (user.id === senderId) continue;
+            this.chatGateway.sendNewMessageNotification(
+                chat.id,
+                message,
+                user.id,
+            );
         }
-        const isMember = source.chat.users.some((u) => u.id === requesterId);
-        if (!isMember)
-            throw new ForbiddenException(ERROR_MESSAGES.AUTH.NO_PERMISSIONS);
+    }
 
-        return source;
+    private async getFullMessageWithUrls(messageId: string): Promise<Message> {
+        const full = await this.messagesCoreService.getFullMessage(messageId);
+        return this.messagesAttachmentService.addSignedUrlsToMessage(full);
+    }
+
+    private async saveAndNotifyMessage(
+        transactionCallback: (manager: EntityManager) => Promise<Message>,
+        chat: Chat,
+        senderId: number,
+    ): Promise<Message> {
+        const saved =
+            await this.messageRepository.manager.transaction(
+                transactionCallback,
+            );
+        this.sendNotificationsToRecipients(chat, saved, senderId);
+        return this.getFullMessageWithUrls(saved.id);
     }
 
     async sendMessage(
@@ -93,82 +70,63 @@ export class MessagesService {
         dto: SendMessageDto,
         files?: Express.Multer.File[],
     ): Promise<Message> {
-        const hasText = Boolean(dto.content && dto.content.trim().length > 0);
-        const hasVoice = Boolean(
-            dto.voiceUrl && dto.voiceUrl.trim().length > 0,
+        this.messagesCoreService.validateMessageContent(dto, files);
+
+        const chat = await this.messagesCoreService.getChatAndEnsureMembership(
+            chatId,
+            sender.id,
         );
-        const hasAttachments = Array.isArray(files) && files.length > 0;
 
-        if (
-            !hasText &&
-            !hasVoice &&
-            !hasAttachments &&
-            !dto.forwardFromMessageId &&
-            !dto.replyToMessageId
-        ) {
-            throw new BadRequestException(ERROR_MESSAGES.MESSAGE.EMPTY);
-        }
+        const uploadResult =
+            await this.messagesAttachmentService.processMessageAttachments(
+                files,
+            );
 
-        const chat = await this.getChatAndEnsureMembership(chatId, sender.id);
-
-        const uploadedAttachments: Array<{
-            type: 'image' | 'video' | 'file' | 'voice';
-            url: string;
-            name: string;
-            size: number;
-        }> = [];
-
-        if (files && files.length > 0) {
-            for (const file of files) {
-                const fileKey = await this.storageService.uploadFile(file);
-                const fileUrl = await this.storageService.getFileUrl(fileKey);
-
-                let fileType: 'image' | 'video' | 'file' | 'voice' = 'file';
-                if (file.mimetype.startsWith('image/')) {
-                    fileType = 'image';
-                } else if (file.mimetype.startsWith('video/')) {
-                    fileType = 'video';
-                } else if (file.mimetype.startsWith('audio/')) {
-                    fileType = 'voice';
-                }
-
-                uploadedAttachments.push({
-                    type: fileType,
-                    url: fileUrl,
-                    name: file.originalname,
-                    size: file.size,
-                });
-            }
+        if (uploadResult.errors.length > 0) {
+            console.warn('Some files failed to upload:', uploadResult.errors);
         }
 
         const dtoAttachments = Array.isArray(dto.attachments)
             ? dto.attachments
             : [];
+        const attachments = [...uploadResult.attachments, ...dtoAttachments];
 
-        const attachments = [...uploadedAttachments, ...dtoAttachments];
-        const type: 'text' | 'voice' = hasVoice ? 'voice' : 'text';
-        const normalizedContent = hasText ? dto.content!.trim() : '';
+        const hasSuccessfulContent =
+            dto.content?.trim() ||
+            attachments.length > 0 ||
+            dto.forwardFromMessageId ||
+            dto.replyToMessageId;
+
+        if (!hasSuccessfulContent && uploadResult.errors.length > 0) {
+            throw new BadRequestException(
+                `No valid content: ${uploadResult.errors.map((e) => `Failed to upload ${e.fileName}: ${e.error}`).join('; ')}`,
+            );
+        }
+
+        const normalizedContent = dto.content?.trim() ?? '';
 
         const repliedMessage = dto.replyToMessageId
-            ? await this.getReplyParentOrFail(chatId, dto.replyToMessageId)
+            ? await this.messagesCoreService.getReplyParentOrFail(
+                  chatId,
+                  dto.replyToMessageId,
+              )
             : null;
 
         const forwardedFrom = dto.forwardFromMessageId
-            ? await this.getForwardSourceOrFail(
+            ? await this.messagesCoreService.getForwardSourceOrFail(
                   dto.forwardFromMessageId,
                   sender.id,
               )
             : null;
 
-        const saved = await this.messageRepository.manager.transaction(
+        return this.saveAndNotifyMessage(
             async (manager) => {
                 let message = manager.create(Message, {
                     chat,
                     sender,
                     content: normalizedContent,
                     attachments,
-                    voiceUrl: hasVoice ? dto.voiceUrl! : null,
-                    type,
+                    type: 'text',
                     isRead: false,
                     isDeleted: false,
                     repliedMessage,
@@ -178,156 +136,138 @@ export class MessagesService {
 
                 message = await manager.save(Message, message);
 
-                let version = manager.create(MessageContent, {
-                    message,
-                    content: normalizedContent,
-                    attachments,
-                    version: 1,
-                } as Partial<MessageContent>);
-                version = await manager.save(MessageContent, version);
-
-                message.currentContent = version;
+                message.currentContent =
+                    await this.messagesCoreService.createMessageVersion(
+                        manager,
+                        message,
+                        normalizedContent,
+                        attachments,
+                        1,
+                    );
                 message = await manager.save(Message, message);
-
-                let snippet = normalizedContent;
-                if (forwardedFrom && !snippet) {
-                    snippet = 'Пересланное сообщение';
-                } else if (type === 'voice' && !snippet) {
-                    snippet = 'Голосовое сообщение';
-                } else if (repliedMessage && !snippet && type !== 'voice') {
-                    snippet = 'Ответить';
-                }
 
                 await manager.update(
                     Chat,
                     { id: chat.id },
-                    {
-                        lastMessageContent: snippet,
-                        lastMessageCreatedAt: message.createdAt,
-                    },
+                    { lastMessage: message },
                 );
-
-                const recipientIds = chat.users
-                    .filter((u) => u.id !== sender.id)
-                    .map((u) => u.id);
-
-                if (recipientIds.length > 0) {
-                    const unreadExisting = await manager.find(UnreadChat, {
-                        where: {
-                            chat: { id: chat.id },
-                            user: { id: In(recipientIds) },
-                        },
-                        relations: ['user', 'chat'],
-                    });
-
-                    const byUserId = new Map<number, UnreadChat>(
-                        unreadExisting.map((row) => [row.user.id, row]),
-                    );
-
-                    const toSave: UnreadChat[] = [];
-                    for (const rid of recipientIds) {
-                        const row =
-                            byUserId.get(rid) ||
-                            manager.create(UnreadChat, {
-                                chat,
-                                user: { id: rid } as User,
-                                unreadCount: 0,
-                            });
-                        row.unreadCount = (row.unreadCount ?? 0) + 1;
-                        toSave.push(row);
-                    }
-                    await manager.save(UnreadChat, toSave);
-                }
+                await this.messagesCoreService.updateUnreadCounts(
+                    manager,
+                    chat,
+                    sender.id,
+                );
 
                 return message;
             },
+            chat,
+            sender.id,
+        );
+    }
+
+    async sendVoiceMessage(
+        chatId: string,
+        sender: User,
+        dto: SendVoiceMessageDto,
+        file: Express.Multer.File,
+    ): Promise<Message> {
+        this.messagesCoreService.validateVoiceMessage(file);
+
+        const chat = await this.messagesCoreService.getChatAndEnsureMembership(
+            chatId,
+            sender.id,
         );
 
-        for (const user of chat.users) {
-            if (user.id === sender.id) continue;
-            this.chatGateway.sendNewMessageNotification(
-                chat.id,
-                saved,
-                user.id,
-            );
-        }
+        const voiceKey =
+            await this.messagesAttachmentService.processVoiceMessage(file);
 
-        const full = await this.messageRepository.findOne({
-            where: { id: saved.id },
-            relations: [
-                'sender',
-                'currentContent',
-                'repliedMessage',
-                'repliedMessage.sender',
-                'repliedMessage.currentContent',
-                'forwardedFrom',
-                'forwardedFrom.sender',
-                'forwardedFrom.currentContent',
-            ],
-        });
+        const normalizedContent = dto.content?.trim() ?? '';
 
-        if (!full)
-            throw new NotFoundException(ERROR_MESSAGES.MESSAGE.RELOAD_FAIL);
+        const repliedMessage = dto.replyToMessageId
+            ? await this.messagesCoreService.getReplyParentOrFail(
+                  chatId,
+                  dto.replyToMessageId,
+              )
+            : null;
 
-        return full;
+        const forwardedFrom = dto.forwardFromMessageId
+            ? await this.messagesCoreService.getForwardSourceOrFail(
+                  dto.forwardFromMessageId,
+                  sender.id,
+              )
+            : null;
+
+        return this.saveAndNotifyMessage(
+            async (manager) => {
+                let message = manager.create(Message, {
+                    chat,
+                    sender,
+                    content: normalizedContent,
+                    attachments: [],
+                    voiceUrl: voiceKey,
+                    type: 'voice',
+                    isRead: false,
+                    isDeleted: false,
+                    repliedMessage,
+                    forwardedFrom,
+                    quotedText: dto.quotedText,
+                } as Partial<Message>);
+
+                message = await manager.save(Message, message);
+
+                message.currentContent =
+                    await this.messagesCoreService.createMessageVersion(
+                        manager,
+                        message,
+                        normalizedContent,
+                        [],
+                        1,
+                    );
+                message = await manager.save(Message, message);
+
+                await manager.update(
+                    Chat,
+                    { id: chat.id },
+                    { lastMessage: message },
+                );
+
+                await this.messagesCoreService.updateUnreadCounts(
+                    manager,
+                    chat,
+                    sender.id,
+                );
+
+                return message;
+            },
+            chat,
+            sender.id,
+        );
     }
 
     async getMessages(
         chatId: string,
         pagination: CursorPaginationDto,
         userId: number,
-    ): Promise<{ messages: Message[]; hasMore: boolean; nextCursor?: string }> {
-        await this.getChatAndEnsureMembership(chatId, userId);
+    ): Promise<{
+        messages: Message[];
+        hasMore: boolean;
+        nextCursor?: string;
+    }> {
+        const result = await this.messagesCoreService.getMessages(
+            chatId,
+            pagination,
+            userId,
+        );
 
-        const limit = pagination.limit || 50;
-        const limitPlusOne = limit + 1;
+        const messagesWithUrls = await Promise.all(
+            result.messages.map((message) =>
+                this.messagesAttachmentService.addSignedUrlsToMessage(message),
+            ),
+        );
 
-        let whereCondition: any = { chat: { id: chatId }, isDeleted: false };
-        if (pagination.cursor) {
-            const { date, id } = parseCompositeCursor(pagination.cursor);
-            whereCondition = [
-                {
-                    chat: { id: chatId },
-                    isDeleted: false,
-                    createdAt: LessThan(date),
-                },
-                {
-                    chat: { id: chatId },
-                    isDeleted: false,
-                    createdAt: date,
-                    id: LessThan(id),
-                },
-            ];
-        }
-
-        const messages = await this.messageRepository.find({
-            where: whereCondition,
-            order: { createdAt: 'DESC', id: 'DESC' },
-            take: limitPlusOne,
-            relations: [
-                'sender',
-                'currentContent',
-                'repliedMessage',
-                'repliedMessage.sender',
-                'repliedMessage.currentContent',
-                'forwardedFrom',
-                'forwardedFrom.sender',
-                'forwardedFrom.currentContent',
-            ],
-        });
-
-        const hasMore = messages.length > limit;
-        const result = hasMore ? messages.slice(0, limit) : messages;
-
-        const nextCursor =
-            hasMore && result.length > 0
-                ? createCompositeCursor(
-                      result[result.length - 1].createdAt,
-                      result[result.length - 1].id,
-                  )
-                : undefined;
-
-        return { messages: result, hasMore, nextCursor };
+        return {
+            ...result,
+            messages: messagesWithUrls,
+        };
     }
 
     async editMessage(
@@ -340,9 +280,12 @@ export class MessagesService {
         if (!newTextRaw.length)
             throw new BadRequestException(ERROR_MESSAGES.MESSAGE.EMPTY);
 
-        const chat = await this.getChatAndEnsureMembership(chatId, editorId);
+        const chat = await this.messagesCoreService.getChatAndEnsureMembership(
+            chatId,
+            editorId,
+        );
 
-        return await this.messageRepository.manager.transaction(
+        const editedMessage = await this.messageRepository.manager.transaction(
             async (manager) => {
                 const message = await manager
                     .getRepository(Message)
@@ -401,19 +344,6 @@ export class MessagesService {
                 message.currentContent = newVersion;
                 await manager.save(Message, message);
 
-                if (
-                    chat.lastMessageCreatedAt &&
-                    message.createdAt &&
-                    chat.lastMessageCreatedAt.getTime() ===
-                        message.createdAt.getTime()
-                ) {
-                    await manager.update(
-                        Chat,
-                        { id: chat.id },
-                        { lastMessageContent: newTextRaw },
-                    );
-                }
-
                 const full = await manager.findOne(Message, {
                     where: { id: message.id },
                     relations: [
@@ -433,12 +363,17 @@ export class MessagesService {
                     throw new NotFoundException(
                         ERROR_MESSAGES.MESSAGE.RELOAD_FAIL,
                     );
-
-                this.chatGateway.broadcastMessageEdited(chat.id, full);
-
                 return full;
             },
         );
+
+        const messageWithUrls =
+            await this.messagesAttachmentService.addSignedUrlsToMessage(
+                editedMessage,
+            );
+        this.chatGateway.broadcastMessageEdited(chat.id, messageWithUrls);
+
+        return messageWithUrls;
     }
 
     async deleteMessage(chatId: string, messageId: string, userId: number) {
@@ -449,34 +384,15 @@ export class MessagesService {
 
         if (!message)
             throw new NotFoundException(ERROR_MESSAGES.MESSAGE.NOT_FOUND);
-
         if (message.sender.id !== userId)
             throw new ForbiddenException(ERROR_MESSAGES.AUTH.NO_PERMISSIONS);
 
-        const deletionErrors: string[] = [];
+        const deletionErrors =
+            await this.messagesAttachmentService.deleteMessageAttachments(
+                message,
+            );
 
-        if (message.attachments && message.attachments.length > 0) {
-            for (const attachment of message.attachments) {
-                try {
-                    await this.storageService.deleteFile(attachment.url);
-                } catch (error) {
-                    const errorMsg = `${ERROR_MESSAGES.FILE.DELETION_FAILED}: ${attachment.name || attachment.url}`;
-                    deletionErrors.push(errorMsg);
-                    console.error(errorMsg, error);
-                }
-            }
-        }
-
-        if (message.voiceUrl) {
-            try {
-                await this.storageService.deleteFile(message.voiceUrl);
-            } catch (error) {
-                const errorMsg = `${ERROR_MESSAGES.FILE.VOICE_DELETION_FAILED}: ${message.voiceUrl}`;
-                deletionErrors.push(errorMsg);
-                console.error(errorMsg, error);
-            }
-        }
-
+        this.chatGateway.broadcastMessageDeleted(chatId, message);
         message.isDeleted = true;
         await this.messageRepository.save(message);
 
@@ -485,7 +401,6 @@ export class MessagesService {
                 `При удалении сообщения ${messageId} возникли ошибки с файлами:`,
                 deletionErrors,
             );
-
             return {
                 success: true,
                 message: SUCCESS_MESSAGES.MESSAGE.DELETED_WITH_WARNINGS,
@@ -500,29 +415,7 @@ export class MessagesService {
     }
 
     async markMessagesAsRead(chatId: string, userId: number): Promise<void> {
-        await this.getChatAndEnsureMembership(chatId, userId);
-
-        await this.messageRepository.manager.transaction(async (manager) => {
-            await manager
-                .createQueryBuilder()
-                .update(Message)
-                .set({ isRead: true })
-                .where('chatId = :chatId', { chatId })
-                .andWhere('isDeleted = false')
-                .andWhere('isRead = false')
-                .andWhere('senderId != :userId', { userId })
-                .execute();
-
-            const unread = await manager.findOne(UnreadChat, {
-                where: { chat: { id: chatId }, user: { id: userId } },
-                relations: ['chat', 'user'],
-            });
-            if (unread) {
-                unread.unreadCount = 0;
-                await manager.save(UnreadChat, unread);
-            }
-        });
-
+        await this.messagesCoreService.markMessagesAsRead(chatId, userId);
         this.chatGateway.sendReadReceipt(chatId, userId);
     }
 }

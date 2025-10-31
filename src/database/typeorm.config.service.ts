@@ -13,7 +13,6 @@ class TypeormConfigService implements TypeOrmOptionsFactory {
     ) {}
 
     createTypeOrmOptions(): TypeOrmModuleOptions {
-        console.log(this.dbConfig);
         return {
             type: 'postgres',
             url: this.dbConfig.url,

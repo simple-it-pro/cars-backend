@@ -3,12 +3,12 @@ import {
     Body,
     Controller,
     Delete,
-    ForbiddenException,
     Get,
     Param,
     Patch,
     Post,
     Query,
+    UploadedFile,
     UploadedFiles,
     UseGuards,
     UseInterceptors,
@@ -21,7 +21,7 @@ import {
     ApiQuery,
     ApiResponse,
 } from '@nestjs/swagger';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 
 import { JwtGuard } from '../../auth/guards';
 import { ChatsService, MessagesService } from '../services';
@@ -29,9 +29,10 @@ import { AuthUser } from '../../auth/decorators';
 import { JwtUserData } from '../../users/types';
 import {
     CreateChatDto,
-    SendMessageDto,
     CreateGroupChatDto,
     EditMessageDto,
+    SendMessageDto,
+    SendVoiceMessageDto,
 } from '../dto';
 import { CursorPaginationDto } from '../../common/dto';
 import { UsersService } from '../../users/services';
@@ -50,8 +51,8 @@ import {
     ChatIdParamsDto,
     DeleteMessageParamsDto,
     EditMessageParamsDto,
-    ReplyMessageParamsDto,
     ForwardMessageParamsDto,
+    ReplyMessageParamsDto,
 } from '../dto/params';
 
 @Controller()
@@ -120,12 +121,7 @@ export class ChatsController {
         @AuthUser() { sub: userId }: JwtUserData,
         @Param('id') id: string,
     ) {
-        const chat = await this.chatsService.findChatById(id);
-        const isParticipant = chat.users.some((user) => user.id === userId);
-        if (!isParticipant) {
-            throw new ForbiddenException(ERROR_MESSAGES.AUTH.NO_PERMISSIONS);
-        }
-        return chat;
+        return this.chatsService.findChatById(id, userId);
     }
 
     @ApiOperation({ summary: 'Создание нового чата с пользователем' })
@@ -179,6 +175,7 @@ export class ChatsController {
     ) {
         return this.messagesService.getMessages(chatId, pagination, userId);
     }
+
     @ApiOperation({ summary: 'Отправить сообщение в чат' })
     @ApiConsumes(API_CONSUMES.MULTIPART_FORM_DATA)
     @ApiBody(MESSAGE_BODIES.SEND_MESSAGE)
@@ -210,6 +207,38 @@ export class ChatsController {
             sendMessageDto,
             files,
         );
+    }
+
+    @ApiOperation({ summary: 'Отправить голосовое сообщение' })
+    @ApiConsumes('multipart/form-data')
+    @ApiBody(MESSAGE_BODIES.SEND_VOICE_MESSAGE)
+    @ApiResponse({
+        status: 201,
+        type: Message,
+        description: 'Голосовое сообщение отправлено',
+    })
+    @ApiResponse({
+        status: 400,
+        description: 'Файл не предоставлен или имеет недопустимый формат',
+    })
+    @ApiResponse({
+        status: 403,
+        description: 'Пользователь не имеет доступа к чату',
+    })
+    @Post(':chatId/messages/voice')
+    @UseInterceptors(FileInterceptor('file'))
+    async sendVoiceMessage(
+        @Param() { chatId }: ChatIdParamsDto,
+        @AuthUser() { sub: userId }: JwtUserData,
+        @Body() dto: SendVoiceMessageDto,
+        @UploadedFile() file: Express.Multer.File,
+    ) {
+        const sender = await this.usersService.getUserById(userId);
+
+        if (!sender)
+            throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
+
+        return this.messagesService.sendVoiceMessage(chatId, sender, dto, file);
     }
 
     @ApiOperation({ summary: 'Редактирование сообщения' })

@@ -2,13 +2,13 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
     IsInt,
     IsNotEmpty,
-    IsNumber,
     IsString,
     Max,
     MaxLength,
     Min,
 } from 'class-validator';
 import { reviewLength } from '../../common/constants/reviews';
+import { Type } from 'class-transformer';
 
 export class CreateReviewDto {
     @ApiProperty({
@@ -24,17 +24,10 @@ export class CreateReviewDto {
         example: 1,
         description: 'ID пользователя, которому оставляют отзыв',
     })
-    @IsNumber()
+    @IsInt()
     @IsNotEmpty()
+    @Type(() => Number)
     userId: number;
-
-    @ApiProperty({
-        example: 1,
-        description: 'ID автора отзыва',
-    })
-    @IsNumber()
-    @IsNotEmpty()
-    authorId: number;
 
     @ApiProperty({
         example: 5,
@@ -44,5 +37,6 @@ export class CreateReviewDto {
     @Min(1)
     @Max(5)
     @IsNotEmpty()
+    @Type(() => Number)
     rank: number;
 }

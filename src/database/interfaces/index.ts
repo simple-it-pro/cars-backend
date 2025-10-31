@@ -1,1 +1,1 @@
-export * from './review-image.interface';
+export * from './assets';

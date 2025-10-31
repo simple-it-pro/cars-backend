@@ -86,6 +86,29 @@ export const MESSAGE_BODIES = {
         },
     } as ApiBodyOptions,
 
+    SEND_VOICE_MESSAGE: {
+        schema: {
+            type: 'object',
+            properties: {
+                file: {
+                    type: 'string',
+                    format: 'binary',
+                    description: 'Аудиофайл для голосового сообщения',
+                },
+                content: {
+                    type: 'string',
+                    description: 'Подпись к голосовому сообщению',
+                    example: 'Голосовая заметка',
+                },
+                quotedText: {
+                    type: 'string',
+                    description: 'Текст цитаты',
+                },
+            },
+            required: ['file'],
+        },
+    } as ApiBodyOptions,
+
     REPLY_MESSAGE: {
         schema: {
             type: 'object',
