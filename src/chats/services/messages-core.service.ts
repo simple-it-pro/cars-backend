@@ -32,7 +32,6 @@ export class MessagesCoreService {
         private readonly chatRepository: Repository<Chat>,
     ) {}
 
-    // Все методы работы с БД остаются здесь, но без вызовов gateway или attachment service
     async getChatAndEnsureMembership(
         chatId: string,
         userId: number,

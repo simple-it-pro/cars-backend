@@ -1,10 +1,25 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { StorageService } from '../../storage/services';
 import { Message } from '../../database/entities';
+import { ERROR_MESSAGES } from '../../common/constants/messages';
 
 @Injectable()
 export class MessagesAttachmentService {
     constructor(private readonly storageService: StorageService) {}
+
+    async processVoiceMessage(file: Express.Multer.File): Promise<string> {
+        if (!file) {
+            throw new BadRequestException(ERROR_MESSAGES.MESSAGE.FILE_REQUIRED);
+        }
+
+        if (!file.mimetype.startsWith('audio/')) {
+            throw new BadRequestException(
+                ERROR_MESSAGES.MESSAGE.VOICE_REQUIRED,
+            );
+        }
+
+        return await this.storageService.uploadFile(file);
+    }
 
     async processMessageAttachments(files?: Express.Multer.File[]): Promise<
         Array<{

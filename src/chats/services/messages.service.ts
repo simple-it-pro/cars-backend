@@ -159,10 +159,10 @@ export class MessagesService {
             chatId,
             sender.id,
         );
+
         const voiceKey =
-            await this.messagesAttachmentService['storageService'].uploadFile(
-                file,
-            );
+            await this.messagesAttachmentService.processVoiceMessage(file);
+
         const normalizedContent = dto.content?.trim() ?? '';
 
         const repliedMessage = dto.replyToMessageId
