@@ -48,6 +48,9 @@ export const ERROR_MESSAGES = {
         REPLY_ID_NOT_ALLOWED_HERE:
             'Параметр replyToMessageId недопустим для этого запроса',
 
+        FILE_REQUIRED: 'Необходимо отправить файл',
+        VOICE_REQUIRED: 'Файл должен содержать аудио',
+
         FORWARD_SOURCE_NOT_FOUND: 'Исходное сообщение для пересылки не найдено',
         FORWARD_ID_NOT_ALLOWED_HERE:
             'Параметр forwardFromMessageId недопустим для этого запроса',

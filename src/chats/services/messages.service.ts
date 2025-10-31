@@ -7,7 +7,7 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, LessThan, Repository } from 'typeorm';
+import { EntityManager, In, LessThan, Repository } from 'typeorm';
 
 import {
     Chat,
@@ -16,7 +16,7 @@ import {
     UnreadChat,
     User,
 } from '../../database/entities';
-import { EditMessageDto, SendMessageDto } from '../dto';
+import { EditMessageDto, SendMessageDto, SendVoiceMessageDto } from '../dto';
 import {
     createCompositeCursor,
     CursorPaginationDto,
@@ -28,6 +28,7 @@ import {
     SUCCESS_MESSAGES,
 } from '../../common/constants/messages';
 import { StorageService } from '../../storage/services';
+import { Asset } from '../../database/interfaces';
 
 @Injectable()
 export class MessagesService {
@@ -87,6 +88,76 @@ export class MessagesService {
         return source;
     }
 
+    private async createMessageVersion(
+        manager: EntityManager,
+        message: Message,
+        content: string,
+        attachments: Asset[],
+        versionNumber: number,
+    ): Promise<MessageContent> {
+        let version = manager.create(MessageContent, {
+            message,
+            content,
+            attachments,
+            version: versionNumber,
+        } as Partial<MessageContent>);
+
+        return await manager.save(MessageContent, version);
+    }
+
+    private async updateUnreadCounts(
+        manager: EntityManager,
+        chat: Chat,
+        senderId: number,
+    ): Promise<void> {
+        const recipientIds = chat.users
+            .filter((u) => u.id !== senderId)
+            .map((u) => u.id);
+
+        if (recipientIds.length === 0) return;
+
+        const unreadExisting = await manager.find(UnreadChat, {
+            where: {
+                chat: { id: chat.id },
+                user: { id: In(recipientIds) },
+            },
+            relations: ['user', 'chat'],
+        });
+
+        const byUserId = new Map<number, UnreadChat>(
+            unreadExisting.map((row) => [row.user.id, row]),
+        );
+
+        const toSave: UnreadChat[] = [];
+        for (const rid of recipientIds) {
+            const row =
+                byUserId.get(rid) ||
+                manager.create(UnreadChat, {
+                    chat,
+                    user: { id: rid } as User,
+                    unreadCount: 0,
+                });
+            row.unreadCount = (row.unreadCount ?? 0) + 1;
+            toSave.push(row);
+        }
+        await manager.save(UnreadChat, toSave);
+    }
+
+    private sendNotificationsToRecipients(
+        chat: Chat,
+        message: Message,
+        senderId: number,
+    ): void {
+        for (const user of chat.users) {
+            if (user.id === senderId) continue;
+            this.chatGateway.sendNewMessageNotification(
+                chat.id,
+                message,
+                user.id,
+            );
+        }
+    }
+
     async sendMessage(
         chatId: string,
         sender: User,
@@ -94,14 +165,10 @@ export class MessagesService {
         files?: Express.Multer.File[],
     ): Promise<Message> {
         const hasText = Boolean(dto.content && dto.content.trim().length > 0);
-        const hasVoice = Boolean(
-            dto.voiceUrl && dto.voiceUrl.trim().length > 0,
-        );
         const hasAttachments = Array.isArray(files) && files.length > 0;
 
         if (
             !hasText &&
-            !hasVoice &&
             !hasAttachments &&
             !dto.forwardFromMessageId &&
             !dto.replyToMessageId
@@ -112,7 +179,7 @@ export class MessagesService {
         const chat = await this.getChatAndEnsureMembership(chatId, sender.id);
 
         const uploadedAttachments: Array<{
-            type: 'image' | 'video' | 'file' | 'voice';
+            type: 'image' | 'video' | 'file';
             url: string;
             name: string;
             size: number;
@@ -122,13 +189,11 @@ export class MessagesService {
             for (const file of files) {
                 const fileKey = await this.storageService.uploadFile(file);
 
-                let fileType: 'image' | 'video' | 'file' | 'voice' = 'file';
+                let fileType: 'image' | 'video' | 'file' = 'file';
                 if (file.mimetype.startsWith('image/')) {
                     fileType = 'image';
                 } else if (file.mimetype.startsWith('video/')) {
                     fileType = 'video';
-                } else if (file.mimetype.startsWith('audio/')) {
-                    fileType = 'voice';
                 }
 
                 uploadedAttachments.push({
@@ -143,9 +208,9 @@ export class MessagesService {
         const dtoAttachments = Array.isArray(dto.attachments)
             ? dto.attachments
             : [];
-
         const attachments = [...uploadedAttachments, ...dtoAttachments];
-        const type: 'text' | 'voice' = hasVoice ? 'voice' : 'text';
+
+        const type: 'text' = 'text';
         const normalizedContent = hasText ? dto.content!.trim() : '';
 
         const repliedMessage = dto.replyToMessageId
@@ -166,7 +231,6 @@ export class MessagesService {
                     sender,
                     content: normalizedContent,
                     attachments,
-                    voiceUrl: hasVoice ? dto.voiceUrl! : null,
                     type,
                     isRead: false,
                     isDeleted: false,
@@ -177,69 +241,28 @@ export class MessagesService {
 
                 message = await manager.save(Message, message);
 
-                let version = manager.create(MessageContent, {
+                message.currentContent = await this.createMessageVersion(
+                    manager,
                     message,
-                    content: normalizedContent,
+                    normalizedContent,
                     attachments,
-                    version: 1,
-                } as Partial<MessageContent>);
-                version = await manager.save(MessageContent, version);
-
-                message.currentContent = version;
+                    1,
+                );
                 message = await manager.save(Message, message);
 
                 await manager.update(
                     Chat,
                     { id: chat.id },
-                    {
-                        lastMessage: message,
-                    },
+                    { lastMessage: message },
                 );
 
-                const recipientIds = chat.users
-                    .filter((u) => u.id !== sender.id)
-                    .map((u) => u.id);
-
-                if (recipientIds.length > 0) {
-                    const unreadExisting = await manager.find(UnreadChat, {
-                        where: {
-                            chat: { id: chat.id },
-                            user: { id: In(recipientIds) },
-                        },
-                        relations: ['user', 'chat'],
-                    });
-
-                    const byUserId = new Map<number, UnreadChat>(
-                        unreadExisting.map((row) => [row.user.id, row]),
-                    );
-
-                    const toSave: UnreadChat[] = [];
-                    for (const rid of recipientIds) {
-                        const row =
-                            byUserId.get(rid) ||
-                            manager.create(UnreadChat, {
-                                chat,
-                                user: { id: rid } as User,
-                                unreadCount: 0,
-                            });
-                        row.unreadCount = (row.unreadCount ?? 0) + 1;
-                        toSave.push(row);
-                    }
-                    await manager.save(UnreadChat, toSave);
-                }
+                await this.updateUnreadCounts(manager, chat, sender.id);
 
                 return message;
             },
         );
 
-        for (const user of chat.users) {
-            if (user.id === sender.id) continue;
-            this.chatGateway.sendNewMessageNotification(
-                chat.id,
-                saved,
-                user.id,
-            );
-        }
+        this.sendNotificationsToRecipients(chat, saved, sender.id);
 
         const full = await this.messageRepository.findOne({
             where: { id: saved.id },
@@ -257,7 +280,98 @@ export class MessagesService {
 
         if (!full)
             throw new NotFoundException(ERROR_MESSAGES.MESSAGE.RELOAD_FAIL);
+        return this.addSignedUrlsToMessage(full);
+    }
 
+    async sendVoiceMessage(
+        chatId: string,
+        sender: User,
+        dto: SendVoiceMessageDto,
+        file: Express.Multer.File,
+    ): Promise<Message> {
+        if (!file) {
+            throw new BadRequestException(ERROR_MESSAGES.MESSAGE.FILE_REQUIRED);
+        }
+
+        if (!file.mimetype.startsWith('audio/')) {
+            throw new BadRequestException(
+                ERROR_MESSAGES.MESSAGE.VOICE_REQUIRED,
+            );
+        }
+
+        const chat = await this.getChatAndEnsureMembership(chatId, sender.id);
+
+        const voiceKey = await this.storageService.uploadFile(file);
+        const normalizedContent = dto.content?.trim() ?? '';
+
+        const repliedMessage = dto.replyToMessageId
+            ? await this.getReplyParentOrFail(chatId, dto.replyToMessageId)
+            : null;
+
+        const forwardedFrom = dto.forwardFromMessageId
+            ? await this.getForwardSourceOrFail(
+                  dto.forwardFromMessageId,
+                  sender.id,
+              )
+            : null;
+
+        const saved = await this.messageRepository.manager.transaction(
+            async (manager) => {
+                let message = manager.create(Message, {
+                    chat,
+                    sender,
+                    content: normalizedContent,
+                    attachments: [],
+                    voiceUrl: voiceKey,
+                    type: 'voice',
+                    isRead: false,
+                    isDeleted: false,
+                    repliedMessage,
+                    forwardedFrom,
+                    quotedText: dto.quotedText,
+                } as Partial<Message>);
+
+                message = await manager.save(Message, message);
+
+                message.currentContent = await this.createMessageVersion(
+                    manager,
+                    message,
+                    normalizedContent,
+                    [],
+                    1,
+                );
+                message = await manager.save(Message, message);
+
+                await manager.update(
+                    Chat,
+                    { id: chat.id },
+                    { lastMessage: message },
+                );
+
+                await this.updateUnreadCounts(manager, chat, sender.id);
+
+                return message;
+            },
+        );
+
+        this.sendNotificationsToRecipients(chat, saved, sender.id);
+
+        const full = await this.messageRepository.findOne({
+            where: { id: saved.id },
+            relations: [
+                'sender',
+                'currentContent',
+                'repliedMessage',
+                'repliedMessage.sender',
+                'repliedMessage.currentContent',
+                'forwardedFrom',
+                'forwardedFrom.sender',
+                'forwardedFrom.currentContent',
+            ],
+        });
+
+        if (!full)
+            throw new NotFoundException(ERROR_MESSAGES.MESSAGE.RELOAD_FAIL);
         return this.addSignedUrlsToMessage(full);
     }
 
@@ -268,6 +382,12 @@ export class MessagesService {
                     ...attachment,
                     url: await this.storageService.getFileUrl(attachment.url),
                 })),
+            );
+        }
+
+        if (message.voiceUrl) {
+            message.voiceUrl = await this.storageService.getFileUrl(
+                message.voiceUrl,
             );
         }
 
@@ -300,6 +420,13 @@ export class MessagesService {
                 );
         }
 
+        if (message.forwardedFrom?.voiceUrl) {
+            message.forwardedFrom.voiceUrl =
+                await this.storageService.getFileUrl(
+                    message.forwardedFrom.voiceUrl,
+                );
+        }
+
         if (
             message.repliedMessage?.currentContent?.attachments &&
             message.repliedMessage.currentContent.attachments.length > 0
@@ -317,6 +444,13 @@ export class MessagesService {
                 );
         }
 
+        if (message.repliedMessage?.voiceUrl) {
+            message.repliedMessage.voiceUrl =
+                await this.storageService.getFileUrl(
+                    message.repliedMessage.voiceUrl,
+                );
+        }
+
         return message;
     }
 
@@ -324,7 +458,11 @@ export class MessagesService {
         chatId: string,
         pagination: CursorPaginationDto,
         userId: number,
-    ): Promise<{ messages: Message[]; hasMore: boolean; nextCursor?: string }> {
+    ): Promise<{
+        messages: Message[];
+        hasMore: boolean;
+        nextCursor?: string;
+    }> {
         await this.getChatAndEnsureMembership(chatId, userId);
 
         const limit = pagination.limit || 50;
