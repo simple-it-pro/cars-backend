@@ -11,6 +11,7 @@ import { User, Follower, Subscription } from '../../database/entities';
 import { UpdateUserDto } from '../dto';
 import {
     ERROR_MESSAGES,
+    SUCCESS_MESSAGES,
     WARNING_MESSAGES,
 } from '../../common/constants/messages';
 import { StorageService } from '../../storage/services';
@@ -158,7 +159,10 @@ export class UsersService {
         }
     }
 
-    async subscribeUser(userId: number, targetUserId: number): Promise<void> {
+    async subscribeUser(
+        userId: number,
+        targetUserId: number,
+    ): Promise<{ message: string }> {
         if (userId === targetUserId)
             throw new BadRequestException(
                 ERROR_MESSAGES.SUBSCRIPTION.SELF_SUBSCRIBE,
@@ -201,9 +205,14 @@ export class UsersService {
             subscribedUser: { id: targetUserId },
         });
         await this.followerRepository.save(follower);
+
+        return { message: SUCCESS_MESSAGES.USER.SUBSCRIBED };
     }
 
-    async unsubscribeUser(userId: number, targetUserId: number): Promise<void> {
+    async unsubscribeUser(
+        userId: number,
+        targetUserId: number,
+    ): Promise<{ message: string }> {
         const user = await this.userRepository.findOne({
             where: { id: userId },
         });
@@ -240,6 +249,8 @@ export class UsersService {
         if (follower) {
             await this.followerRepository.remove(follower);
         }
+
+        return { message: SUCCESS_MESSAGES.USER.UNSUBSCRIBED };
     }
 
     async getSubscriptions(userId: number): Promise<Subscription[]> {
@@ -279,7 +290,7 @@ export class UsersService {
         return this.addSignedUrlToUser(user);
     }
 
-    async deleteUser(id: number): Promise<void> {
+    async deleteUser(id: number): Promise<{ message: string }> {
         const user = await this.userRepository.findOne({
             where: { id },
             withDeleted: false,
@@ -290,6 +301,8 @@ export class UsersService {
         }
 
         await this.userRepository.softDelete(id);
+
+        return { message: SUCCESS_MESSAGES.USER.DELETED };
     }
 
     async deactivateUser(id: number): Promise<User> {

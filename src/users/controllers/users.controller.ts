@@ -91,8 +91,7 @@ export class UsersController {
         @AuthUser() { sub: userId }: JwtUserData,
         @Body('targetUserId') targetUserId: number,
     ) {
-        await this.usersService.subscribeUser(userId, targetUserId);
-        return { message: 'Вы успешно подписались на пользователя.' };
+        return this.usersService.subscribeUser(userId, targetUserId);
     }
 
     @Delete('unsubscribe')
@@ -105,8 +104,7 @@ export class UsersController {
         @AuthUser() { sub: userId }: JwtUserData,
         @Body('targetUserId') targetUserId: number,
     ) {
-        await this.usersService.unsubscribeUser(userId, targetUserId);
-        return { message: 'Вы успешно отписались от пользователя.' };
+        return this.usersService.unsubscribeUser(userId, targetUserId);
     }
 
     @Get('subscriptions/:userId')
@@ -153,8 +151,7 @@ export class UsersController {
             throw new BadRequestException('Неверное подтверждение удаления');
         }
 
-        await this.usersService.deleteUser(id);
-        return { message: 'Профиль успешно удален.' };
+        return this.usersService.deleteUser(id);
     }
 
     @Post('me/deactivate')
