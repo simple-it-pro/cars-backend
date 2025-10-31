@@ -17,7 +17,8 @@ import {
 } from '../../common/constants/messages';
 import { MessagesAttachmentService } from './messages-attachment.service';
 import { MessagesCoreService } from './messages-core.service';
-import { EntityManager } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
 export class MessagesService {
@@ -26,6 +27,8 @@ export class MessagesService {
         private readonly messagesAttachmentService: MessagesAttachmentService,
         @Inject(forwardRef(() => ChatsGateway))
         private readonly chatGateway: ChatsGateway,
+        @InjectRepository(Message)
+        private readonly messageRepository: Repository<Message>,
     ) {}
 
     private sendNotificationsToRecipients(
@@ -54,9 +57,9 @@ export class MessagesService {
         senderId: number,
     ): Promise<Message> {
         const saved =
-            await this.messagesCoreService[
-                'messageRepository'
-            ].manager.transaction(transactionCallback);
+            await this.messageRepository.manager.transaction(
+                transactionCallback,
+            );
         this.sendNotificationsToRecipients(chat, saved, senderId);
         return this.getFullMessageWithUrls(saved.id);
     }
@@ -265,83 +268,87 @@ export class MessagesService {
             editorId,
         );
 
-        const editedMessage = await this.messagesCoreService[
-            'messageRepository'
-        ].manager.transaction(async (manager) => {
-            const message = await manager
-                .getRepository(Message)
-                .createQueryBuilder('m')
-                .setLock('pessimistic_write')
-                .where('m.id = :messageId', { messageId })
-                .andWhere('m.isDeleted = false')
-                .andWhere('m.chatId = :chatId', { chatId })
-                .getOne();
+        const editedMessage = await this.messageRepository.manager.transaction(
+            async (manager) => {
+                const message = await manager
+                    .getRepository(Message)
+                    .createQueryBuilder('m')
+                    .setLock('pessimistic_write')
+                    .where('m.id = :messageId', { messageId })
+                    .andWhere('m.isDeleted = false')
+                    .andWhere('m.chatId = :chatId', { chatId })
+                    .getOne();
 
-            if (!message)
-                throw new NotFoundException(ERROR_MESSAGES.MESSAGE.NOT_FOUND);
+                if (!message)
+                    throw new NotFoundException(
+                        ERROR_MESSAGES.MESSAGE.NOT_FOUND,
+                    );
 
-            const author = await manager
-                .getRepository(Message)
-                .createQueryBuilder('m')
-                .leftJoinAndSelect('m.sender', 'sender')
-                .where('m.id = :id', { id: message.id })
-                .getOne();
+                const author = await manager
+                    .getRepository(Message)
+                    .createQueryBuilder('m')
+                    .leftJoinAndSelect('m.sender', 'sender')
+                    .where('m.id = :id', { id: message.id })
+                    .getOne();
 
-            if (!author || author.sender.id !== editorId)
-                throw new ForbiddenException(
-                    ERROR_MESSAGES.AUTH.NO_PERMISSIONS,
+                if (!author || author.sender.id !== editorId)
+                    throw new ForbiddenException(
+                        ERROR_MESSAGES.AUTH.NO_PERMISSIONS,
+                    );
+
+                const withCurrent = await manager.findOne(Message, {
+                    where: { id: message.id },
+                    relations: ['currentContent'],
+                });
+
+                const prevVersion = withCurrent?.currentContent?.version ?? 0;
+                const prevAttachments =
+                    withCurrent?.currentContent?.attachments ?? [];
+                const prevText =
+                    withCurrent?.currentContent?.content ??
+                    withCurrent?.content ??
+                    '';
+
+                if (prevText === newTextRaw)
+                    throw new BadRequestException(
+                        ERROR_MESSAGES.MESSAGE.NO_CHANGES,
+                    );
+
+                const newVersion = await manager.save(
+                    manager.create(MessageContent, {
+                        message,
+                        content: newTextRaw,
+                        attachments: prevAttachments,
+                        version: prevVersion + 1,
+                    }),
                 );
 
-            const withCurrent = await manager.findOne(Message, {
-                where: { id: message.id },
-                relations: ['currentContent'],
-            });
+                message.content = newTextRaw;
+                message.currentContent = newVersion;
+                await manager.save(Message, message);
 
-            const prevVersion = withCurrent?.currentContent?.version ?? 0;
-            const prevAttachments =
-                withCurrent?.currentContent?.attachments ?? [];
-            const prevText =
-                withCurrent?.currentContent?.content ??
-                withCurrent?.content ??
-                '';
+                const full = await manager.findOne(Message, {
+                    where: { id: message.id },
+                    relations: [
+                        'sender',
+                        'currentContent',
+                        'contentHistory',
+                        'repliedMessage',
+                        'repliedMessage.sender',
+                        'repliedMessage.currentContent',
+                        'forwardedFrom',
+                        'forwardedFrom.sender',
+                        'forwardedFrom.currentContent',
+                    ],
+                });
 
-            if (prevText === newTextRaw)
-                throw new BadRequestException(
-                    ERROR_MESSAGES.MESSAGE.NO_CHANGES,
-                );
-
-            const newVersion = await manager.save(
-                manager.create(MessageContent, {
-                    message,
-                    content: newTextRaw,
-                    attachments: prevAttachments,
-                    version: prevVersion + 1,
-                }),
-            );
-
-            message.content = newTextRaw;
-            message.currentContent = newVersion;
-            await manager.save(Message, message);
-
-            const full = await manager.findOne(Message, {
-                where: { id: message.id },
-                relations: [
-                    'sender',
-                    'currentContent',
-                    'contentHistory',
-                    'repliedMessage',
-                    'repliedMessage.sender',
-                    'repliedMessage.currentContent',
-                    'forwardedFrom',
-                    'forwardedFrom.sender',
-                    'forwardedFrom.currentContent',
-                ],
-            });
-
-            if (!full)
-                throw new NotFoundException(ERROR_MESSAGES.MESSAGE.RELOAD_FAIL);
-            return full;
-        });
+                if (!full)
+                    throw new NotFoundException(
+                        ERROR_MESSAGES.MESSAGE.RELOAD_FAIL,
+                    );
+                return full;
+            },
+        );
 
         const messageWithUrls =
             await this.messagesAttachmentService.addSignedUrlsToMessage(
@@ -353,9 +360,7 @@ export class MessagesService {
     }
 
     async deleteMessage(chatId: string, messageId: string, userId: number) {
-        const message = await this.messagesCoreService[
-            'messageRepository'
-        ].findOne({
+        const message = await this.messageRepository.findOne({
             where: { id: messageId, chat: { id: chatId }, isDeleted: false },
             relations: ['sender'],
         });
@@ -372,7 +377,7 @@ export class MessagesService {
 
         this.chatGateway.broadcastMessageDeleted(chatId, message);
         message.isDeleted = true;
-        await this.messagesCoreService['messageRepository'].save(message);
+        await this.messageRepository.save(message);
 
         if (deletionErrors.length > 0) {
             console.warn(
