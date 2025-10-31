@@ -109,7 +109,7 @@ export class UsersService {
         return instanceToPlain(updatedUser) as User;
     }
 
-    /* надо будет удалить после тестирования или сделать безопасно */
+    /* TODO: надо будет удалить после тестирования или сделать безопасно */
     async getAll() {
         return this.userRepository.find({
             select: {
