@@ -3,7 +3,6 @@ import {
     Body,
     Controller,
     Delete,
-    ForbiddenException,
     Get,
     Param,
     Patch,
@@ -30,9 +29,9 @@ import { AuthUser } from '../../auth/decorators';
 import { JwtUserData } from '../../users/types';
 import {
     CreateChatDto,
-    SendMessageDto,
     CreateGroupChatDto,
     EditMessageDto,
+    SendMessageDto,
     SendVoiceMessageDto,
 } from '../dto';
 import { CursorPaginationDto } from '../../common/dto';
@@ -52,8 +51,8 @@ import {
     ChatIdParamsDto,
     DeleteMessageParamsDto,
     EditMessageParamsDto,
-    ReplyMessageParamsDto,
     ForwardMessageParamsDto,
+    ReplyMessageParamsDto,
 } from '../dto/params';
 
 @Controller()
@@ -122,12 +121,7 @@ export class ChatsController {
         @AuthUser() { sub: userId }: JwtUserData,
         @Param('id') id: string,
     ) {
-        const chat = await this.chatsService.findChatById(id);
-        const isParticipant = chat.users.some((user) => user.id === userId);
-        if (!isParticipant) {
-            throw new ForbiddenException(ERROR_MESSAGES.AUTH.NO_PERMISSIONS);
-        }
-        return chat;
+        return this.chatsService.findChatById(id, userId);
     }
 
     @ApiOperation({ summary: 'Создание нового чата с пользователем' })

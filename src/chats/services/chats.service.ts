@@ -226,6 +226,16 @@ export class ChatsService {
 
         if (pageIds.length === 0) return { chats: [], hasMore: false };
 
+        const userWithFavorites = await this.userRepository.findOne({
+            where: { id: userId },
+            relations: ['favoriteChats'],
+            select: ['id'],
+        });
+
+        const favoriteChatIds = new Set(
+            userWithFavorites?.favoriteChats?.map((chat) => chat.id) || [],
+        );
+
         const chats = await this.chatRepository
             .createQueryBuilder('chat')
             .leftJoinAndSelect('chat.users', 'users')
@@ -251,9 +261,13 @@ export class ChatsService {
                     return {
                         ...chat,
                         lastMessage: messageWithUrls,
+                        isFavorite: favoriteChatIds.has(chat.id),
                     };
                 }
-                return chat;
+                return {
+                    ...chat,
+                    isFavorite: favoriteChatIds.has(chat.id),
+                };
             }),
         );
 
@@ -270,12 +284,38 @@ export class ChatsService {
         return { chats: chatsWithUrls, hasMore, nextCursor };
     }
 
-    async findChatById(chatId: string): Promise<Chat> {
+    async findChatById(
+        chatId: string,
+        userId: number,
+    ): Promise<Chat & { isFavorite?: boolean }> {
         const chat = await this.chatRepository.findOne({
             where: { id: chatId },
             relations: ['users', 'createdBy'],
         });
         if (!chat) throw new NotFoundException(ERROR_MESSAGES.CHAT.NOT_FOUND);
+
+        const isParticipant = chat.users.some((user) => user.id === userId);
+        if (!isParticipant) {
+            throw new ForbiddenException(ERROR_MESSAGES.AUTH.NO_PERMISSIONS);
+        }
+
+        if (userId) {
+            const userWithFavorites = await this.userRepository.findOne({
+                where: { id: userId },
+                relations: ['favoriteChats'],
+                select: ['id'],
+            });
+
+            const isFavorite =
+                userWithFavorites?.favoriteChats?.some(
+                    (favChat) => favChat.id === chatId,
+                ) || false;
+
+            return {
+                ...chat,
+                isFavorite,
+            };
+        }
 
         return chat;
     }
@@ -308,7 +348,7 @@ export class ChatsService {
         chatId: string,
         userId: number,
     ): Promise<{ isFavorite: boolean }> {
-        const chat = await this.findChatById(chatId);
+        const chat = await this.findChatById(chatId, userId);
 
         const isParticipant = chat.users.some((user) => user.id === userId);
         if (!isParticipant)
