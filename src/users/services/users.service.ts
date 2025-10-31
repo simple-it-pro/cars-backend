@@ -153,7 +153,7 @@ export class UsersService {
             const savedUser = await this.userRepository.save(user);
             const userWithUrl = await this.addSignedUrlToUser(savedUser);
             return instanceToPlain(userWithUrl) as User;
-        } catch (error) {
+        } catch {
             throw new BadRequestException(ERROR_MESSAGES.AVATAR.UPLOAD_FAILED);
         }
     }
