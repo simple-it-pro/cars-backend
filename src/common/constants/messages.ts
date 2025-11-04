@@ -13,6 +13,7 @@ export const ERROR_MESSAGES = {
     AUTH: {
         SMS_FAIL: 'Не удалось отправить SMS',
         CODE_EXPIRED: 'Код не найден или истек',
+        SESSION_REVOKED: 'Сессия недействительна или истекла',
         TOO_MANY_ATTEMPTS: 'Слишком много попыток. Попробуйте позже',
         WRONG_CODE: 'Неверный код подтверждения',
         INVALID_REFRESH_TOKEN: 'Невалидный refresh token',
@@ -81,6 +82,10 @@ export const ERROR_MESSAGES = {
         DEACTIVATION_FAILED: 'Не удалось деактивировать профиль',
         ACTIVATION_FAILED: 'Не удалось активировать профиль',
     },
+    PUBLIC_PROFILE: {
+        ACCESS_DISABLED: 'Публичный доступ к профилю отключён',
+        SLUG_NOT_FOUND: 'Пользователь с таким slug не найден',
+    },
 } as const;
 
 export const SUCCESS_MESSAGES = {
@@ -104,7 +109,6 @@ export const SUCCESS_MESSAGES = {
         DELETED_WITH_WARNINGS:
             'Сообщение удалено, но некоторые файлы не были удалены из хранилища',
     },
-
     USER: {
         UPDATED: 'Профиль успешно обновлен',
         AVATAR_UPDATED: 'Аватар успешно обновлен',
@@ -113,6 +117,9 @@ export const SUCCESS_MESSAGES = {
         DEACTIVATED: 'Профиль успешно деактивирован',
         ACTIVATED: 'Профиль успешно активирован',
         DELETED: 'Профиль успешно удален',
+    },
+    PUBLIC_PROFILE: {
+        LINK_READY: 'Ссылка на публичный профиль сгенерирована',
     },
 } as const;
 

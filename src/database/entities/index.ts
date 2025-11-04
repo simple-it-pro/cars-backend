@@ -8,3 +8,4 @@ export { default as User } from './user.entity';
 export { default as RefreshToken } from './refresh-token.entity';
 export { default as Subscription } from './subscription.entity';
 export { default as Follower } from './follower.entity';
+export { default as PublicProfileView } from './public-profile-view.entity';

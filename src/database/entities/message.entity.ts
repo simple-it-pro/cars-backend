@@ -13,6 +13,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import Chat from './chat.entity';
 import User from './user.entity';
 import MessageContent from './message-content.entity';
+import { Asset } from '../interfaces';
 
 @Entity({ name: 'messages' })
 class Message {
@@ -70,12 +71,7 @@ class Message {
         description: 'Вложения к сообщению',
     })
     @Column('jsonb', { default: [] })
-    attachments: Array<{
-        type: 'image' | 'video' | 'file' | 'voice';
-        url: string;
-        name: string;
-        size: number;
-    }>;
+    attachments: Array<Asset>;
 
     @Column({ nullable: true })
     voiceUrl?: string;
