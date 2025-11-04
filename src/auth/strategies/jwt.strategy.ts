@@ -31,17 +31,17 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
             );
         }
 
-        const exists = await this.refreshTokenRepository.exist({
+        const exists = await this.refreshTokenRepository.exists({
             where: {
                 tokenId: payload.jti,
-
+                userId: payload.sub,
                 expiresAt: MoreThan(new Date()),
             },
         });
 
         if (!exists) {
             throw new UnauthorizedException(
-                ERROR_MESSAGES.AUTH.SESSION_REVOKED ?? 'Session revoked',
+                ERROR_MESSAGES.AUTH.SESSION_REVOKED,
             );
         }
 

@@ -9,6 +9,8 @@ export const ERROR_MESSAGES = {
         SOME_NOT_FOUND: 'Один или несколько пользователей не найдены',
         SOME_NOT_FOUND_WITH_IDS_PREFIX: 'Пользователи с id не найдены: ',
         CITY_NOT_FOUND: 'Не найден город',
+        PUBLIC_PROFILE_ACCESS_DENIED: 'Доступ к публичному профилю запрещен',
+        PUBLIC_PROFILE_NOT_AVAILABLE: 'Публичный профиль недоступен',
     },
     AUTH: {
         SMS_FAIL: 'Не удалось отправить SMS',
@@ -117,6 +119,9 @@ export const SUCCESS_MESSAGES = {
         DEACTIVATED: 'Профиль успешно деактивирован',
         ACTIVATED: 'Профиль успешно активирован',
         DELETED: 'Профиль успешно удален',
+        PUBLIC_PROFILE_GENERATED: 'Публичная ссылка успешно сгенерирована',
+        PUBLIC_PROFILE_ACCESSED: 'Публичный профиль успешно получен',
+        PUBLIC_LINK_GENERATED: 'Публичная ссылка успешно сгенерирована',
     },
     PUBLIC_PROFILE: {
         LINK_READY: 'Ссылка на публичный профиль сгенерирована',
@@ -131,5 +136,6 @@ export const WARNING_MESSAGES = {
         AVATAR_DELETION_FAILED:
             'Не удалось удалить старый аватар, но новый был загружен',
         PARTIAL_FILE_UPLOAD: 'Некоторые файлы не были загружены',
+        PUBLIC_PROFILE_DEACTIVATED: 'Публичный профиль деактивирован',
     },
 } as const;

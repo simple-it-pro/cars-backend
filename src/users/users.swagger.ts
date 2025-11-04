@@ -123,9 +123,14 @@ export const USERS_API_DOCS = {
                 'Возвращает список пользователей, которые подписаны на указанного пользователя',
         } as ApiOperationOptions,
         GET_PUBLIC_PROFILE: {
-            summary: 'Получение публичного профиля пользователя',
+            summary: 'Получение публичного профиля пользователя по ID',
             description:
-                'Возвращает публичную информацию о пользователе (без email и других приватных данных)',
+                'Возвращает публичную информацию о пользователе по его ID (без email и других приватных данных)',
+        } as ApiOperationOptions,
+        GET_MY_PUBLIC_PROFILE: {
+            summary: 'Получение публичного профиля текущего пользователя',
+            description:
+                'Возвращает публичную информацию о текущем авторизованном пользователе для генерации публичной ссылки',
         } as ApiOperationOptions,
         DELETE_ME: {
             summary: 'Удаление профиля (soft delete)',
@@ -198,6 +203,11 @@ export const USERS_API_DOCS = {
         } as ApiResponseOptions,
         GET_PUBLIC_PROFILE: {
             description: 'Публичный профиль успешно получен',
+            type: User,
+        } as ApiResponseOptions,
+        GET_MY_PUBLIC_PROFILE: {
+            description:
+                'Публичный профиль текущего пользователя успешно получен',
             type: User,
         } as ApiResponseOptions,
         DELETE_ME: {
