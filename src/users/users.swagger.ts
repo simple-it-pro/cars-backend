@@ -147,6 +147,16 @@ export const USERS_API_DOCS = {
             description:
                 'Активирует ранее деактивированный профиль пользователя',
         } as ApiOperationOptions,
+        GENERATE_PUBLIC_LINK: {
+            summary: 'Генерация публичной ссылки на профиль',
+            description:
+                'Генерирует уникальную публичную ссылку для профиля текущего пользователя',
+        } as ApiOperationOptions,
+        GET_PUBLIC_PROFILE_BY_SLUG: {
+            summary: 'Получение публичного профиля по slug',
+            description:
+                'Возвращает публичную информацию о пользователе по его nickname или ID',
+        } as ApiOperationOptions,
     },
 
     RESPONSES: {
@@ -260,6 +270,22 @@ export const USERS_API_DOCS = {
             status: 400,
             description: 'Неверное подтверждение удаления',
         } as ApiResponseOptions,
+        GENERATE_PUBLIC_LINK: {
+            description: 'Публичная ссылка успешно сгенерирована',
+            schema: {
+                type: 'object',
+                properties: {
+                    publicUrl: {
+                        type: 'string',
+                        example: 'https://yourapp.com/u/john_doe',
+                    },
+                    message: {
+                        type: 'string',
+                        example: 'Публичная ссылка успешно сгенерирована',
+                    },
+                },
+            },
+        } as ApiResponseOptions,
     },
 
     BODIES: {
@@ -318,6 +344,12 @@ export const USERS_API_DOCS = {
             type: Number,
             description: 'ID пользователя',
             example: 1,
+        } as ApiParamOptions,
+        SLUG: {
+            name: 'slug',
+            type: String,
+            description: 'Nickname или ID пользователя',
+            example: 'john_doe',
         } as ApiParamOptions,
     },
 } as const;

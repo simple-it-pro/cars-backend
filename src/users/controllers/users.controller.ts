@@ -145,6 +145,24 @@ export class UsersController {
         return this.usersService.getPublicProfile(id);
     }
 
+    @Get('me/public-link')
+    @ApiOperation(USERS_API_DOCS.OPERATIONS.GENERATE_PUBLIC_LINK)
+    @ApiOkResponse(USERS_API_DOCS.RESPONSES.GENERATE_PUBLIC_LINK)
+    @ApiResponse(USERS_API_DOCS.RESPONSES.NOT_FOUND)
+    @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
+    async generatePublicLink(@AuthUser() { sub: id }: JwtUserData) {
+        return this.usersService.generatePublicProfileLink(id);
+    }
+
+    @Get('u/:slug')
+    @ApiOperation(USERS_API_DOCS.OPERATIONS.GET_PUBLIC_PROFILE_BY_SLUG)
+    @ApiParam(USERS_API_DOCS.PARAMS.SLUG)
+    @ApiOkResponse(USERS_API_DOCS.RESPONSES.GET_PUBLIC_PROFILE)
+    @ApiResponse(USERS_API_DOCS.RESPONSES.NOT_FOUND)
+    async getPublicProfileBySlug(@Param('slug') slug: string) {
+        return this.usersService.getPublicProfileBySlug(slug);
+    }
+
     @Delete('me')
     @ApiOperation(USERS_API_DOCS.OPERATIONS.DELETE_ME)
     @ApiBody(USERS_API_DOCS.BODIES.DELETE)

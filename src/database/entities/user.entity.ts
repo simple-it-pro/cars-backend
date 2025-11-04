@@ -148,18 +148,6 @@ class User {
     @Column({ default: false })
     isDeactivated: boolean;
 
-    @ApiProperty({
-        example: 'john-doe',
-    })
-    @Column({ nullable: true, unique: true })
-    publicSlug: string;
-
-    @ApiProperty({
-        example: true,
-    })
-    @Column({ type: 'boolean', default: true })
-    isPublicProfileEnabled: boolean;
-
     @ManyToMany(() => Chat, (chat) => chat.users)
     chats: Chat[];
 

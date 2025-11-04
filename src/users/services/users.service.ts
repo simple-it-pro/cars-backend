@@ -263,8 +263,6 @@ export class UsersService {
     }
 
     async getPublicProfile(id: number): Promise<Partial<User>> {
-        this.logger.log(`Public profile accessed for user ID: ${id}`);
-
         await this.ratingService.calculateAndUpdateUserRating(id);
         const user = await this.userRepository.findOne({
             where: { id, deletedAt: IsNull() },
@@ -284,7 +282,7 @@ export class UsersService {
 
         if (user.isDeactivated) {
             this.logger.warn(
-                `Attempt to access deactivated public profile: ${id}`,
+                `Попытка доступа к деактивированному профилю: ${id}`,
             );
             throw new BadRequestException(
                 ERROR_MESSAGES.USER.PUBLIC_PROFILE_NOT_AVAILABLE,
@@ -315,7 +313,9 @@ export class UsersService {
         return this.addSignedUrlToUser(user);
     }
 
-    async generatePublicProfileLink(id: number) {
+    async generatePublicProfileLink(
+        id: number,
+    ): Promise<{ publicUrl: string; message: string }> {
         const user = await this.userRepository.findOne({
             where: { id, deletedAt: IsNull() },
             select: ['id', 'nickname', 'isDeactivated'],
@@ -331,13 +331,13 @@ export class UsersService {
             );
         }
 
-        const profileSlug = user.nickname || user.id.toString();
+        const slug = user.nickname || user.id.toString();
 
         /* TODO: Когда появится домен, дописать его в env */
-        const publicUrl = `${process.env.APP_URL || 'https://yourapp.com'}/u/${profileSlug}`;
+        const publicUrl = `${process.env.APP_URL || 'https://yourapp.com'}/u/${slug}`;
 
         this.logger.log(
-            `Public profile link generated for user ${user.id}: ${publicUrl}`,
+            `Сгенерирована ссылка для пользователя ${user.id}: ${publicUrl}`,
         );
 
         return {
@@ -347,7 +347,7 @@ export class UsersService {
     }
 
     async getPublicProfileBySlug(slug: string): Promise<Partial<User>> {
-        this.logger.log(`Public profile accessed by slug: ${slug}`);
+        this.logger.log(`Публичный профиль получен по slug: ${slug}`);
 
         let user: User | null;
 
