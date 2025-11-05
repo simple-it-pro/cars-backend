@@ -29,18 +29,18 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     async handleConnection(socket: Socket) {
         try {
-            const token = socket.handshake.auth.token;
+            const token: string = socket.handshake.auth.token;
             if (!token) {
                 socket.disconnect();
                 return;
             }
 
             const payload = await this.authService.verifyWebSocketToken(token);
-            const userId = payload.sub;
+            const userId: number = payload.sub;
 
             this.connectedUsers.set(userId, socket.id);
 
-            socket.join(`user_${userId}`);
+            await socket.join(`user_${userId}`);
 
             this.logger.log(
                 `User ${userId} connected with socket ${socket.id}`,
@@ -66,7 +66,7 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         @ConnectedSocket() socket: Socket,
         @MessageBody() chatId: string,
     ) {
-        socket.join(`chat_${chatId}`);
+        void socket.join(`chat_${chatId}`);
         this.logger.log(`Socket ${socket.id} joined chat ${chatId}`);
     }
 
@@ -75,7 +75,7 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         @ConnectedSocket() socket: Socket,
         @MessageBody() chatId: string,
     ) {
-        socket.leave(`chat_${chatId}`);
+        void socket.leave(`chat_${chatId}`);
         this.logger.log(`Socket ${socket.id} left chat ${chatId}`);
     }
 
