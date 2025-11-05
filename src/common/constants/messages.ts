@@ -60,6 +60,7 @@ export const ERROR_MESSAGES = {
     },
     NOTIFICATION: {
         NOT_FOUND: 'Уведомление не найдено',
+        FORBIDDEN: 'Нельзя удалить чужое уведомление',
         CREATE_FAILED: 'Не удалось создать уведомление',
         UPDATE_FAILED: 'Не удалось обновить уведомление',
         DELETE_FAILED: 'Не удалось удалить уведомление',

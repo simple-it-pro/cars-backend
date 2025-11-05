@@ -17,6 +17,8 @@ import {
 } from '../../common/constants/messages';
 import { StorageService } from '../../storage/services';
 import { RatingService } from './rating.service';
+import { NotificationsService } from '../../notifications/services';
+import { NotificationMessages, NotificationType } from '../../common/types';
 
 @Injectable()
 export class UsersService {
@@ -30,6 +32,7 @@ export class UsersService {
         @InjectRepository(Follower)
         private readonly followerRepository: Repository<Follower>,
         private readonly ratingService: RatingService,
+        private readonly notificationsService: NotificationsService,
     ) {}
 
     async getUserById(id: number): Promise<User | null> {
@@ -200,6 +203,14 @@ export class UsersService {
             subscribedUser: { id: targetUserId },
         });
         await this.followerRepository.save(follower);
+
+        await this.notificationsService.create(targetUserId, {
+            type: NotificationType.FOLLOW,
+            title: NotificationMessages.FOLLOW,
+            description: user.name
+                ? `На вас подписался ${user.name}`
+                : 'У вас +1 подписчик',
+        });
 
         return { message: SUCCESS_MESSAGES.USER.SUBSCRIBED };
     }

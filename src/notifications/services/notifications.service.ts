@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+    ForbiddenException,
+    Injectable,
+    NotFoundException,
+} from '@nestjs/common';
 import { CreateNotificationDto } from '../dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Notification } from '../../database/entities';
@@ -8,12 +12,14 @@ import {
     ERROR_MESSAGES,
     SUCCESS_MESSAGES,
 } from '../../common/constants/messages';
+import { NotificationsGateway } from '../gateways';
 
 @Injectable()
 export class NotificationsService {
     constructor(
         @InjectRepository(Notification)
         private readonly notificationRepository: Repository<Notification>,
+        private readonly notificationsGateway: NotificationsGateway,
     ) {}
 
     async getAll(userId: number, filterType?: NotificationType) {
@@ -68,6 +74,8 @@ export class NotificationsService {
             isRead: true,
         });
 
+        this.notificationsGateway.sendNotificationRead(userId, notificationId);
+
         return { message: SUCCESS_MESSAGES.NOTIFICATION.MARKED_AS_READ };
     }
 
@@ -84,6 +92,8 @@ export class NotificationsService {
             },
         );
 
+        this.notificationsGateway.sendAllNotificationsRead(userId);
+
         return {
             message: SUCCESS_MESSAGES.NOTIFICATION.ALL_MARKED_AS_READ,
             affected: result.affected || 0,
@@ -99,7 +109,15 @@ export class NotificationsService {
             user: { id: userId },
         });
 
-        return this.notificationRepository.save(notification);
+        const savedNotification =
+            await this.notificationRepository.save(notification);
+
+        this.notificationsGateway.sendNewNotification(
+            userId,
+            savedNotification,
+        );
+
+        return savedNotification;
     }
 
     async remove(
@@ -117,7 +135,16 @@ export class NotificationsService {
             throw new NotFoundException(ERROR_MESSAGES.NOTIFICATION.NOT_FOUND);
         }
 
+        if (notification.user.id !== userId) {
+            throw new ForbiddenException(ERROR_MESSAGES.NOTIFICATION.FORBIDDEN);
+        }
+
         await this.notificationRepository.delete(notificationId);
+
+        this.notificationsGateway.sendNotificationDeleted(
+            userId,
+            notificationId,
+        );
 
         return { message: SUCCESS_MESSAGES.NOTIFICATION.DELETED };
     }
