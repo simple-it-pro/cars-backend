@@ -22,12 +22,20 @@ export class NotificationsService {
         private readonly notificationsGateway: NotificationsGateway,
     ) {}
 
-    async getAll(userId: number, filterType?: NotificationType) {
+    async getAll(
+        userId: number,
+        filterType?: NotificationType,
+        isUnread?: boolean,
+    ) {
         const where: any = {
             user: {
                 id: userId,
             },
         };
+
+        if (isUnread) {
+            where.isRead = false;
+        }
 
         if (filterType) {
             where.type = filterType;

@@ -14,6 +14,11 @@ export const NOTIFICATIONS_API_DOCS = {
             description:
                 'Возвращает список всех уведомлений пользователя с возможностью фильтрации по типу',
         } as ApiOperationOptions,
+        GET_UNREAD: {
+            summary: 'Получение непрочитанных уведомлений пользователя',
+            description:
+                'Возвращает список всех непрочитанных уведомлений пользователя с возможностью фильтрации по типу',
+        } as ApiOperationOptions,
         GET_UNREAD_COUNT: {
             summary: 'Получение количества непрочитанных уведомлений',
             description:
@@ -36,6 +41,11 @@ export const NOTIFICATIONS_API_DOCS = {
 
     RESPONSES: {
         GET_ALL: {
+            description: 'Список уведомлений успешно получен',
+            type: Notification,
+            isArray: true,
+        } as ApiResponseOptions,
+        GET_UNREAD: {
             description: 'Список уведомлений успешно получен',
             type: Notification,
             isArray: true,

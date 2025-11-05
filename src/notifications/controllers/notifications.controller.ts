@@ -43,6 +43,18 @@ export class NotificationsController {
         return this.notificationsService.getAll(id, filterType);
     }
 
+    @Get('unread')
+    @ApiOperation(NOTIFICATIONS_API_DOCS.OPERATIONS.GET_UNREAD)
+    @ApiQuery(NOTIFICATIONS_API_DOCS.QUERIES.FILTER_TYPE)
+    @ApiOkResponse(NOTIFICATIONS_API_DOCS.RESPONSES.GET_UNREAD)
+    @ApiResponse(NOTIFICATIONS_API_DOCS.RESPONSES.UNAUTHORIZED)
+    async getUnreadNotifications(
+        @AuthUser() { sub: id }: JwtUserData,
+        @Query('type') filterType?: NotificationType,
+    ) {
+        return this.notificationsService.getAll(id, filterType, true);
+    }
+
     @Get('unread-count')
     @ApiOperation(NOTIFICATIONS_API_DOCS.OPERATIONS.GET_UNREAD_COUNT)
     @ApiOkResponse(NOTIFICATIONS_API_DOCS.RESPONSES.GET_UNREAD_COUNT)
