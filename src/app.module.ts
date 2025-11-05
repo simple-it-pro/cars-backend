@@ -8,6 +8,7 @@ import { SmsModule } from './sms/sms.module';
 import { ChatsModule } from './chats/chats.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { StorageModule } from './storage/storage.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import ROUTES from './routes';
 
 @Module({
@@ -20,6 +21,7 @@ import ROUTES from './routes';
         ReviewsModule,
         StorageModule,
         RouterModule.register(ROUTES),
+        NotificationsModule,
     ],
 })
 export class AppModule {}

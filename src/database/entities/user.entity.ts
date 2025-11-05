@@ -1,22 +1,23 @@
 import {
-    Entity,
-    PrimaryGeneratedColumn,
     Column,
     CreateDateColumn,
-    UpdateDateColumn,
-    OneToMany,
-    ManyToMany,
-    JoinTable,
     DeleteDateColumn,
+    Entity,
+    JoinTable,
+    ManyToMany,
+    OneToMany,
+    PrimaryGeneratedColumn,
+    UpdateDateColumn,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
-import { UserRole } from '../../common/types/roles';
+import { UserRole } from '../../common/types';
 import {
     Chat,
     Follower,
     Message,
+    Notification,
     RefreshToken,
     Review,
     Subscription,
@@ -179,6 +180,9 @@ class User {
 
     @OneToMany(() => Message, (message) => message.sender)
     messages: Message[];
+
+    @OneToMany(() => Notification, (notification) => notification.user)
+    notifications: Notification[];
 }
 
 export default User;
