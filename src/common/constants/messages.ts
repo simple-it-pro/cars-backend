@@ -11,6 +11,7 @@ export const ERROR_MESSAGES = {
         CITY_NOT_FOUND: 'Не найден город',
         PUBLIC_PROFILE_ACCESS_DENIED: 'Доступ к публичному профилю запрещен',
         PUBLIC_PROFILE_NOT_AVAILABLE: 'Публичный профиль недоступен',
+        CONFIRMATION_INCORRECT: 'Неверное подтверждение удаления',
     },
     AUTH: {
         SMS_FAIL: 'Не удалось отправить SMS',
@@ -56,6 +57,12 @@ export const ERROR_MESSAGES = {
         REPLY_AND_FORWARD_CONFLICT:
             'Нельзя одновременно указывать replyToMessageId и forwardFromMessageId',
         NO_CHANGES: 'Нечего обновлять: содержимое не изменилось',
+    },
+    NOTIFICATION: {
+        NOT_FOUND: 'Уведомление не найдено',
+        CREATE_FAILED: 'Не удалось создать уведомление',
+        UPDATE_FAILED: 'Не удалось обновить уведомление',
+        DELETE_FAILED: 'Не удалось удалить уведомление',
     },
     STORAGE: {
         MISSING_ENV: 'Нет обязательных переменных окружения для S3-хранилища',
@@ -122,6 +129,12 @@ export const SUCCESS_MESSAGES = {
         PUBLIC_PROFILE_GENERATED: 'Публичная ссылка успешно сгенерирована',
         PUBLIC_PROFILE_ACCESSED: 'Публичный профиль успешно получен',
         PUBLIC_LINK_GENERATED: 'Публичная ссылка успешно сгенерирована',
+    },
+    NOTIFICATION: {
+        CREATED: 'Уведомление успешно создано',
+        MARKED_AS_READ: 'Уведомление отмечено как прочитанное',
+        ALL_MARKED_AS_READ: 'Все уведомления отмечены как прочитанные',
+        DELETED: 'Уведомление успешно удалено',
     },
     PUBLIC_PROFILE: {
         LINK_READY: 'Ссылка на публичный профиль сгенерирована',
