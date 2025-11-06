@@ -45,6 +45,7 @@ import {
 } from '../../common/constants/messages';
 import {
     API_CONSUMES,
+    CHAT_OPERATIONS,
     CHAT_QUERIES,
     CHAT_RESPONSES,
     MESSAGE_BODIES,
@@ -165,6 +166,45 @@ export class ChatsController {
         @Body() createGroupChatDto: CreateGroupChatDto,
     ) {
         return this.chatsService.createGroupChat(userId, createGroupChatDto);
+    }
+
+    @Post('read-all')
+    @ApiOperation(CHAT_OPERATIONS.MARK_ALL_READ)
+    @ApiResponse(CHAT_RESPONSES.MARK_ALL_READ_RESPONSE)
+    async markAllChatsAsRead(@AuthUser() { sub: userId }: JwtUserData) {
+        return this.chatsService.markAllChatsAsRead(userId);
+    }
+
+    @Post('read')
+    @ApiOperation(CHAT_OPERATIONS.MARK_CHATS_READ)
+    @ApiBody(MESSAGE_BODIES.CHAT_IDS_BODY)
+    @ApiResponse(CHAT_RESPONSES.MARK_CHATS_READ_RESPONSE)
+    async markChatsAsRead(
+        @AuthUser() { sub: userId }: JwtUserData,
+        @Body() dto: ChatIdsDto,
+    ) {
+        return this.chatsService.markChatsAsRead(userId, dto.chatIds);
+    }
+
+    @Delete('batch')
+    @ApiOperation(CHAT_OPERATIONS.DELETE_CHATS)
+    @ApiBody(MESSAGE_BODIES.CHAT_IDS_BODY)
+    @ApiResponse(CHAT_RESPONSES.DELETE_CHATS_RESPONSE)
+    async deleteChats(
+        @AuthUser() { sub: userId }: JwtUserData,
+        @Body() dto: ChatIdsDto,
+    ) {
+        return this.chatsService.deleteChats(userId, dto.chatIds);
+    }
+
+    @Delete(':id')
+    @ApiOperation(CHAT_OPERATIONS.DELETE_CHAT)
+    @ApiResponse(CHAT_RESPONSES.DELETE_CHAT_RESPONSE)
+    async deleteChat(
+        @AuthUser() { sub: userId }: JwtUserData,
+        @Param('id', ParseUUIDPipe) chatId: string,
+    ) {
+        return this.chatsService.deleteChats(userId, [chatId]);
     }
 
     @ApiOperation({ summary: 'Получение сообщений чата' })
@@ -361,42 +401,5 @@ export class ChatsController {
         @AuthUser() { sub: userId }: JwtUserData,
     ) {
         return this.chatsService.toggleFavorite(chatId, userId);
-    }
-
-    @Post('read-all')
-    @ApiOperation({ summary: 'Mark all chats as read for current user' })
-    @ApiResponse({ status: 200, description: 'All chats marked as read' })
-    async markAllChatsAsRead(@AuthUser() { sub: userId }: JwtUserData) {
-        return this.chatsService.markAllChatsAsRead(userId);
-    }
-
-    @Post('read')
-    @ApiOperation({ summary: 'Mark multiple chats as read' })
-    @ApiResponse({ status: 200, description: 'Chats marked as read' })
-    async markChatsAsRead(
-        @AuthUser() { sub: userId }: JwtUserData,
-        @Body() dto: ChatIdsDto,
-    ) {
-        return this.chatsService.markChatsAsRead(userId, dto.chatIds);
-    }
-
-    @Delete('batch')
-    @ApiOperation({ summary: 'Delete multiple chats' })
-    @ApiResponse({ status: 200, description: 'Chats deleted successfully' })
-    async deleteChats(
-        @AuthUser() { sub: userId }: JwtUserData,
-        @Body() dto: ChatIdsDto,
-    ) {
-        return this.chatsService.deleteChats(userId, dto.chatIds);
-    }
-
-    @Delete(':id')
-    @ApiOperation({ summary: 'Delete a single chat' })
-    @ApiResponse({ status: 200, description: 'Chat deleted successfully' })
-    async deleteChat(
-        @AuthUser() { sub: userId }: JwtUserData,
-        @Param('id', ParseUUIDPipe) chatId: string,
-    ) {
-        return this.chatsService.deleteChats(userId, [chatId]);
     }
 }

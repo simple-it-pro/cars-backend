@@ -104,8 +104,9 @@ export const SUCCESS_MESSAGES = {
     },
     CHAT: {
         MARK_READ: 'Сообщения отмечены как прочитанные',
-        ALL_MARKED_READ: 'All chats marked as read successfully',
-        DELETED: 'Chats deleted successfully',
+        ALL_MARKED_READ: 'Все чаты отмечены как прочитанные',
+        CHATS_MARKED_READ: 'Чаты отмечены как прочитанные',
+        DELETED: 'Чаты удалены успешно',
     },
     REVIEW: {
         CREATED: 'Отзыв успешно создан',

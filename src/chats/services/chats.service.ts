@@ -466,7 +466,7 @@ export class ChatsService {
 
                 return {
                     success: true,
-                    message: SUCCESS_MESSAGES.CHAT.MARK_READ,
+                    message: SUCCESS_MESSAGES.CHAT.CHATS_MARKED_READ,
                 };
             },
         );

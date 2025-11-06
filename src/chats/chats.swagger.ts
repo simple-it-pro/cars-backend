@@ -60,6 +60,60 @@ export const CHAT_RESPONSES = {
             },
         },
     } as ApiResponseOptions,
+
+    MARK_ALL_READ_RESPONSE: {
+        status: 200,
+        schema: {
+            type: 'object',
+            properties: {
+                success: { type: 'boolean', example: true },
+                message: {
+                    type: 'string',
+                    example: 'Все чаты отмечены как прочитанные',
+                },
+            },
+        },
+        description: 'Все чаты успешно отмечены как прочитанные',
+    } as ApiResponseOptions,
+
+    MARK_CHATS_READ_RESPONSE: {
+        status: 200,
+        schema: {
+            type: 'object',
+            properties: {
+                success: { type: 'boolean', example: true },
+                message: {
+                    type: 'string',
+                    example: 'Чаты отмечены как прочитанные',
+                },
+            },
+        },
+        description: 'Выбранные чаты отмечены как прочитанные',
+    } as ApiResponseOptions,
+
+    DELETE_CHATS_RESPONSE: {
+        status: 200,
+        schema: {
+            type: 'object',
+            properties: {
+                success: { type: 'boolean', example: true },
+                message: { type: 'string', example: 'Чаты удалены успешно' },
+            },
+        },
+        description: 'Чаты успешно удалены',
+    } as ApiResponseOptions,
+
+    DELETE_CHAT_RESPONSE: {
+        status: 200,
+        schema: {
+            type: 'object',
+            properties: {
+                success: { type: 'boolean', example: true },
+                message: { type: 'string', example: 'Чат удален успешно' },
+            },
+        },
+        description: 'Чат успешно удален',
+    } as ApiResponseOptions,
 } as const;
 
 export const MESSAGE_BODIES = {
@@ -163,6 +217,22 @@ export const MESSAGE_BODIES = {
             },
         },
     } as ApiBodyOptions,
+
+    CHAT_IDS_BODY: {
+        schema: {
+            type: 'object',
+            properties: {
+                chatIds: {
+                    type: 'array',
+                    description: 'Массив идентификаторов чатов',
+                    example: ['chat-uuid-1', 'chat-uuid-2'],
+                    items: { type: 'string' },
+                },
+            },
+            required: ['chatIds'],
+        },
+        description: 'Массив ID чатов для операций',
+    } as ApiBodyOptions,
 } as const;
 
 export const CHAT_QUERIES = {
@@ -182,4 +252,27 @@ export const CHAT_QUERIES = {
 
 export const API_CONSUMES = {
     MULTIPART_FORM_DATA: 'multipart/form-data',
+} as const;
+
+export const CHAT_OPERATIONS = {
+    MARK_ALL_READ: {
+        summary: 'Отметить все чаты как прочитанные',
+        description:
+            'Отмечает все сообщения во всех чатах пользователя как прочитанные и обнуляет счетчики непрочитанных',
+    },
+    MARK_CHATS_READ: {
+        summary: 'Отметить выбранные чаты как прочитанные',
+        description:
+            'Отмечает сообщения в указанных чатах как прочитанные и обнуляет счетчики непрочитанных для этих чатов',
+    },
+    DELETE_CHATS: {
+        summary: 'Удалить несколько чатов',
+        description:
+            'Удаляет пользователя из указанных чатов. Если в чате не остается участников, чат удаляется полностью',
+    },
+    DELETE_CHAT: {
+        summary: 'Удалить чат',
+        description:
+            'Удаляет пользователя из указанного чата. Если в чате не остается участников, чат удаляется полностью',
+    },
 } as const;
