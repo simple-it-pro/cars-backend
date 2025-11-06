@@ -186,7 +186,7 @@ export class ChatsController {
         return this.chatsService.markChatsAsRead(userId, dto.chatIds);
     }
 
-    @Delete('batch')
+    @Delete('delete-chats')
     @ApiOperation(CHAT_OPERATIONS.DELETE_CHATS)
     @ApiBody(MESSAGE_BODIES.CHAT_IDS_BODY)
     @ApiResponse(CHAT_RESPONSES.DELETE_CHATS_RESPONSE)
