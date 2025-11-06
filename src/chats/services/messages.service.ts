@@ -39,11 +39,12 @@ export class MessagesService {
         message: Message,
         senderId: number,
     ) {
+        const messageWithUrls = await this.getFullMessageWithUrls(message.id);
         for (const user of chat.users) {
             if (user.id === senderId) continue;
             this.chatGateway.sendNewMessageNotification(
                 chat.id,
-                message,
+                messageWithUrls,
                 user.id,
             );
 
@@ -401,7 +402,11 @@ export class MessagesService {
                 message,
             );
 
-        this.chatGateway.broadcastMessageDeleted(chatId, message);
+        const messageWithUrls =
+            await this.messagesAttachmentService.addSignedUrlsToMessage(
+                message,
+            );
+        this.chatGateway.broadcastMessageDeleted(chatId, messageWithUrls);
         message.isDeleted = true;
         await this.messageRepository.save(message);
 

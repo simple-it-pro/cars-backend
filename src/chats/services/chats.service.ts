@@ -13,7 +13,10 @@ import {
     CursorPaginationDto,
     parseCompositeCursor,
 } from '../../common/dto';
-import { ERROR_MESSAGES } from '../../common/constants/messages';
+import {
+    ERROR_MESSAGES,
+    SUCCESS_MESSAGES,
+} from '../../common/constants/messages';
 import { UsersService } from '../../users/services';
 import { User, Chat, UnreadChat, Message } from '../../database/entities';
 import { StorageService } from '../../storage/services';
@@ -374,5 +377,144 @@ export class ChatsService {
             await this.userRepository.save(user);
             return { isFavorite: true };
         }
+    }
+
+    async markAllChatsAsRead(
+        userId: number,
+    ): Promise<{ success: boolean; message: string }> {
+        return await this.chatRepository.manager.transaction(
+            async (manager) => {
+                const userChats = await manager
+                    .createQueryBuilder(Chat, 'chat')
+                    .innerJoin('chat.users', 'user', 'user.id = :userId', {
+                        userId,
+                    })
+                    .getMany();
+
+                const chatIds = userChats.map((chat) => chat.id);
+
+                if (chatIds.length === 0) {
+                    return {
+                        success: true,
+                        message: SUCCESS_MESSAGES.CHAT.ALL_MARKED_READ,
+                    };
+                }
+
+                await manager
+                    .createQueryBuilder()
+                    .update(Message)
+                    .set({ isRead: true })
+                    .where('chatId IN (:...chatIds)', { chatIds })
+                    .andWhere('isDeleted = false')
+                    .andWhere('isRead = false')
+                    .andWhere('senderId != :userId', { userId })
+                    .execute();
+
+                await manager
+                    .createQueryBuilder()
+                    .update(UnreadChat)
+                    .set({ unreadCount: 0 })
+                    .where('userId = :userId', { userId })
+                    .andWhere('chatId IN (:...chatIds)', { chatIds })
+                    .execute();
+
+                return {
+                    success: true,
+                    message: SUCCESS_MESSAGES.CHAT.ALL_MARKED_READ,
+                };
+            },
+        );
+    }
+
+    async markChatsAsRead(
+        userId: number,
+        chatIds: string[],
+    ): Promise<{ success: boolean; message: string }> {
+        return await this.chatRepository.manager.transaction(
+            async (manager) => {
+                const validChats = await manager
+                    .createQueryBuilder(Chat, 'chat')
+                    .innerJoin('chat.users', 'user', 'user.id = :userId', {
+                        userId,
+                    })
+                    .where('chat.id IN (:...chatIds)', { chatIds })
+                    .getMany();
+
+                const validChatIds = validChats.map((chat) => chat.id);
+
+                if (validChatIds.length === 0) {
+                    throw new NotFoundException(ERROR_MESSAGES.CHAT.NOT_FOUND);
+                }
+
+                await manager
+                    .createQueryBuilder()
+                    .update(Message)
+                    .set({ isRead: true })
+                    .where('chatId IN (:...validChatIds)', { validChatIds })
+                    .andWhere('isDeleted = false')
+                    .andWhere('isRead = false')
+                    .andWhere('senderId != :userId', { userId })
+                    .execute();
+
+                await manager
+                    .createQueryBuilder()
+                    .update(UnreadChat)
+                    .set({ unreadCount: 0 })
+                    .where('userId = :userId', { userId })
+                    .andWhere('chatId IN (:...validChatIds)', { validChatIds })
+                    .execute();
+
+                return {
+                    success: true,
+                    message: SUCCESS_MESSAGES.CHAT.MARK_READ,
+                };
+            },
+        );
+    }
+
+    async deleteChats(
+        userId: number,
+        chatIds: string[],
+    ): Promise<{ success: boolean; message: string }> {
+        return await this.chatRepository.manager.transaction(
+            async (manager) => {
+                const userChats = await manager
+                    .createQueryBuilder(Chat, 'chat')
+                    .innerJoinAndSelect('chat.users', 'users')
+                    .where('chat.id IN (:...chatIds)', { chatIds })
+                    .getMany();
+
+                if (userChats.length === 0) {
+                    throw new NotFoundException(ERROR_MESSAGES.CHAT.NOT_FOUND);
+                }
+
+                const validChatIds = userChats.map((chat) => chat.id);
+
+                for (const chat of userChats) {
+                    chat.users = chat.users.filter(
+                        (user) => user.id !== userId,
+                    );
+
+                    if (chat.users.length === 0) {
+                        await manager.remove(Chat, chat);
+                    } else {
+                        await manager.save(Chat, chat);
+                    }
+                }
+
+                await manager
+                    .createQueryBuilder()
+                    .delete()
+                    .from(UnreadChat)
+                    .where('userId = :userId', { userId })
+                    .andWhere('chatId IN (:...validChatIds)', { validChatIds })
+                    .execute();
+
+                return {
+                    success: true,
+                    message: SUCCESS_MESSAGES.CHAT.DELETED,
+                };
+            },
+        );
     }
 }

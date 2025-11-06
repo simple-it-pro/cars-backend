@@ -5,6 +5,7 @@ import {
     Delete,
     Get,
     Param,
+    ParseUUIDPipe,
     Patch,
     Post,
     Query,
@@ -28,6 +29,7 @@ import { ChatsService, MessagesService } from '../services';
 import { AuthUser } from '../../auth/decorators';
 import { JwtUserData } from '../../users/types';
 import {
+    ChatIdsDto,
     CreateChatDto,
     CreateGroupChatDto,
     EditMessageDto,
@@ -359,5 +361,42 @@ export class ChatsController {
         @AuthUser() { sub: userId }: JwtUserData,
     ) {
         return this.chatsService.toggleFavorite(chatId, userId);
+    }
+
+    @Post('read-all')
+    @ApiOperation({ summary: 'Mark all chats as read for current user' })
+    @ApiResponse({ status: 200, description: 'All chats marked as read' })
+    async markAllChatsAsRead(@AuthUser() { sub: userId }: JwtUserData) {
+        return this.chatsService.markAllChatsAsRead(userId);
+    }
+
+    @Post('read')
+    @ApiOperation({ summary: 'Mark multiple chats as read' })
+    @ApiResponse({ status: 200, description: 'Chats marked as read' })
+    async markChatsAsRead(
+        @AuthUser() { sub: userId }: JwtUserData,
+        @Body() dto: ChatIdsDto,
+    ) {
+        return this.chatsService.markChatsAsRead(userId, dto.chatIds);
+    }
+
+    @Delete('batch')
+    @ApiOperation({ summary: 'Delete multiple chats' })
+    @ApiResponse({ status: 200, description: 'Chats deleted successfully' })
+    async deleteChats(
+        @AuthUser() { sub: userId }: JwtUserData,
+        @Body() dto: ChatIdsDto,
+    ) {
+        return this.chatsService.deleteChats(userId, dto.chatIds);
+    }
+
+    @Delete(':id')
+    @ApiOperation({ summary: 'Delete a single chat' })
+    @ApiResponse({ status: 200, description: 'Chat deleted successfully' })
+    async deleteChat(
+        @AuthUser() { sub: userId }: JwtUserData,
+        @Param('id', ParseUUIDPipe) chatId: string,
+    ) {
+        return this.chatsService.deleteChats(userId, [chatId]);
     }
 }

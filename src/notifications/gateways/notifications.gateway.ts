@@ -69,7 +69,7 @@ export class NotificationsGateway
     }
 
     @SubscribeMessage('mark_as_read')
-    async handleMarkAsRead(
+    handleMarkAsRead(
         @ConnectedSocket() socket: Socket,
         @MessageBody() data: { notificationId: number },
     ) {
@@ -94,7 +94,7 @@ export class NotificationsGateway
     }
 
     @SubscribeMessage('mark_all_as_read')
-    async handleMarkAllAsRead(@ConnectedSocket() socket: Socket) {
+    handleMarkAllAsRead(@ConnectedSocket() socket: Socket) {
         try {
             const userId = this.getUserIdFromSocket(socket);
             if (!userId) {
@@ -117,7 +117,7 @@ export class NotificationsGateway
     }
 
     @SubscribeMessage('get_unread_count')
-    async handleGetUnreadCount(@ConnectedSocket() socket: Socket) {
+    handleGetUnreadCount(@ConnectedSocket() socket: Socket) {
         try {
             const userId = this.getUserIdFromSocket(socket);
             if (!userId) {
