@@ -11,6 +11,7 @@ import { Server, Socket } from 'socket.io';
 import { Injectable, Logger } from '@nestjs/common';
 
 import { AuthService } from '../../auth/services';
+import { Notification } from '../../database/entities';
 
 @WebSocketGateway({
     namespace: '/notifications',
@@ -132,7 +133,7 @@ export class NotificationsGateway
         }
     }
 
-    sendNewNotification(userId: number, notification: any) {
+    sendNewNotification(userId: number, notification: Notification) {
         this.server.to(`user_${userId}`).emit('new_notification', {
             notification,
         });
