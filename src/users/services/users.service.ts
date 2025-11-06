@@ -344,7 +344,7 @@ export class UsersService {
 
         const slug = user.nickname || user.id.toString();
 
-        /* TODO: Когда появится домен, дописать его в env */
+        /* TODO: заменить в последующем на deep url */
         const publicUrl = `${process.env.APP_URL || 'https://yourapp.com'}/u/${slug}`;
 
         this.logger.log(
