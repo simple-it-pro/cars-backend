@@ -1,5 +1,6 @@
 import {
     BadRequestException,
+    ForbiddenException,
     Injectable,
     Logger,
     NotFoundException,
@@ -8,7 +9,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { instanceToPlain } from 'class-transformer';
 import * as cities from '../../common/constants/json/russian-cities.json';
-import { User, Follower, Subscription } from '../../database/entities';
+import {
+    User,
+    Follower,
+    Subscription,
+    UserBlock,
+} from '../../database/entities';
 import { UpdateUserDto } from '../dto';
 import {
     ERROR_MESSAGES,
@@ -26,11 +32,13 @@ export class UsersService {
     constructor(
         @InjectRepository(User)
         private readonly userRepository: Repository<User>,
-        private readonly storageService: StorageService,
         @InjectRepository(Subscription)
         private readonly subscriptionRepository: Repository<Subscription>,
         @InjectRepository(Follower)
         private readonly followerRepository: Repository<Follower>,
+        @InjectRepository(UserBlock)
+        private readonly userBlockRepository: Repository<UserBlock>,
+        private readonly storageService: StorageService,
         private readonly ratingService: RatingService,
         private readonly notificationsService: NotificationsService,
     ) {}
@@ -179,6 +187,31 @@ export class UsersService {
                 ERROR_MESSAGES.SUBSCRIPTION.USER_NOT_FOUND,
             );
 
+        const [isBlocked, isBlockedBy] = await Promise.all([
+            this.userBlockRepository.findOne({
+                where: {
+                    user: { id: userId },
+                    blockedUser: { id: targetUserId },
+                },
+            }),
+            this.userBlockRepository.findOne({
+                where: {
+                    user: { id: targetUserId },
+                    blockedUser: { id: userId },
+                },
+            }),
+        ]);
+
+        if (isBlocked)
+            throw new ForbiddenException(
+                ERROR_MESSAGES.SUBSCRIPTION.CANNOT_SUBSCRIBE_BLOCKED,
+            );
+
+        if (isBlockedBy)
+            throw new ForbiddenException(
+                ERROR_MESSAGES.SUBSCRIPTION.BLOCKED_BY_USER,
+            );
+
         const existingSubscription = await this.subscriptionRepository.findOne({
             where: {
                 user: { id: userId },
@@ -271,6 +304,61 @@ export class UsersService {
             },
             relations: ['follower'],
         });
+    }
+
+    async getBlockedUsers(userId: number) {
+        const blocks = await this.userBlockRepository.find({
+            where: {
+                user: { id: userId },
+            },
+            relations: ['blockedUser'],
+        });
+
+        return blocks.map((block) => block.blockedUser);
+    }
+
+    async blockUser(userId: number, targetUserId: number) {
+        const targetUser = await this.userRepository.findOne({
+            where: { id: targetUserId },
+        });
+
+        if (!targetUser)
+            throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
+
+        const existingBlock = await this.userBlockRepository.findOne({
+            where: {
+                user: { id: userId },
+                blockedUser: { id: targetUserId },
+            },
+        });
+
+        if (existingBlock)
+            throw new BadRequestException(ERROR_MESSAGES.USER.ALREADY_BLOCKED);
+
+        const block = this.userBlockRepository.create({
+            user: { id: userId },
+            blockedUser: { id: targetUserId },
+        });
+
+        await this.userBlockRepository.save(block);
+
+        return { message: SUCCESS_MESSAGES.USER.BLOCKED };
+    }
+
+    async unblockUser(userId: number, targetUserId: number) {
+        const block = await this.userBlockRepository.findOne({
+            where: {
+                user: { id: userId },
+                blockedUser: { id: targetUserId },
+            },
+        });
+
+        if (!block)
+            throw new BadRequestException(ERROR_MESSAGES.USER.NOT_BLOCKED);
+
+        await this.userBlockRepository.remove(block);
+
+        return { message: SUCCESS_MESSAGES.USER.UNBLOCKED };
     }
 
     async getPublicProfile(id: number): Promise<Partial<User>> {

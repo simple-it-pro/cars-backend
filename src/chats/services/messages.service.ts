@@ -7,7 +7,13 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 
-import { Chat, Message, MessageContent, User } from '../../database/entities';
+import {
+    Chat,
+    Message,
+    MessageContent,
+    User,
+    UserBlock,
+} from '../../database/entities';
 import { EditMessageDto, SendMessageDto, SendVoiceMessageDto } from '../dto';
 import { CursorPaginationDto } from '../../common/dto';
 import { ChatsGateway } from '../gateways';
@@ -25,14 +31,47 @@ import { NotificationMessages, NotificationType } from '../../common/types';
 @Injectable()
 export class MessagesService {
     constructor(
-        private readonly messagesCoreService: MessagesCoreService,
-        private readonly messagesAttachmentService: MessagesAttachmentService,
         @Inject(forwardRef(() => ChatsGateway))
         private readonly chatGateway: ChatsGateway,
         @InjectRepository(Message)
         private readonly messageRepository: Repository<Message>,
+        @InjectRepository(UserBlock)
+        private readonly userBlockRepository: Repository<UserBlock>,
         private readonly notificationsService: NotificationsService,
+        private readonly messagesCoreService: MessagesCoreService,
+        private readonly messagesAttachmentService: MessagesAttachmentService,
     ) {}
+
+    private async checkBlockStatus(
+        senderId: number,
+        chat: Chat,
+    ): Promise<void> {
+        if (chat.type === 'group') return;
+
+        const otherUser = chat.users.find((u) => u.id !== senderId);
+
+        if (!otherUser) return;
+
+        const [isBlocked, isBlockedBy] = await Promise.all([
+            this.userBlockRepository.findOne({
+                where: {
+                    user: { id: senderId },
+                    blockedUser: { id: otherUser.id },
+                },
+            }),
+            this.userBlockRepository.findOne({
+                where: {
+                    user: { id: otherUser.id },
+                    blockedUser: { id: senderId },
+                },
+            }),
+        ]);
+
+        if (isBlocked || isBlockedBy)
+            throw new ForbiddenException(
+                ERROR_MESSAGES.USER.BLOCKED_INTERACTION,
+            );
+    }
 
     private async sendNotificationsToRecipients(
         chat: Chat,
@@ -86,6 +125,8 @@ export class MessagesService {
             chatId,
             sender.id,
         );
+
+        await this.checkBlockStatus(sender.id, chat);
 
         const uploadResult =
             await this.messagesAttachmentService.processMessageAttachments(
@@ -186,6 +227,8 @@ export class MessagesService {
             chatId,
             sender.id,
         );
+
+        await this.checkBlockStatus(sender.id, chat);
 
         const voiceKey =
             await this.messagesAttachmentService.processVoiceMessage(file);
@@ -294,6 +337,8 @@ export class MessagesService {
             chatId,
             editorId,
         );
+
+        await this.checkBlockStatus(editorId, chat);
 
         const editedMessage = await this.messageRepository.manager.transaction(
             async (manager) => {

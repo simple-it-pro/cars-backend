@@ -18,6 +18,7 @@ import {
     Message,
     Chat,
     MessageContent,
+    UserBlock,
 } from '../database/entities';
 import { NotificationsModule } from '../notifications/notifications.module';
 
@@ -29,6 +30,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
             UnreadChat,
             User,
             MessageContent,
+            UserBlock,
         ]),
         UsersModule,
         AuthModule,

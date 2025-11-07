@@ -12,6 +12,11 @@ export const ERROR_MESSAGES = {
         PUBLIC_PROFILE_ACCESS_DENIED: 'Доступ к публичному профилю запрещен',
         PUBLIC_PROFILE_NOT_AVAILABLE: 'Публичный профиль недоступен',
         CONFIRMATION_INCORRECT: 'Неверное подтверждение удаления',
+        ALREADY_BLOCKED: 'Пользователь уже заблокирован',
+        NOT_BLOCKED: 'Пользователь не заблокирован',
+        BLOCKED_INTERACTION: 'Взаимодействие с этим пользователем невозможно',
+        CANNOT_ADD_BLOCKED_USERS:
+            'Невозможно добавить заблокированных пользователей',
     },
     AUTH: {
         SMS_FAIL: 'Не удалось отправить SMS',
@@ -40,6 +45,8 @@ export const ERROR_MESSAGES = {
         INVALID_FILE_TYPE: 'Можно загружать только файлы изображений',
         USER_NOT_FOUND: 'Пользователь не найден',
         AUTHOR_NOT_FOUND: 'Автор не найден',
+        BLOCKED_INTERACTION:
+            'Нельзя оставить отзыв заблокированному пользователю',
     },
     MESSAGE: {
         EMPTY: 'Сообщение должно содержать текст, вложение или голосовое сообщение',
@@ -83,6 +90,9 @@ export const ERROR_MESSAGES = {
         USER_NOT_FOUND: 'Пользователь не найден',
         ALREADY_SUBSCRIBED: 'Вы уже подписаны на этого пользователя',
         NOT_SUBSCRIBED: 'Вы не подписаны',
+        CANNOT_SUBSCRIBE_BLOCKED:
+            'Нельзя подписаться на заблокированного пользователя',
+        BLOCKED_BY_USER: 'Этот пользователь заблокировал вас',
     },
     AVATAR: {
         UPLOAD_FAILED: 'Не удалось загрузить аватар',
@@ -133,6 +143,8 @@ export const SUCCESS_MESSAGES = {
         PUBLIC_PROFILE_GENERATED: 'Публичная ссылка успешно сгенерирована',
         PUBLIC_PROFILE_ACCESSED: 'Публичный профиль успешно получен',
         PUBLIC_LINK_GENERATED: 'Публичная ссылка успешно сгенерирована',
+        BLOCKED: 'Пользователь успешно заблокирован',
+        UNBLOCKED: 'Пользователь успешно разблокирован',
     },
     NOTIFICATION: {
         CREATED: 'Уведомление успешно создано',

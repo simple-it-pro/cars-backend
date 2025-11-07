@@ -1,12 +1,13 @@
 import {
     BadRequestException,
+    ForbiddenException,
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { Review, User } from '../../database/entities';
+import { Review, User, UserBlock } from '../../database/entities';
 import { Image } from '../../database/interfaces';
 import { reviewLength } from '../../common/constants/reviews';
 import { AnswerReviewDto, CreateReviewDto } from '../dto';
@@ -27,10 +28,38 @@ export class ReviewsService {
         private readonly reviewsRepository: Repository<Review>,
         @InjectRepository(User)
         private readonly usersRepository: Repository<User>,
+        @InjectRepository(UserBlock)
+        private readonly userBlockRepository: Repository<UserBlock>,
         private readonly storageService: StorageService,
         private readonly ratingService: RatingService,
         private readonly notificationsService: NotificationsService,
     ) {}
+
+    private async checkBlockStatus(
+        authorId: number,
+        targetUserId: number,
+    ): Promise<void> {
+        const [isBlocked, isBlockedBy] = await Promise.all([
+            this.userBlockRepository.findOne({
+                where: {
+                    user: { id: authorId },
+                    blockedUser: { id: targetUserId },
+                },
+            }),
+            this.userBlockRepository.findOne({
+                where: {
+                    user: { id: targetUserId },
+                    blockedUser: { id: authorId },
+                },
+            }),
+        ]);
+
+        if (isBlocked || isBlockedBy) {
+            throw new ForbiddenException(
+                ERROR_MESSAGES.REVIEW.BLOCKED_INTERACTION,
+            );
+        }
+    }
 
     private validateImageFiles(files: Express.Multer.File[]): void {
         const allowedMimeTypes = [
@@ -70,6 +99,8 @@ export class ReviewsService {
 
         if (!author)
             throw new NotFoundException(ERROR_MESSAGES.REVIEW.AUTHOR_NOT_FOUND);
+
+        await this.checkBlockStatus(authorId, userId);
 
         if (images && images.length > 5)
             throw new BadRequestException(

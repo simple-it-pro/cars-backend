@@ -18,7 +18,13 @@ import {
     SUCCESS_MESSAGES,
 } from '../../common/constants/messages';
 import { UsersService } from '../../users/services';
-import { User, Chat, UnreadChat, Message } from '../../database/entities';
+import {
+    User,
+    Chat,
+    UnreadChat,
+    Message,
+    UserBlock,
+} from '../../database/entities';
 import { StorageService } from '../../storage/services';
 
 @Injectable()
@@ -30,11 +36,44 @@ export class ChatsService {
         private readonly unreadChatRepository: Repository<UnreadChat>,
         @InjectRepository(User)
         private readonly userRepository: Repository<User>,
+        @InjectRepository(UserBlock)
+        private readonly userBlockRepository: Repository<UserBlock>,
         private readonly usersService: UsersService,
         private readonly storageService: StorageService,
     ) {}
 
+    private async isUserBlocked(
+        userId: number,
+        targetUserId: number,
+    ): Promise<boolean> {
+        const block = await this.userBlockRepository.findOne({
+            where: {
+                user: { id: userId },
+                blockedUser: { id: targetUserId },
+            },
+        });
+        return !!block;
+    }
+
+    private async checkMutualBlock(
+        userAId: number,
+        userBId: number,
+    ): Promise<void> {
+        const [aBlocksB, bBlocksA] = await Promise.all([
+            this.isUserBlocked(userAId, userBId),
+            this.isUserBlocked(userBId, userAId),
+        ]);
+
+        if (aBlocksB || bBlocksA) {
+            throw new ForbiddenException(
+                ERROR_MESSAGES.USER.BLOCKED_INTERACTION,
+            );
+        }
+    }
+
     async findOrCreatePrivateChat(userA: User, userB: User): Promise<Chat> {
+        await this.checkMutualBlock(userA.id, userB.id);
+
         const aId = Math.min(userA.id, userB.id);
         const bId = Math.max(userA.id, userB.id);
         const uniqueKey = `private_${aId}-${bId}`;
@@ -78,6 +117,22 @@ export class ChatsService {
         const participantIds = [...new Set(userIds)].filter(
             (id) => id !== userId,
         );
+
+        const blockedUsers: number[] = [];
+        for (const participantId of participantIds) {
+            const isBlocked = await this.isUserBlocked(userId, participantId);
+            const isBlockedBy = await this.isUserBlocked(participantId, userId);
+
+            if (isBlocked || isBlockedBy) {
+                blockedUsers.push(participantId);
+            }
+        }
+
+        if (blockedUsers.length > 0) {
+            throw new BadRequestException(
+                `${ERROR_MESSAGES.USER.CANNOT_ADD_BLOCKED_USERS}: ${blockedUsers.join(', ')}`,
+            );
+        }
 
         const participants = await Promise.all(
             participantIds.map((id) => this.usersService.getUserById(id)),
@@ -160,6 +215,18 @@ export class ChatsService {
                 userId,
             })
             .leftJoin('chat.lastMessage', 'lastMessage');
+
+        qb.andWhere((qb) => {
+            const subQuery = qb
+                .subQuery()
+                .select('1')
+                .from('user_block', 'ub')
+                .innerJoin('chat_users', 'cu', 'cu.user_id = ub.blockedUserId')
+                .where('cu.chat_id = chat.id')
+                .andWhere('ub.userId = :userId')
+                .getQuery();
+            return `NOT EXISTS (${subQuery})`;
+        });
 
         if (pagination.cursor) {
             const { date, id } = parseCompositeCursor(pagination.cursor);
@@ -300,6 +367,22 @@ export class ChatsService {
         const isParticipant = chat.users.some((user) => user.id === userId);
         if (!isParticipant)
             throw new ForbiddenException(ERROR_MESSAGES.AUTH.NO_PERMISSIONS);
+
+        if (chat.type === 'private') {
+            const otherUser = chat.users.find((u) => u.id !== userId);
+            if (otherUser) {
+                const [isBlocked, isBlockedBy] = await Promise.all([
+                    this.isUserBlocked(userId, otherUser.id),
+                    this.isUserBlocked(otherUser.id, userId),
+                ]);
+
+                if (isBlocked || isBlockedBy) {
+                    throw new ForbiddenException(
+                        ERROR_MESSAGES.USER.BLOCKED_INTERACTION,
+                    );
+                }
+            }
+        }
 
         if (userId) {
             const userWithFavorites = await this.userRepository.findOne({

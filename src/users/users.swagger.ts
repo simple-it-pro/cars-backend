@@ -102,6 +102,23 @@ export const USERS_API_DOCS = {
             summary: 'Обновление аватара пользователя',
             description: 'Позволяет пользователю загрузить новый аватар',
         } as ApiOperationOptions,
+        GET_BLOCKED_USERS: {
+            summary: 'Получение списка заблокированных пользователей',
+            description:
+                'Возвращает список всех пользователей, которых заблокировал текущий пользователь',
+        } as ApiOperationOptions,
+
+        BLOCK_USER: {
+            summary: 'Блокировка пользователя',
+            description:
+                'Добавляет пользователя в черный список. Заблокированный пользователь не сможет отправлять сообщения, создавать чаты и подписываться на блокирующего пользователя',
+        } as ApiOperationOptions,
+
+        UNBLOCK_USER: {
+            summary: 'Разблокировка пользователя',
+            description:
+                'Удаляет пользователя из черного списка, восстанавливая возможность взаимодействия',
+        } as ApiOperationOptions,
         SUBSCRIBE: {
             summary: 'Подписка на пользователя',
             description:
@@ -241,6 +258,68 @@ export const USERS_API_DOCS = {
             type: User,
         } as ApiResponseOptions,
 
+        GET_BLOCKED_USERS: {
+            description: 'Список заблокированных пользователей успешно получен',
+            schema: {
+                type: 'array',
+                items: {
+                    type: 'object',
+                    properties: {
+                        id: { type: 'number', example: 1 },
+                        nickname: { type: 'string', example: 'blocked_user' },
+                        name: {
+                            type: 'string',
+                            example: 'Заблокированный пользователь',
+                        },
+                        image: {
+                            type: 'object',
+                            properties: {
+                                url: { type: 'string' },
+                                name: { type: 'string' },
+                                size: { type: 'number' },
+                            },
+                        },
+                    },
+                },
+            },
+        } as ApiResponseOptions,
+
+        BLOCK_USER: {
+            description: 'Пользователь успешно заблокирован',
+            schema: {
+                type: 'object',
+                properties: {
+                    message: {
+                        type: 'string',
+                        example: 'Пользователь успешно заблокирован',
+                    },
+                },
+            },
+        } as ApiResponseOptions,
+
+        UNBLOCK_USER: {
+            description: 'Пользователь успешно разблокирован',
+            schema: {
+                type: 'object',
+                properties: {
+                    message: {
+                        type: 'string',
+                        example: 'Пользователь успешно разблокирован',
+                    },
+                },
+            },
+        } as ApiResponseOptions,
+
+        BAD_REQUEST_BLOCK: {
+            status: 400,
+            description: 'Пользователь не найден или уже заблокирован',
+        } as ApiResponseOptions,
+
+        BAD_REQUEST_UNBLOCK: {
+            status: 400,
+            description: 'Пользователь не найден или не заблокирован',
+        } as ApiResponseOptions,
+
         UNAUTHORIZED: {
             status: 401,
             description: 'Пользователь не авторизован',
@@ -350,6 +429,12 @@ export const USERS_API_DOCS = {
             type: String,
             description: 'Nickname или ID пользователя',
             example: 'john_doe',
+        } as ApiParamOptions,
+        TARGET_USER_ID: {
+            name: 'targetUserId',
+            type: Number,
+            description: 'ID пользователя для блокировки/разблокировки',
+            example: 5,
         } as ApiParamOptions,
     },
 } as const;

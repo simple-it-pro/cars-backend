@@ -127,6 +127,40 @@ export class UsersController {
         return this.usersService.getFollowers(userId);
     }
 
+    @Get('blocked')
+    @ApiOperation(USERS_API_DOCS.OPERATIONS.GET_BLOCKED_USERS)
+    @ApiOkResponse(USERS_API_DOCS.RESPONSES.GET_BLOCKED_USERS)
+    @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
+    async getBlockedUsers(@AuthUser() { sub: userId }: JwtUserData) {
+        return this.usersService.getBlockedUsers(userId);
+    }
+
+    @Post('block/:targetUserId')
+    @ApiOperation(USERS_API_DOCS.OPERATIONS.BLOCK_USER)
+    @ApiParam(USERS_API_DOCS.PARAMS.TARGET_USER_ID)
+    @ApiOkResponse(USERS_API_DOCS.RESPONSES.BLOCK_USER)
+    @ApiResponse(USERS_API_DOCS.RESPONSES.BAD_REQUEST_BLOCK)
+    @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
+    async blockUser(
+        @AuthUser() { sub: userId }: JwtUserData,
+        @Param('targetUserId') targetUserId: number,
+    ) {
+        return this.usersService.blockUser(userId, targetUserId);
+    }
+
+    @Delete('unblock/:targetUserId')
+    @ApiOperation(USERS_API_DOCS.OPERATIONS.UNBLOCK_USER)
+    @ApiParam(USERS_API_DOCS.PARAMS.TARGET_USER_ID)
+    @ApiOkResponse(USERS_API_DOCS.RESPONSES.UNBLOCK_USER)
+    @ApiResponse(USERS_API_DOCS.RESPONSES.BAD_REQUEST_UNBLOCK)
+    @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
+    async unblockUser(
+        @AuthUser() { sub: userId }: JwtUserData,
+        @Param('targetUserId') targetUserId: number,
+    ) {
+        return this.usersService.unblockUser(userId, targetUserId);
+    }
+
     @Get('public/me')
     @ApiOperation(USERS_API_DOCS.OPERATIONS.GET_MY_PUBLIC_PROFILE)
     @ApiOkResponse(USERS_API_DOCS.RESPONSES.GET_MY_PUBLIC_PROFILE)

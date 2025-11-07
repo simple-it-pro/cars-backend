@@ -22,6 +22,7 @@ import {
     Review,
     Subscription,
     UnreadChat,
+    UserBlock,
 } from './';
 import { Image } from '../interfaces';
 
@@ -183,6 +184,12 @@ class User {
 
     @OneToMany(() => Notification, (notification) => notification.user)
     notifications: Notification[];
+
+    @OneToMany(() => UserBlock, (userBlock) => userBlock.user)
+    userBlocks: UserBlock[];
+
+    @OneToMany(() => UserBlock, (userBlock) => userBlock.blockedUser)
+    blockedUsers: UserBlock[];
 }
 
 export default User;
