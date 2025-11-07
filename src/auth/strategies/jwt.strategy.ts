@@ -15,7 +15,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     constructor(
         @Inject(auth.KEY) private authConfig: ConfigType<typeof auth>,
         @InjectRepository(RefreshToken)
-        private readonly refreshTokenRepository: Repository<RefreshToken>,
+        private readonly refreshTokensRepository: Repository<RefreshToken>,
     ) {
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -31,7 +31,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
             );
         }
 
-        const exists = await this.refreshTokenRepository.exists({
+        const exists = await this.refreshTokensRepository.exists({
             where: {
                 tokenId: payload.jti,
                 userId: payload.sub,

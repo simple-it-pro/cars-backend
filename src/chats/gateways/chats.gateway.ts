@@ -62,11 +62,11 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     @SubscribeMessage('join_chat')
-    handleJoinChat(
+    async handleJoinChat(
         @ConnectedSocket() socket: Socket,
         @MessageBody() chatId: string,
     ) {
-        void socket.join(`chat_${chatId}`);
+        await socket.join(`chat_${chatId}`);
         this.logger.log(`Socket ${socket.id} joined chat ${chatId}`);
     }
 

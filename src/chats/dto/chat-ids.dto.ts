@@ -1,4 +1,4 @@
-import { IsArray, IsNotEmpty, IsString } from 'class-validator';
+import { IsArray, IsUUID } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class ChatIdsDto {
@@ -7,7 +7,6 @@ export class ChatIdsDto {
         example: ['chat-uuid-1', 'chat-uuid-2'],
     })
     @IsArray()
-    @IsString({ each: true })
-    @IsNotEmpty({ each: true })
+    @IsUUID(undefined, { each: true })
     chatIds: string[];
 }
