@@ -83,7 +83,7 @@ export class UsersController {
 
     @Post('subscribe')
     @ApiOperation(USERS_API_DOCS.OPERATIONS.SUBSCRIBE)
-    @ApiBody(USERS_API_DOCS.BODIES.SUBSCRIBE)
+    @ApiBody(USERS_BODIES.SUBSCRIBE)
     @ApiOkResponse(USERS_API_DOCS.RESPONSES.SUBSCRIBE)
     @ApiResponse(USERS_API_DOCS.RESPONSES.BAD_REQUEST_SUBSCRIBE)
     @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
@@ -96,7 +96,7 @@ export class UsersController {
 
     @Delete('unsubscribe')
     @ApiOperation(USERS_API_DOCS.OPERATIONS.UNSUBSCRIBE)
-    @ApiBody(USERS_API_DOCS.BODIES.UNSUBSCRIBE)
+    @ApiBody(USERS_BODIES.UNSUBSCRIBE)
     @ApiOkResponse(USERS_API_DOCS.RESPONSES.UNSUBSCRIBE)
     @ApiResponse(USERS_API_DOCS.RESPONSES.BAD_REQUEST_UNSUBSCRIBE)
     @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
@@ -135,7 +135,7 @@ export class UsersController {
         return this.usersService.getBlockedUsers(userId);
     }
 
-    @Post('block/:targetUserId')
+    @Post('block/:userId')
     @ApiOperation(USERS_API_DOCS.OPERATIONS.BLOCK_USER)
     @ApiParam(USERS_API_DOCS.PARAMS.TARGET_USER_ID)
     @ApiOkResponse(USERS_API_DOCS.RESPONSES.BLOCK_USER)
@@ -143,12 +143,12 @@ export class UsersController {
     @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
     async blockUser(
         @AuthUser() { sub: userId }: JwtUserData,
-        @Param('targetUserId') targetUserId: number,
+        @Param('userId') targetUserId: number,
     ) {
         return this.usersService.blockUser(userId, targetUserId);
     }
 
-    @Delete('unblock/:targetUserId')
+    @Delete('unblock/:userId')
     @ApiOperation(USERS_API_DOCS.OPERATIONS.UNBLOCK_USER)
     @ApiParam(USERS_API_DOCS.PARAMS.TARGET_USER_ID)
     @ApiOkResponse(USERS_API_DOCS.RESPONSES.UNBLOCK_USER)
@@ -156,7 +156,7 @@ export class UsersController {
     @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
     async unblockUser(
         @AuthUser() { sub: userId }: JwtUserData,
-        @Param('targetUserId') targetUserId: number,
+        @Param('userId') targetUserId: number,
     ) {
         return this.usersService.unblockUser(userId, targetUserId);
     }
@@ -199,7 +199,7 @@ export class UsersController {
 
     @Delete('me')
     @ApiOperation(USERS_API_DOCS.OPERATIONS.DELETE_ME)
-    @ApiBody(USERS_API_DOCS.BODIES.DELETE)
+    @ApiBody(USERS_BODIES.DELETE)
     @ApiOkResponse(USERS_API_DOCS.RESPONSES.DELETE_ME)
     @ApiResponse(USERS_API_DOCS.RESPONSES.BAD_REQUEST_DELETE)
     @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
