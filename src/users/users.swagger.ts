@@ -123,9 +123,14 @@ export const USERS_API_DOCS = {
                 'Возвращает список пользователей, которые подписаны на указанного пользователя',
         } as ApiOperationOptions,
         GET_PUBLIC_PROFILE: {
-            summary: 'Получение публичного профиля пользователя',
+            summary: 'Получение публичного профиля пользователя по ID',
             description:
-                'Возвращает публичную информацию о пользователе (без email и других приватных данных)',
+                'Возвращает публичную информацию о пользователе по его ID (без email и других приватных данных)',
+        } as ApiOperationOptions,
+        GET_MY_PUBLIC_PROFILE: {
+            summary: 'Получение публичного профиля текущего пользователя',
+            description:
+                'Возвращает публичную информацию о текущем авторизованном пользователе для генерации публичной ссылки',
         } as ApiOperationOptions,
         DELETE_ME: {
             summary: 'Удаление профиля (soft delete)',
@@ -141,6 +146,16 @@ export const USERS_API_DOCS = {
             summary: 'Активация профиля',
             description:
                 'Активирует ранее деактивированный профиль пользователя',
+        } as ApiOperationOptions,
+        GENERATE_PUBLIC_LINK: {
+            summary: 'Генерация публичной ссылки на профиль',
+            description:
+                'Генерирует уникальную публичную ссылку для профиля текущего пользователя',
+        } as ApiOperationOptions,
+        GET_PUBLIC_PROFILE_BY_SLUG: {
+            summary: 'Получение публичного профиля по slug',
+            description:
+                'Возвращает публичную информацию о пользователе по его nickname или ID',
         } as ApiOperationOptions,
     },
 
@@ -200,6 +215,11 @@ export const USERS_API_DOCS = {
             description: 'Публичный профиль успешно получен',
             type: User,
         } as ApiResponseOptions,
+        GET_MY_PUBLIC_PROFILE: {
+            description:
+                'Публичный профиль текущего пользователя успешно получен',
+            type: User,
+        } as ApiResponseOptions,
         DELETE_ME: {
             description: 'Профиль успешно удален',
             schema: {
@@ -249,6 +269,22 @@ export const USERS_API_DOCS = {
         BAD_REQUEST_DELETE: {
             status: 400,
             description: 'Неверное подтверждение удаления',
+        } as ApiResponseOptions,
+        GENERATE_PUBLIC_LINK: {
+            description: 'Публичная ссылка успешно сгенерирована',
+            schema: {
+                type: 'object',
+                properties: {
+                    publicUrl: {
+                        type: 'string',
+                        example: 'https://yourapp.com/u/john_doe',
+                    },
+                    message: {
+                        type: 'string',
+                        example: 'Публичная ссылка успешно сгенерирована',
+                    },
+                },
+            },
         } as ApiResponseOptions,
     },
 
@@ -308,6 +344,12 @@ export const USERS_API_DOCS = {
             type: Number,
             description: 'ID пользователя',
             example: 1,
+        } as ApiParamOptions,
+        SLUG: {
+            name: 'slug',
+            type: String,
+            description: 'Nickname или ID пользователя',
+            example: 'john_doe',
         } as ApiParamOptions,
     },
 } as const;

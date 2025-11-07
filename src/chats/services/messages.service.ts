@@ -19,6 +19,8 @@ import { MessagesAttachmentService } from './messages-attachment.service';
 import { MessagesCoreService } from './messages-core.service';
 import { EntityManager, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
+import { NotificationsService } from '../../notifications/services';
+import { NotificationMessages, NotificationType } from '../../common/types';
 
 @Injectable()
 export class MessagesService {
@@ -29,20 +31,28 @@ export class MessagesService {
         private readonly chatGateway: ChatsGateway,
         @InjectRepository(Message)
         private readonly messageRepository: Repository<Message>,
+        private readonly notificationsService: NotificationsService,
     ) {}
 
-    private sendNotificationsToRecipients(
+    private async sendNotificationsToRecipients(
         chat: Chat,
         message: Message,
         senderId: number,
-    ): void {
+    ) {
+        const messageWithUrls = await this.getFullMessageWithUrls(message.id);
         for (const user of chat.users) {
             if (user.id === senderId) continue;
             this.chatGateway.sendNewMessageNotification(
                 chat.id,
-                message,
+                messageWithUrls,
                 user.id,
             );
+
+            await this.notificationsService.create(user.id, {
+                type: NotificationType.MESSAGE,
+                title: message.sender.name ?? NotificationMessages.MESSAGE,
+                description: message.content,
+            });
         }
     }
 
@@ -60,7 +70,7 @@ export class MessagesService {
             await this.messageRepository.manager.transaction(
                 transactionCallback,
             );
-        this.sendNotificationsToRecipients(chat, saved, senderId);
+        await this.sendNotificationsToRecipients(chat, saved, senderId);
         return this.getFullMessageWithUrls(saved.id);
     }
 
@@ -392,7 +402,11 @@ export class MessagesService {
                 message,
             );
 
-        this.chatGateway.broadcastMessageDeleted(chatId, message);
+        const messageWithUrls =
+            await this.messagesAttachmentService.addSignedUrlsToMessage(
+                message,
+            );
+        this.chatGateway.broadcastMessageDeleted(chatId, messageWithUrls);
         message.isDeleted = true;
         await this.messageRepository.save(message);
 

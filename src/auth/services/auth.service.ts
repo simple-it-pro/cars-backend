@@ -208,14 +208,9 @@ export class AuthService {
             return;
         }
 
-        if (payload?.type !== 'refresh' || !payload?.jti || !payload?.sub) {
-            return;
-        }
+        if (payload?.type !== 'refresh' || !payload?.jti) return;
 
-        await this.refreshTokenRepository.delete({
-            tokenId: payload.jti,
-            userId: payload.sub,
-        });
+        await this.refreshTokenRepository.delete({ tokenId: payload.jti });
     }
 
     private async generateTokens(
@@ -223,17 +218,20 @@ export class AuthService {
         userAgent?: string,
         ip?: string,
     ): Promise<{ accessToken: string; refreshToken: string }> {
+        const sessionId = randomUUID();
+
         const accessPayload = {
             sub: user.id,
             phone: user.phone,
             type: 'access',
+            jti: sessionId,
         };
 
         const refreshPayload = {
             sub: user.id,
             phone: user.phone,
             type: 'refresh',
-            jti: randomUUID(),
+            jti: sessionId,
         };
 
         const accessToken = this.jwtService.sign(accessPayload, {
@@ -258,7 +256,7 @@ export class AuthService {
             userAgent,
             ipAddress: ip,
             user,
-            tokenId: refreshPayload.jti,
+            tokenId: sessionId,
         });
 
         await this.refreshTokenRepository.save(refreshTokenEntity);

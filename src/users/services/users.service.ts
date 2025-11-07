@@ -1,6 +1,7 @@
 import {
     BadRequestException,
     Injectable,
+    Logger,
     NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -16,9 +17,12 @@ import {
 } from '../../common/constants/messages';
 import { StorageService } from '../../storage/services';
 import { RatingService } from './rating.service';
+import { NotificationsService } from '../../notifications/services';
+import { NotificationMessages, NotificationType } from '../../common/types';
 
 @Injectable()
 export class UsersService {
+    private readonly logger = new Logger(UsersService.name);
     constructor(
         @InjectRepository(User)
         private readonly userRepository: Repository<User>,
@@ -28,6 +32,7 @@ export class UsersService {
         @InjectRepository(Follower)
         private readonly followerRepository: Repository<Follower>,
         private readonly ratingService: RatingService,
+        private readonly notificationsService: NotificationsService,
     ) {}
 
     async getUserById(id: number): Promise<User | null> {
@@ -36,9 +41,7 @@ export class UsersService {
             withDeleted: false,
         });
 
-        if (!user) {
-            throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
-        }
+        if (!user) throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
 
         const userWithUrl = await this.addSignedUrlToUser(user);
         return instanceToPlain(userWithUrl) as User;
@@ -52,20 +55,17 @@ export class UsersService {
             where: { id, deletedAt: IsNull() },
         });
 
-        if (!user) {
-            throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
-        }
+        if (!user) throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
 
         if (updateUserDto.nickname) {
             const userWithSameNickname = await this.userRepository.findOne({
                 where: { nickname: updateUserDto.nickname },
             });
 
-            if (userWithSameNickname && userWithSameNickname.id !== user.id) {
+            if (userWithSameNickname && userWithSameNickname.id !== user.id)
                 throw new BadRequestException(
                     ERROR_MESSAGES.USER.NICKNAME_DUPLICATE,
                 );
-            }
         }
 
         if (updateUserDto.email) {
@@ -73,11 +73,10 @@ export class UsersService {
                 where: { email: updateUserDto.email },
             });
 
-            if (userWithSameEmail && userWithSameEmail.id !== user.id) {
+            if (userWithSameEmail && userWithSameEmail.id !== user.id)
                 throw new BadRequestException(
                     ERROR_MESSAGES.USER.EMAIL_DUPLICATE,
                 );
-            }
         }
 
         if (updateUserDto.phone) {
@@ -85,22 +84,21 @@ export class UsersService {
                 where: { phone: updateUserDto.phone },
             });
 
-            if (userWithSamePhone && userWithSamePhone.id !== user.id) {
+            if (userWithSamePhone && userWithSamePhone.id !== user.id)
                 throw new BadRequestException(
                     ERROR_MESSAGES.USER.PHONE_DUPLICATE,
                 );
-            }
         }
 
         if (updateUserDto.city) {
             const city = cities.find(
                 (city) => city.name === updateUserDto.city,
             );
-            if (!city) {
+            if (!city)
                 throw new BadRequestException(
                     ERROR_MESSAGES.USER.CITY_NOT_FOUND,
                 );
-            }
+
             user.city = city.name;
         }
 
@@ -136,9 +134,8 @@ export class UsersService {
         if (!user) throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
 
         try {
-            if (user.image) {
+            if (user.image)
                 await this.storageService.deleteFile(user.image.url);
-            }
         } catch (error) {
             console.warn(WARNING_MESSAGES.USER.AVATAR_DELETION_FAILED, error);
         }
@@ -198,6 +195,7 @@ export class UsersService {
             user: { id: userId },
             subscribedUser: { id: targetUserId },
         });
+
         await this.subscriptionRepository.save(subscription);
 
         const follower = this.followerRepository.create({
@@ -205,6 +203,14 @@ export class UsersService {
             subscribedUser: { id: targetUserId },
         });
         await this.followerRepository.save(follower);
+
+        await this.notificationsService.create(targetUserId, {
+            type: NotificationType.FOLLOW,
+            title: NotificationMessages.FOLLOW,
+            description: user.name
+                ? `На вас подписался ${user.name}`
+                : 'У вас +1 подписчик',
+        });
 
         return { message: SUCCESS_MESSAGES.USER.SUBSCRIBED };
     }
@@ -246,9 +252,7 @@ export class UsersService {
             },
         });
 
-        if (follower) {
-            await this.followerRepository.remove(follower);
-        }
+        if (follower) await this.followerRepository.remove(follower);
 
         return { message: SUCCESS_MESSAGES.USER.UNSUBSCRIBED };
     }
@@ -287,6 +291,120 @@ export class UsersService {
 
         if (!user) throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
 
+        if (user.isDeactivated) {
+            this.logger.warn(
+                `Попытка доступа к деактивированному профилю: ${id}`,
+            );
+            throw new BadRequestException(
+                ERROR_MESSAGES.USER.PUBLIC_PROFILE_NOT_AVAILABLE,
+            );
+        }
+
+        return this.addSignedUrlToUser(user);
+    }
+
+    async getMyPublicProfile(id: number): Promise<Partial<User>> {
+        await this.ratingService.calculateAndUpdateUserRating(id);
+        const user = await this.userRepository.findOne({
+            where: { id, deletedAt: IsNull() },
+            select: [
+                'id',
+                'nickname',
+                'name',
+                'city',
+                'about',
+                'image',
+                'rating',
+                'createdAt',
+            ],
+        });
+
+        if (!user) throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
+
+        return this.addSignedUrlToUser(user);
+    }
+
+    async generatePublicProfileLink(
+        id: number,
+    ): Promise<{ publicUrl: string; message: string }> {
+        const user = await this.userRepository.findOne({
+            where: { id, deletedAt: IsNull() },
+            select: ['id', 'nickname', 'isDeactivated'],
+        });
+
+        if (!user) {
+            throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
+        }
+
+        if (user.isDeactivated) {
+            throw new BadRequestException(
+                ERROR_MESSAGES.USER.PUBLIC_PROFILE_NOT_AVAILABLE,
+            );
+        }
+
+        const slug = user.nickname || user.id.toString();
+
+        /* TODO: заменить в последующем на deep url */
+        const publicUrl = `${process.env.APP_URL || 'https://yourapp.com'}/u/${slug}`;
+
+        this.logger.log(
+            `Сгенерирована ссылка для пользователя ${user.id}: ${publicUrl}`,
+        );
+
+        return {
+            publicUrl,
+            message: SUCCESS_MESSAGES.USER.PUBLIC_LINK_GENERATED,
+        };
+    }
+
+    async getPublicProfileBySlug(slug: string): Promise<Partial<User>> {
+        this.logger.log(`Публичный профиль получен по slug: ${slug}`);
+
+        let user: User | null;
+
+        if (isNaN(Number(slug))) {
+            user = await this.userRepository.findOne({
+                where: {
+                    nickname: slug,
+                    deletedAt: IsNull(),
+                    isDeactivated: false,
+                },
+                select: [
+                    'id',
+                    'nickname',
+                    'name',
+                    'city',
+                    'about',
+                    'image',
+                    'rating',
+                    'createdAt',
+                ],
+            });
+        } else {
+            user = await this.userRepository.findOne({
+                where: {
+                    id: Number(slug),
+                    deletedAt: IsNull(),
+                    isDeactivated: false,
+                },
+                select: [
+                    'id',
+                    'nickname',
+                    'name',
+                    'city',
+                    'about',
+                    'image',
+                    'rating',
+                    'createdAt',
+                ],
+            });
+        }
+
+        if (!user) {
+            throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
+        }
+
+        await this.ratingService.calculateAndUpdateUserRating(user.id);
         return this.addSignedUrlToUser(user);
     }
 
@@ -296,9 +414,7 @@ export class UsersService {
             withDeleted: false,
         });
 
-        if (!user) {
-            throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
-        }
+        if (!user) throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
 
         await this.userRepository.softDelete(id);
 
@@ -311,9 +427,7 @@ export class UsersService {
             withDeleted: false,
         });
 
-        if (!user) {
-            throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
-        }
+        if (!user) throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
 
         user.isDeactivated = true;
         return this.userRepository.save(user);
@@ -325,9 +439,7 @@ export class UsersService {
             withDeleted: false,
         });
 
-        if (!user) {
-            throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
-        }
+        if (!user) throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
 
         user.isDeactivated = false;
         return this.userRepository.save(user);

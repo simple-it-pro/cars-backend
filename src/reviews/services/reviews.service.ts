@@ -17,6 +17,8 @@ import {
     SUCCESS_MESSAGES,
 } from '../../common/constants/messages';
 import { RatingService } from '../../users/services';
+import { NotificationsService } from '../../notifications/services';
+import { NotificationMessages, NotificationType } from '../../common/types';
 
 @Injectable()
 export class ReviewsService {
@@ -27,6 +29,7 @@ export class ReviewsService {
         private readonly usersRepository: Repository<User>,
         private readonly storageService: StorageService,
         private readonly ratingService: RatingService,
+        private readonly notificationsService: NotificationsService,
     ) {}
 
     private validateImageFiles(files: Express.Multer.File[]): void {
@@ -100,6 +103,12 @@ export class ReviewsService {
         await this.ratingService.calculateAndUpdateUserRating(userId);
 
         await this.reviewsRepository.save(review);
+
+        await this.notificationsService.create(userId, {
+            type: NotificationType.REVIEW,
+            title: NotificationMessages.REVIEW,
+            description: review.content,
+        });
 
         const reviewWithUrls = await this.addSignedUrlsToReview(review);
         return {
@@ -226,6 +235,13 @@ export class ReviewsService {
         review.answeredAt = new Date();
 
         await this.reviewsRepository.save(review);
+
+        await this.notificationsService.create(review.user.id, {
+            type: NotificationType.REVIEW_ANSWER,
+            title: NotificationMessages.REVIEW_ANSWER,
+            description: review.content,
+        });
+
         const reviewWithUrls = await this.addSignedUrlsToReview(review);
         return {
             message: SUCCESS_MESSAGES.REVIEW.ANSWERED,
@@ -271,5 +287,3 @@ export class ReviewsService {
         return review;
     }
 }
-
-export default ReviewsService;

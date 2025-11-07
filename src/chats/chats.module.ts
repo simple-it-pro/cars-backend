@@ -19,6 +19,7 @@ import {
     Chat,
     MessageContent,
 } from '../database/entities';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
     imports: [
@@ -32,6 +33,7 @@ import {
         UsersModule,
         AuthModule,
         StorageModule,
+        NotificationsModule,
     ],
     controllers: [ChatsController],
     providers: [

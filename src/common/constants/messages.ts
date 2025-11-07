@@ -9,10 +9,14 @@ export const ERROR_MESSAGES = {
         SOME_NOT_FOUND: 'Один или несколько пользователей не найдены',
         SOME_NOT_FOUND_WITH_IDS_PREFIX: 'Пользователи с id не найдены: ',
         CITY_NOT_FOUND: 'Не найден город',
+        PUBLIC_PROFILE_ACCESS_DENIED: 'Доступ к публичному профилю запрещен',
+        PUBLIC_PROFILE_NOT_AVAILABLE: 'Публичный профиль недоступен',
+        CONFIRMATION_INCORRECT: 'Неверное подтверждение удаления',
     },
     AUTH: {
         SMS_FAIL: 'Не удалось отправить SMS',
         CODE_EXPIRED: 'Код не найден или истек',
+        SESSION_REVOKED: 'Сессия недействительна или истекла',
         TOO_MANY_ATTEMPTS: 'Слишком много попыток. Попробуйте позже',
         WRONG_CODE: 'Неверный код подтверждения',
         INVALID_REFRESH_TOKEN: 'Невалидный refresh token',
@@ -54,6 +58,13 @@ export const ERROR_MESSAGES = {
             'Нельзя одновременно указывать replyToMessageId и forwardFromMessageId',
         NO_CHANGES: 'Нечего обновлять: содержимое не изменилось',
     },
+    NOTIFICATION: {
+        NOT_FOUND: 'Уведомление не найдено',
+        FORBIDDEN: 'Нельзя удалить чужое уведомление',
+        CREATE_FAILED: 'Не удалось создать уведомление',
+        UPDATE_FAILED: 'Не удалось обновить уведомление',
+        DELETE_FAILED: 'Не удалось удалить уведомление',
+    },
     STORAGE: {
         MISSING_ENV: 'Нет обязательных переменных окружения для S3-хранилища',
         NO_FILE: 'Необходимо приложить файл',
@@ -81,6 +92,10 @@ export const ERROR_MESSAGES = {
         DEACTIVATION_FAILED: 'Не удалось деактивировать профиль',
         ACTIVATION_FAILED: 'Не удалось активировать профиль',
     },
+    PUBLIC_PROFILE: {
+        ACCESS_DISABLED: 'Публичный доступ к профилю отключён',
+        SLUG_NOT_FOUND: 'Пользователь с таким slug не найден',
+    },
 } as const;
 
 export const SUCCESS_MESSAGES = {
@@ -89,6 +104,9 @@ export const SUCCESS_MESSAGES = {
     },
     CHAT: {
         MARK_READ: 'Сообщения отмечены как прочитанные',
+        ALL_MARKED_READ: 'Все чаты отмечены как прочитанные',
+        CHATS_MARKED_READ: 'Чаты отмечены как прочитанные',
+        DELETED: 'Чаты удалены успешно',
     },
     REVIEW: {
         CREATED: 'Отзыв успешно создан',
@@ -104,7 +122,6 @@ export const SUCCESS_MESSAGES = {
         DELETED_WITH_WARNINGS:
             'Сообщение удалено, но некоторые файлы не были удалены из хранилища',
     },
-
     USER: {
         UPDATED: 'Профиль успешно обновлен',
         AVATAR_UPDATED: 'Аватар успешно обновлен',
@@ -113,6 +130,18 @@ export const SUCCESS_MESSAGES = {
         DEACTIVATED: 'Профиль успешно деактивирован',
         ACTIVATED: 'Профиль успешно активирован',
         DELETED: 'Профиль успешно удален',
+        PUBLIC_PROFILE_GENERATED: 'Публичная ссылка успешно сгенерирована',
+        PUBLIC_PROFILE_ACCESSED: 'Публичный профиль успешно получен',
+        PUBLIC_LINK_GENERATED: 'Публичная ссылка успешно сгенерирована',
+    },
+    NOTIFICATION: {
+        CREATED: 'Уведомление успешно создано',
+        MARKED_AS_READ: 'Уведомление отмечено как прочитанное',
+        ALL_MARKED_AS_READ: 'Все уведомления отмечены как прочитанные',
+        DELETED: 'Уведомление успешно удалено',
+    },
+    PUBLIC_PROFILE: {
+        LINK_READY: 'Ссылка на публичный профиль сгенерирована',
     },
 } as const;
 
@@ -124,5 +153,6 @@ export const WARNING_MESSAGES = {
         AVATAR_DELETION_FAILED:
             'Не удалось удалить старый аватар, но новый был загружен',
         PARTIAL_FILE_UPLOAD: 'Некоторые файлы не были загружены',
+        PUBLIC_PROFILE_DEACTIVATED: 'Публичный профиль деактивирован',
     },
 } as const;
