@@ -18,6 +18,7 @@ import {
     Follower,
     Message,
     Notification,
+    Post,
     RefreshToken,
     Review,
     Subscription,
@@ -191,6 +192,9 @@ class User {
 
     @OneToMany(() => UserBlock, (userBlock) => userBlock.blockedUser)
     blockedUsers: UserBlock[];
+
+    @OneToMany(() => Post, (post) => post.user)
+    posts: Post[];
 }
 
 export default User;

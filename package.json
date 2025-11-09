@@ -23,7 +23,8 @@
     "migration:run": "yarn typeorm migration:run -d typeorm.config.ts",
     "migration:revert": "yarn typeorm migration:revert -d typeorm.config.ts",
     "migration:show": "yarn typeorm migration:show -d typeorm.config.ts",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "set-tmp-lifecycle": "ts-node src/storage/set-tmp-lifecycle.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.913.0",
@@ -35,6 +36,7 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/platform-socket.io": "^11.1.6",
+    "@nestjs/schedule": "^6.0.1",
     "@nestjs/swagger": "^11.2.0",
     "@nestjs/typeorm": "^11.0.0",
     "@nestjs/websockets": "^11.1.6",
@@ -43,6 +45,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "cloudinary": "^2.7.0",
+    "file-type": "^21.0.0",
     "joi": "^18.0.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
