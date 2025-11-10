@@ -29,10 +29,11 @@ import { Image } from '../interfaces';
 @Entity({ name: 'users' })
 class User {
     @ApiProperty({
-        example: 1,
+        example: '123e4567-e89b-12d3-a456-426614174000',
+        description: 'Уникальный идентификатор',
     })
-    @PrimaryGeneratedColumn()
-    id: number;
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
 
     @ApiProperty({
         example: '2025-09-14T08:57:59.589Z',

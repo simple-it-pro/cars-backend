@@ -44,7 +44,6 @@ import {
     SUCCESS_MESSAGES,
 } from '../../common/constants/messages';
 import {
-    API_CONSUMES,
     CHAT_OPERATIONS,
     CHAT_QUERIES,
     CHAT_RESPONSES,
@@ -219,7 +218,7 @@ export class ChatsController {
     }
 
     @ApiOperation({ summary: 'Отправить сообщение в чат' })
-    @ApiConsumes(API_CONSUMES.MULTIPART_FORM_DATA)
+    @ApiConsumes('multipart/form-data')
     @ApiBody(MESSAGE_BODIES.SEND_MESSAGE)
     @ApiResponse({
         status: 201,
@@ -314,7 +313,7 @@ export class ChatsController {
     }
 
     @ApiOperation({ summary: 'Ответ на сообщение' })
-    @ApiConsumes(API_CONSUMES.MULTIPART_FORM_DATA)
+    @ApiConsumes('multipart/form-data')
     @ApiBody(MESSAGE_BODIES.REPLY_MESSAGE)
     @ApiResponse({ status: 201, type: Message, description: 'Ответ отправлен' })
     @ApiResponse({
@@ -345,7 +344,7 @@ export class ChatsController {
     }
 
     @ApiOperation({ summary: 'Переслать сообщение' })
-    @ApiConsumes(API_CONSUMES.MULTIPART_FORM_DATA)
+    @ApiConsumes('multipart/form-data')
     @ApiBody(MESSAGE_BODIES.FORWARD_MESSAGE)
     @ApiResponse({ status: 201, type: Message, description: 'Переслано' })
     @ApiResponse({

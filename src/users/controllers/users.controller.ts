@@ -89,7 +89,7 @@ export class UsersController {
     @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
     async subscribeUser(
         @AuthUser() { sub: userId }: JwtUserData,
-        @Body('targetUserId') targetUserId: number,
+        @Body('targetUserId') targetUserId: string,
     ) {
         return this.usersService.subscribeUser(userId, targetUserId);
     }
@@ -102,7 +102,7 @@ export class UsersController {
     @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
     async unsubscribeUser(
         @AuthUser() { sub: userId }: JwtUserData,
-        @Body('targetUserId') targetUserId: number,
+        @Body('targetUserId') targetUserId: string,
     ) {
         return this.usersService.unsubscribeUser(userId, targetUserId);
     }
@@ -113,7 +113,7 @@ export class UsersController {
     @ApiOkResponse(USERS_API_DOCS.RESPONSES.GET_SUBSCRIPTIONS)
     @ApiResponse(USERS_API_DOCS.RESPONSES.NOT_FOUND)
     @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
-    async getUserSubscriptions(@Param('userId') userId: number) {
+    async getUserSubscriptions(@Param('userId') userId: string) {
         return this.usersService.getSubscriptions(userId);
     }
 
@@ -123,7 +123,7 @@ export class UsersController {
     @ApiOkResponse(USERS_API_DOCS.RESPONSES.GET_FOLLOWERS)
     @ApiResponse(USERS_API_DOCS.RESPONSES.NOT_FOUND)
     @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
-    async getUserFollowers(@Param('userId') userId: number) {
+    async getUserFollowers(@Param('userId') userId: string) {
         return this.usersService.getFollowers(userId);
     }
 
@@ -143,7 +143,7 @@ export class UsersController {
     @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
     async blockUser(
         @AuthUser() { sub: userId }: JwtUserData,
-        @Param('userId') targetUserId: number,
+        @Param('userId') targetUserId: string,
     ) {
         return this.usersService.blockUser(userId, targetUserId);
     }
@@ -156,7 +156,7 @@ export class UsersController {
     @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
     async unblockUser(
         @AuthUser() { sub: userId }: JwtUserData,
-        @Param('userId') targetUserId: number,
+        @Param('userId') targetUserId: string,
     ) {
         return this.usersService.unblockUser(userId, targetUserId);
     }
@@ -175,7 +175,7 @@ export class UsersController {
     @ApiParam(USERS_API_DOCS.PARAMS.ID)
     @ApiOkResponse(USERS_API_DOCS.RESPONSES.GET_PUBLIC_PROFILE)
     @ApiResponse(USERS_API_DOCS.RESPONSES.NOT_FOUND)
-    async getPublicProfile(@Param('id') id: number) {
+    async getPublicProfile(@Param('id') id: string) {
         return this.usersService.getPublicProfile(id);
     }
 

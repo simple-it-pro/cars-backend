@@ -250,10 +250,6 @@ export const CHAT_QUERIES = {
     },
 } as const;
 
-export const API_CONSUMES = {
-    MULTIPART_FORM_DATA: 'multipart/form-data',
-} as const;
-
 export const CHAT_OPERATIONS = {
     MARK_ALL_READ: {
         summary: 'Отметить все чаты как прочитанные',

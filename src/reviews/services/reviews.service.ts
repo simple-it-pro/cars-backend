@@ -36,8 +36,8 @@ export class ReviewsService {
     ) {}
 
     private async checkBlockStatus(
-        authorId: number,
-        targetUserId: number,
+        authorId: string,
+        targetUserId: string,
     ): Promise<void> {
         const [isBlocked, isBlockedBy] = await Promise.all([
             this.userBlockRepository.findOne({
@@ -148,7 +148,7 @@ export class ReviewsService {
         };
     }
 
-    async findOne(id: number) {
+    async findOne(id: string) {
         const review = await this.reviewsRepository.findOne({
             where: { id },
             relations: ['user', 'author'],
@@ -163,8 +163,8 @@ export class ReviewsService {
     async findAll(options?: {
         page?: number;
         limit?: number;
-        userId?: number;
-        authorId?: number;
+        userId?: string;
+        authorId?: string;
         isVerified?: boolean;
     }) {
         const {
@@ -212,7 +212,7 @@ export class ReviewsService {
     }
 
     async getVerifiedReviews(
-        userId?: number,
+        userId?: string,
         page: number = 1,
         limit: number = 10,
     ) {
@@ -225,7 +225,7 @@ export class ReviewsService {
     }
 
     async getUserReceivedReviews(
-        userId: number,
+        userId: string,
         page: number = 1,
         limit: number = 10,
     ) {
@@ -237,7 +237,7 @@ export class ReviewsService {
     }
 
     async getUserAuthoredReviews(
-        authorId: number,
+        authorId: string,
         page: number = 1,
         limit: number = 10,
     ) {
@@ -248,7 +248,7 @@ export class ReviewsService {
         });
     }
 
-    async answerReview(id: number, userId: number, answerDto: AnswerReviewDto) {
+    async answerReview(id: string, userId: string, answerDto: AnswerReviewDto) {
         const review = await this.findOne(id);
         const { answer } = answerDto;
 
@@ -280,7 +280,7 @@ export class ReviewsService {
         };
     }
 
-    async verifyReview(id: number) {
+    async verifyReview(id: string) {
         const review = await this.findOne(id);
         review.isVerified = true;
         await this.reviewsRepository.save(review);
@@ -291,7 +291,7 @@ export class ReviewsService {
         };
     }
 
-    async unverifyReview(id: number) {
+    async unverifyReview(id: string) {
         const review = await this.findOne(id);
         review.isVerified = false;
         await this.reviewsRepository.save(review);

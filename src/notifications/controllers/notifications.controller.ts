@@ -71,7 +71,7 @@ export class NotificationsController {
     @ApiResponse(NOTIFICATIONS_API_DOCS.RESPONSES.UNAUTHORIZED)
     async markAsRead(
         @AuthUser() { sub: userId }: JwtUserData,
-        @Param('id') notificationId: number,
+        @Param('id') notificationId: string,
     ) {
         return this.notificationsService.markAsRead(userId, notificationId);
     }
@@ -92,7 +92,7 @@ export class NotificationsController {
     @ApiResponse(NOTIFICATIONS_API_DOCS.RESPONSES.UNAUTHORIZED)
     async remove(
         @AuthUser() { sub: userId }: JwtUserData,
-        @Param('id') notificationId: number,
+        @Param('id') notificationId: string,
     ) {
         return this.notificationsService.remove(userId, notificationId);
     }

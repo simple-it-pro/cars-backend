@@ -27,7 +27,7 @@ export class NotificationsGateway
     server: Server;
 
     private readonly logger = new Logger(NotificationsGateway.name);
-    private connectedUsers = new Map<number, string>();
+    private connectedUsers = new Map<string, string>();
 
     constructor(private readonly authService: AuthService) {}
 
@@ -41,7 +41,7 @@ export class NotificationsGateway
             }
 
             const payload = await this.authService.verifyWebSocketToken(token);
-            const userId: number = payload.sub;
+            const userId: string = payload.sub;
 
             this.connectedUsers.set(userId, socket.id);
             await socket.join(`user_${userId}`);
@@ -72,7 +72,7 @@ export class NotificationsGateway
     @SubscribeMessage('mark_as_read')
     handleMarkAsRead(
         @ConnectedSocket() socket: Socket,
-        @MessageBody() data: { notificationId: number },
+        @MessageBody() data: { notificationId: string },
     ) {
         try {
             const userId = this.getUserIdFromSocket(socket);
@@ -133,7 +133,7 @@ export class NotificationsGateway
         }
     }
 
-    sendNewNotification(userId: number, notification: Notification) {
+    sendNewNotification(userId: string, notification: Notification) {
         this.server.to(`user_${userId}`).emit('new_notification', {
             notification,
         });
@@ -143,11 +143,11 @@ export class NotificationsGateway
         this.logger.log(`New notification sent to user ${userId}`);
     }
 
-    sendUnreadCount(userId: number) {
+    sendUnreadCount(userId: string) {
         this.server.to(`user_${userId}`).emit('unread_count_updated');
     }
 
-    sendNotificationRead(userId: number, notificationId: number) {
+    sendNotificationRead(userId: string, notificationId: string) {
         this.server.to(`user_${userId}`).emit('notification_read', {
             notificationId,
         });
@@ -155,13 +155,13 @@ export class NotificationsGateway
         this.sendUnreadCount(userId);
     }
 
-    sendAllNotificationsRead(userId: number) {
+    sendAllNotificationsRead(userId: string) {
         this.server.to(`user_${userId}`).emit('all_notifications_read');
 
         this.sendUnreadCount(userId);
     }
 
-    sendNotificationDeleted(userId: number, notificationId: number) {
+    sendNotificationDeleted(userId: string, notificationId: string) {
         this.server.to(`user_${userId}`).emit('notification_deleted', {
             notificationId,
         });
@@ -169,7 +169,7 @@ export class NotificationsGateway
         this.sendUnreadCount(userId);
     }
 
-    private getUserIdFromSocket(socket: Socket): number | null {
+    private getUserIdFromSocket(socket: Socket): string | null {
         for (const [userId, socketId] of this.connectedUsers.entries()) {
             if (socketId === socket.id) {
                 return userId;

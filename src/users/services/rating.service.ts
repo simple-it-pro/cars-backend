@@ -12,7 +12,7 @@ export class RatingService {
         private readonly userRepository: Repository<User>,
     ) {}
 
-    private async calculateUserRating(userId: number): Promise<number> {
+    private async calculateUserRating(userId: string): Promise<number> {
         const reviews = await this.reviewRepository.find({
             where: { user: { id: userId } },
         });
@@ -27,7 +27,7 @@ export class RatingService {
         return parseFloat(averageRating.toFixed(2));
     }
 
-    async calculateAndUpdateUserRating(userId: number): Promise<number> {
+    async calculateAndUpdateUserRating(userId: string): Promise<number> {
         const rating = await this.calculateUserRating(userId);
         await this.userRepository.update(userId, { rating });
         return rating;

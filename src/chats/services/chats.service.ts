@@ -43,8 +43,8 @@ export class ChatsService {
     ) {}
 
     private async isUserBlocked(
-        userId: number,
-        targetUserId: number,
+        userId: string,
+        targetUserId: string,
     ): Promise<boolean> {
         const block = await this.userBlockRepository.findOne({
             where: {
@@ -56,8 +56,8 @@ export class ChatsService {
     }
 
     private async checkMutualBlock(
-        userAId: number,
-        userBId: number,
+        userAId: string,
+        userBId: string,
     ): Promise<void> {
         const [aBlocksB, bBlocksA] = await Promise.all([
             this.isUserBlocked(userAId, userBId),
@@ -74,9 +74,7 @@ export class ChatsService {
     async findOrCreatePrivateChat(userA: User, userB: User): Promise<Chat> {
         await this.checkMutualBlock(userA.id, userB.id);
 
-        const aId = Math.min(userA.id, userB.id);
-        const bId = Math.max(userA.id, userB.id);
-        const uniqueKey = `private_${aId}-${bId}`;
+        const uniqueKey = `private_${userA.id}-${userB.id}`;
 
         let chat = await this.chatRepository.findOne({
             where: { uniqueKey },
@@ -105,7 +103,7 @@ export class ChatsService {
     }
 
     async createGroupChat(
-        userId: number,
+        userId: string,
         createGroupChatDto: CreateGroupChatDto,
     ): Promise<Chat> {
         const { name, userIds, description } = createGroupChatDto;
@@ -118,7 +116,7 @@ export class ChatsService {
             (id) => id !== userId,
         );
 
-        const blockedUsers: number[] = [];
+        const blockedUsers: string[] = [];
         for (const participantId of participantIds) {
             const isBlocked = await this.isUserBlocked(userId, participantId);
             const isBlockedBy = await this.isUserBlocked(participantId, userId);
@@ -198,7 +196,7 @@ export class ChatsService {
     }
 
     async getUserChats(
-        userId: number,
+        userId: string,
         pagination: CursorPaginationDto,
         filter: 'all' | 'favorite' | 'unread' = 'all',
         search?: string,
@@ -353,7 +351,7 @@ export class ChatsService {
 
     async findChatById(
         chatId: string,
-        userId: number,
+        userId: string,
     ): Promise<Chat & { isFavorite?: boolean }> {
         const chat = await this.chatRepository.findOne({
             where: { id: chatId },
@@ -401,7 +399,7 @@ export class ChatsService {
         return chat;
     }
 
-    async getTotalUnreadCount(userId: number): Promise<number> {
+    async getTotalUnreadCount(userId: string): Promise<number> {
         const result = await this.unreadChatRepository
             .createQueryBuilder()
             .select('COALESCE(SUM("unreadCount"), 0)', 'total')
@@ -412,7 +410,7 @@ export class ChatsService {
     }
 
     async getUnreadCountForChat(
-        userId: number,
+        userId: string,
         chatId: string,
     ): Promise<number> {
         const result = await this.unreadChatRepository
@@ -427,7 +425,7 @@ export class ChatsService {
 
     async toggleFavorite(
         chatId: string,
-        userId: number,
+        userId: string,
     ): Promise<{ isFavorite: boolean }> {
         const chat = await this.findChatById(chatId, userId);
 
@@ -459,7 +457,7 @@ export class ChatsService {
     }
 
     async markAllChatsAsRead(
-        userId: number,
+        userId: string,
     ): Promise<{ success: boolean; message: string }> {
         return await this.chatRepository.manager.transaction(
             async (manager) => {
@@ -506,7 +504,7 @@ export class ChatsService {
     }
 
     async markChatsAsRead(
-        userId: number,
+        userId: string,
         chatIds: string[],
     ): Promise<{ success: boolean; message: string }> {
         return await this.chatRepository.manager.transaction(
@@ -552,7 +550,7 @@ export class ChatsService {
     }
 
     async deleteChats(
-        userId: number,
+        userId: string,
         chatIds: string[],
     ): Promise<{ success: boolean; message: string }> {
         return await this.chatRepository.manager.transaction(

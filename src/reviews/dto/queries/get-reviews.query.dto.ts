@@ -1,6 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Min } from 'class-validator';
+import { IsOptional, IsUUID } from 'class-validator';
 import { PaginationQueryDto } from './pagination.query.dto';
 
 export class GetReviewsQueryDto extends PaginationQueryDto {
@@ -8,9 +7,7 @@ export class GetReviewsQueryDto extends PaginationQueryDto {
         description: 'ID пользователя для фильтрации отзывов',
         required: false,
     })
-    @Type(() => Number)
-    @IsInt()
-    @Min(1)
+    @IsUUID()
     @IsOptional()
-    userId?: number;
+    userId?: string;
 }

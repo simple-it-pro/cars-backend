@@ -3,6 +3,7 @@ import {
     IsInt,
     IsNotEmpty,
     IsString,
+    IsUUID,
     Max,
     MaxLength,
     Min,
@@ -24,10 +25,8 @@ export class CreateReviewDto {
         example: 1,
         description: 'ID пользователя, которому оставляют отзыв',
     })
-    @IsInt()
-    @IsNotEmpty()
-    @Type(() => Number)
-    userId: number;
+    @IsUUID()
+    userId: string;
 
     @ApiProperty({
         example: 5,

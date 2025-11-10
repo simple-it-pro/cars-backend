@@ -12,9 +12,12 @@ import User from './user.entity';
 
 @Entity('notifications')
 class Notification {
-    @PrimaryGeneratedColumn()
-    @ApiProperty({ example: 1 })
-    id: number;
+    @ApiProperty({
+        example: '123e4567-e89b-12d3-a456-426614174000',
+        description: 'Уникальный идентификатор',
+    })
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
 
     @ApiProperty({
         example: '2025-09-14T08:57:59.589Z',
