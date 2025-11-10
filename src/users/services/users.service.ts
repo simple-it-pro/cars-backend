@@ -10,9 +10,9 @@ import { IsNull, Repository } from 'typeorm';
 import { instanceToPlain } from 'class-transformer';
 import * as cities from '../../common/constants/json/russian-cities.json';
 import {
-    User,
     Follower,
     Subscription,
+    User,
     UserBlock,
 } from '../../database/entities';
 import { UpdateUserDto } from '../dto';
@@ -164,29 +164,7 @@ export class UsersService {
         }
     }
 
-    async subscribeUser(
-        userId: string,
-        targetUserId: string,
-    ): Promise<{ message: string }> {
-        if (userId === targetUserId)
-            throw new BadRequestException(
-                ERROR_MESSAGES.SUBSCRIPTION.SELF_SUBSCRIBE,
-            );
-
-        const [user, targetUser] = await Promise.all([
-            this.userRepository.findOne({
-                where: { id: userId, deletedAt: IsNull() },
-            }),
-            this.userRepository.findOne({
-                where: { id: targetUserId, deletedAt: IsNull() },
-            }),
-        ]);
-
-        if (!(user && targetUser))
-            throw new BadRequestException(
-                ERROR_MESSAGES.SUBSCRIPTION.USER_NOT_FOUND,
-            );
-
+    private async checkBlockStatus(userId: string, targetUserId: string) {
         const [isBlocked, isBlockedBy] = await Promise.all([
             this.userBlockRepository.findOne({
                 where: {
@@ -210,6 +188,32 @@ export class UsersService {
         if (isBlockedBy)
             throw new ForbiddenException(
                 ERROR_MESSAGES.SUBSCRIPTION.BLOCKED_BY_USER,
+            );
+    }
+
+    async subscribeUser(
+        userId: string,
+        targetUserId: string,
+    ): Promise<{ message: string }> {
+        await this.checkBlockStatus(userId, targetUserId);
+
+        if (userId === targetUserId)
+            throw new BadRequestException(
+                ERROR_MESSAGES.SUBSCRIPTION.SELF_SUBSCRIBE,
+            );
+
+        const [user, targetUser] = await Promise.all([
+            this.userRepository.findOne({
+                where: { id: userId, deletedAt: IsNull() },
+            }),
+            this.userRepository.findOne({
+                where: { id: targetUserId, deletedAt: IsNull() },
+            }),
+        ]);
+
+        if (!(user && targetUser))
+            throw new BadRequestException(
+                ERROR_MESSAGES.SUBSCRIPTION.USER_NOT_FOUND,
             );
 
         const existingSubscription = await this.subscriptionRepository.findOne({
@@ -307,14 +311,14 @@ export class UsersService {
     }
 
     async getBlockedUsers(userId: string) {
-        const blocks = await this.userBlockRepository.find({
+        const blocks: UserBlock[] = await this.userBlockRepository.find({
             where: {
                 user: { id: userId },
             },
             relations: ['blockedUser'],
         });
 
-        return blocks.map((block) => block.blockedUser);
+        return blocks.map((block: UserBlock): User => block.blockedUser);
     }
 
     async blockUser(userId: string, targetUserId: string) {
@@ -417,7 +421,7 @@ export class UsersService {
     ): Promise<{ publicUrl: string; message: string }> {
         const user = await this.userRepository.findOne({
             where: { id, deletedAt: IsNull() },
-            select: ['id', 'nickname', 'isDeactivated'],
+            select: ['id', 'isDeactivated'],
         });
 
         if (!user) throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
@@ -428,10 +432,8 @@ export class UsersService {
             );
         }
 
-        const slug = user.nickname || user.id.toString();
-
         /* TODO: заменить в последующем на deep url */
-        const publicUrl = `${process.env.APP_URL || 'https://yourapp.com'}/u/${slug}`;
+        const publicUrl = `${process.env.APP_URL || 'https://yourapp.com'}/u/${user.id}`;
 
         this.logger.log(
             `Сгенерирована ссылка для пользователя ${user.id}: ${publicUrl}`,
@@ -446,9 +448,9 @@ export class UsersService {
     async getPublicProfileBySlug(slug: string): Promise<Partial<User>> {
         this.logger.log(`Публичный профиль получен по slug: ${slug}`);
 
-        let user = await this.userRepository.findOne({
+        const user = await this.userRepository.findOne({
             where: {
-                nickname: slug,
+                id: slug,
                 deletedAt: IsNull(),
                 isDeactivated: false,
             },
@@ -463,26 +465,6 @@ export class UsersService {
                 'createdAt',
             ],
         });
-
-        if (!user) {
-            user = await this.userRepository.findOne({
-                where: {
-                    id: slug,
-                    deletedAt: IsNull(),
-                    isDeactivated: false,
-                },
-                select: [
-                    'id',
-                    'nickname',
-                    'name',
-                    'city',
-                    'about',
-                    'image',
-                    'rating',
-                    'createdAt',
-                ],
-            });
-        }
 
         if (!user) throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
 

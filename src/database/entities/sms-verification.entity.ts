@@ -14,7 +14,7 @@ class SmsVerification {
         description: 'Уникальный идентификатор ',
     })
     @PrimaryGeneratedColumn('uuid')
-    id: number;
+    id: string;
 
     @ApiProperty({ example: '+79991234567' })
     @Column({ length: 20 })

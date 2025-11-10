@@ -42,26 +42,27 @@ export class MessagesService {
         private readonly messagesAttachmentService: MessagesAttachmentService,
     ) {}
 
+    /* TODO: если блокируются юзеры, которые уже в чате, ничего не происходит, надо согласовать логику, если будут групповые чаты */
     private async checkBlockStatus(
         senderId: string,
         chat: Chat,
     ): Promise<void> {
         if (chat.type === 'group') return;
 
-        const otherUser = chat.users.find((u) => u.id !== senderId);
+        const userInChat = chat.users.find((u) => u.id !== senderId);
 
-        if (!otherUser) return;
+        if (!userInChat) return;
 
         const [isBlocked, isBlockedBy] = await Promise.all([
             this.userBlockRepository.findOne({
                 where: {
                     user: { id: senderId },
-                    blockedUser: { id: otherUser.id },
+                    blockedUser: { id: userInChat.id },
                 },
             }),
             this.userBlockRepository.findOne({
                 where: {
-                    user: { id: otherUser.id },
+                    user: { id: userInChat.id },
                     blockedUser: { id: senderId },
                 },
             }),
