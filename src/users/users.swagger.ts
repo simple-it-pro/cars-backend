@@ -86,10 +86,11 @@ export const USERS_BODIES = {
             type: 'object',
             properties: {
                 targetUserId: {
-                    type: 'number',
-                    example: 2,
+                    type: 'string',
+                    example: '123e4567-e89b-12d3-a456-426614174000',
                     description:
-                        'ID пользователя, на которого нужно подписаться',
+                        'ID пользователя, на которого нужно подписаться (UUID)',
+                    format: 'uuid',
                 },
             },
             required: ['targetUserId'],
@@ -102,10 +103,11 @@ export const USERS_BODIES = {
             type: 'object',
             properties: {
                 targetUserId: {
-                    type: 'number',
-                    example: 2,
+                    type: 'string',
+                    example: '123e4567-e89b-12d3-a456-426614174000',
                     description:
-                        'ID пользователя, от которого нужно отписаться',
+                        'ID пользователя, от которого нужно отписаться (UUID)',
+                    format: 'uuid',
                 },
             },
             required: ['targetUserId'],
@@ -297,7 +299,11 @@ export const USERS_API_DOCS = {
                 items: {
                     type: 'object',
                     properties: {
-                        id: { type: 'number', example: 1 },
+                        id: {
+                            type: 'string',
+                            example: '123e4567-e89b-12d3-a456-426614174000',
+                            format: 'uuid',
+                        },
                         nickname: { type: 'string', example: 'blocked_user' },
                         name: {
                             type: 'string',
@@ -435,16 +441,18 @@ export const USERS_API_DOCS = {
     PARAMS: {
         USER_ID: {
             name: 'userId',
-            description: 'ID пользователя',
-            type: Number,
-            example: 1,
+            description: 'ID пользователя (UUID)',
+            type: String,
+            example: '123e4567-e89b-12d3-a456-426614174000',
+            format: 'uuid',
         } as ApiParamOptions,
 
         ID: {
             name: 'id',
-            description: 'ID пользователя',
-            type: Number,
-            example: 1,
+            description: 'ID пользователя (UUID)',
+            type: String,
+            example: '123e4567-e89b-12d3-a456-426614174000',
+            format: 'uuid',
         } as ApiParamOptions,
 
         SLUG: {
@@ -456,9 +464,10 @@ export const USERS_API_DOCS = {
 
         TARGET_USER_ID: {
             name: 'userId',
-            description: 'ID пользователя для блокировки/разблокировки',
-            type: Number,
-            example: 5,
+            description: 'ID пользователя для блокировки/разблокировки (UUID)',
+            type: String,
+            example: '123e4567-e89b-12d3-a456-426614174000',
+            format: 'uuid',
         } as ApiParamOptions,
     },
 } as const;
