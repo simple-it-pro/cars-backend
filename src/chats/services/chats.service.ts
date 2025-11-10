@@ -52,7 +52,7 @@ export class ChatsService {
                 blockedUser: { id: targetUserId },
             },
         });
-        return !!block;
+        return Boolean(block);
     }
 
     private async checkMutualBlock(
@@ -123,16 +123,13 @@ export class ChatsService {
             const isBlocked = await this.isUserBlocked(userId, participantId);
             const isBlockedBy = await this.isUserBlocked(participantId, userId);
 
-            if (isBlocked || isBlockedBy) {
-                blockedUsers.push(participantId);
-            }
+            if (isBlocked || isBlockedBy) blockedUsers.push(participantId);
         }
 
-        if (blockedUsers.length > 0) {
+        if (blockedUsers.length > 0)
             throw new BadRequestException(
                 `${ERROR_MESSAGES.USER.CANNOT_ADD_BLOCKED_USERS}: ${blockedUsers.join(', ')}`,
             );
-        }
 
         const participants = await Promise.all(
             participantIds.map((id) => this.usersService.getUserById(id)),
@@ -376,11 +373,10 @@ export class ChatsService {
                     this.isUserBlocked(otherUser.id, userId),
                 ]);
 
-                if (isBlocked || isBlockedBy) {
+                if (isBlocked || isBlockedBy)
                     throw new ForbiddenException(
                         ERROR_MESSAGES.USER.BLOCKED_INTERACTION,
                     );
-                }
             }
         }
 
