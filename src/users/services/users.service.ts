@@ -195,13 +195,6 @@ export class UsersService {
         userId: string,
         targetUserId: string,
     ): Promise<{ message: string }> {
-        await this.checkBlockStatus(userId, targetUserId);
-
-        if (userId === targetUserId)
-            throw new BadRequestException(
-                ERROR_MESSAGES.SUBSCRIPTION.SELF_SUBSCRIBE,
-            );
-
         const [user, targetUser] = await Promise.all([
             this.userRepository.findOne({
                 where: { id: userId, deletedAt: IsNull() },
@@ -214,6 +207,13 @@ export class UsersService {
         if (!(user && targetUser))
             throw new BadRequestException(
                 ERROR_MESSAGES.SUBSCRIPTION.USER_NOT_FOUND,
+            );
+
+        await this.checkBlockStatus(userId, targetUserId);
+
+        if (userId === targetUserId)
+            throw new BadRequestException(
+                ERROR_MESSAGES.SUBSCRIPTION.SELF_SUBSCRIBE,
             );
 
         const existingSubscription = await this.subscriptionRepository.findOne({
