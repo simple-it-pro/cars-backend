@@ -195,6 +195,8 @@ export class UsersService {
         userId: string,
         targetUserId: string,
     ): Promise<{ message: string }> {
+        await this.checkBlockStatus(userId, targetUserId);
+
         const [user, targetUser] = await Promise.all([
             this.userRepository.findOne({
                 where: { id: userId, deletedAt: IsNull() },
@@ -208,8 +210,6 @@ export class UsersService {
             throw new BadRequestException(
                 ERROR_MESSAGES.SUBSCRIPTION.USER_NOT_FOUND,
             );
-
-        await this.checkBlockStatus(userId, targetUserId);
 
         if (userId === targetUserId)
             throw new BadRequestException(
