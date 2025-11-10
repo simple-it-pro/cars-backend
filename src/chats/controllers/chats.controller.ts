@@ -121,7 +121,7 @@ export class ChatsController {
     @Get(':id')
     async getChatById(
         @AuthUser() { sub: userId }: JwtUserData,
-        @Param('id') id: string,
+        @Param('id', ParseUUIDPipe) id: string,
     ) {
         return this.chatsService.findChatById(id, userId);
     }

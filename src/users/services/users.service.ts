@@ -420,9 +420,7 @@ export class UsersService {
             select: ['id', 'nickname', 'isDeactivated'],
         });
 
-        if (!user) {
-            throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
-        }
+        if (!user) throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
 
         if (user.isDeactivated) {
             throw new BadRequestException(
@@ -448,27 +446,25 @@ export class UsersService {
     async getPublicProfileBySlug(slug: string): Promise<Partial<User>> {
         this.logger.log(`Публичный профиль получен по slug: ${slug}`);
 
-        let user: User | null;
+        let user = await this.userRepository.findOne({
+            where: {
+                nickname: slug,
+                deletedAt: IsNull(),
+                isDeactivated: false,
+            },
+            select: [
+                'id',
+                'nickname',
+                'name',
+                'city',
+                'about',
+                'image',
+                'rating',
+                'createdAt',
+            ],
+        });
 
-        if (isNaN(Number(slug))) {
-            user = await this.userRepository.findOne({
-                where: {
-                    nickname: slug,
-                    deletedAt: IsNull(),
-                    isDeactivated: false,
-                },
-                select: [
-                    'id',
-                    'nickname',
-                    'name',
-                    'city',
-                    'about',
-                    'image',
-                    'rating',
-                    'createdAt',
-                ],
-            });
-        } else {
+        if (!user) {
             user = await this.userRepository.findOne({
                 where: {
                     id: slug,
@@ -488,9 +484,7 @@ export class UsersService {
             });
         }
 
-        if (!user) {
-            throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
-        }
+        if (!user) throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
 
         await this.ratingService.calculateAndUpdateUserRating(user.id);
         return this.addSignedUrlToUser(user);

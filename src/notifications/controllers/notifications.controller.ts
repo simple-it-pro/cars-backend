@@ -1,9 +1,10 @@
 import {
     Controller,
-    Get,
-    Patch,
-    Param,
     Delete,
+    Get,
+    Param,
+    ParseUUIDPipe,
+    Patch,
     Query,
     UseGuards,
 } from '@nestjs/common';
@@ -71,7 +72,7 @@ export class NotificationsController {
     @ApiResponse(NOTIFICATIONS_API_DOCS.RESPONSES.UNAUTHORIZED)
     async markAsRead(
         @AuthUser() { sub: userId }: JwtUserData,
-        @Param('id') notificationId: string,
+        @Param('id', ParseUUIDPipe) notificationId: string,
     ) {
         return this.notificationsService.markAsRead(userId, notificationId);
     }
@@ -92,7 +93,7 @@ export class NotificationsController {
     @ApiResponse(NOTIFICATIONS_API_DOCS.RESPONSES.UNAUTHORIZED)
     async remove(
         @AuthUser() { sub: userId }: JwtUserData,
-        @Param('id') notificationId: string,
+        @Param('id', ParseUUIDPipe) notificationId: string,
     ) {
         return this.notificationsService.remove(userId, notificationId);
     }
