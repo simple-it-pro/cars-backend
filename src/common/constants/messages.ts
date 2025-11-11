@@ -80,6 +80,7 @@ export const ERROR_MESSAGES = {
     FILE: {
         DELETION_FAILED: 'Не удалось удалить файл',
         VOICE_DELETION_FAILED: 'Не удалось удалить голосовое сообщение',
+        NOT_FOUND: 'Файл не найден',
     },
     DELETION: {
         FILES_PARTIAL_FAILURE: 'Некоторые файлы не были удалены из хранилища',
@@ -105,6 +106,14 @@ export const ERROR_MESSAGES = {
     PUBLIC_PROFILE: {
         ACCESS_DISABLED: 'Публичный доступ к профилю отключён',
         SLUG_NOT_FOUND: 'Пользователь с таким slug не найден',
+    },
+    POST: {
+        CANNOT_DELETE_LAST_FILE: 'Нельзя удалить последний файл поста',
+        FILES_NOT_FOUND:
+            'Загруженные файлы не найдены или уже используются в другом посте',
+        ALREADY_PUBLISHED: 'Пост уже опубликован',
+        ACCESS_DENIED: 'У вас нет доступа к этому посту',
+        NOT_FOUND: 'Пост не найден',
     },
 } as const;
 
@@ -154,6 +163,14 @@ export const SUCCESS_MESSAGES = {
     },
     PUBLIC_PROFILE: {
         LINK_READY: 'Ссылка на публичный профиль сгенерирована',
+    },
+    POST: {
+        PUBLISHED: 'Пост успешно опубликован',
+        DELETED: 'Пост успешно удален',
+        FILE_DELETED: 'Файл успешно удален',
+    },
+    FILE: {
+        DELETED: 'Файл успешно удален',
     },
 } as const;
 

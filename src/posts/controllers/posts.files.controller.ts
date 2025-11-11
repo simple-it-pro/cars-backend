@@ -16,6 +16,7 @@ import {
     ApiOperation,
     ApiResponse,
     ApiTags,
+    ApiBody,
 } from '@nestjs/swagger';
 
 import { DetectFileFormatPipe } from '../../files/pipes';
@@ -25,6 +26,7 @@ import { JwtGuard } from '../../auth/guards';
 import { GetPostFileParamsDto } from '../dto/params';
 import { PostFilesService } from '../services';
 import { FileEntity } from '../../database/entities';
+import { POST_FILE_PREUPLOAD_BODY } from '../posts.swagger';
 
 @ApiTags('Post Files')
 @ApiBearerAuth('JWT-auth')
@@ -42,6 +44,7 @@ export class PostsFilesController {
     @ApiResponse({ status: 400, description: 'Неверный формат файла' })
     @ApiResponse({ status: 413, description: 'Файл слишком большой' })
     @ApiConsumes('multipart/form-data')
+    @ApiBody(POST_FILE_PREUPLOAD_BODY)
     @Post('pre-upload')
     @UseInterceptors(FileInterceptor('file'))
     async preUploadFile(

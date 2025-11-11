@@ -1,12 +1,16 @@
 import {
     Injectable,
+    Logger,
     InternalServerErrorException,
     NotFoundException,
-    Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 
+import {
+    ERROR_MESSAGES,
+    SUCCESS_MESSAGES,
+} from '../../common/constants/messages';
 import { getFileTypeFromMime } from '../utils';
 import { FileWithFormat } from '../interfaces';
 import { StorageService } from '../../storage/services';
@@ -43,7 +47,7 @@ export class FilesService {
 
     async deleteFile(id: string) {
         const file = await this.filesRepository.findOne({ where: { id } });
-        if (!file) throw new NotFoundException('Файл не найден');
+        if (!file) throw new NotFoundException(ERROR_MESSAGES.FILE.NOT_FOUND);
 
         try {
             if (file.url) {
@@ -55,11 +59,13 @@ export class FilesService {
                 );
             } else {
                 await this.filesRepository.delete(id);
-                return;
+                return SUCCESS_MESSAGES.FILE.DELETED;
             }
         } catch (error) {
             this.logger.error('Error deleting file:', error);
-            throw new InternalServerErrorException('Не удалось удалить файл');
+            throw new InternalServerErrorException(
+                ERROR_MESSAGES.FILE.DELETION_FAILED,
+            );
         }
     }
 

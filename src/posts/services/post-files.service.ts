@@ -2,6 +2,10 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
+import {
+    ERROR_MESSAGES,
+    SUCCESS_MESSAGES,
+} from '../../common/constants/messages';
 import { FileWithFormat } from '../../files/interfaces';
 import { FilesService } from '../../files/services';
 import { Post, PostFile } from '../../database/entities';
@@ -33,7 +37,7 @@ export class PostFilesService {
 
         if (postWithFiles.files.length <= 1)
             throw new BadRequestException(
-                'Нельзя удалить последний файл поста',
+                ERROR_MESSAGES.POST.CANNOT_DELETE_LAST_FILE,
             );
 
         const newPostFiles = postWithFiles.files
@@ -47,9 +51,11 @@ export class PostFilesService {
                 return [...acc, { ...postFile, order }];
             }, []);
 
-        return this.postsRepository.manager.transaction(async (manager) => {
+        await this.postsRepository.manager.transaction(async (manager) => {
             await manager.save(PostFile, newPostFiles);
             await this.filesService.deleteFile(id);
         });
+
+        return SUCCESS_MESSAGES.POST.FILE_DELETED;
     }
 }

@@ -1,7 +1,7 @@
 import {
+    Injectable,
     BadRequestException,
     ForbiddenException,
-    Injectable,
     NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -13,6 +13,10 @@ import {
     SelectQueryBuilder,
 } from 'typeorm';
 
+import {
+    ERROR_MESSAGES,
+    SUCCESS_MESSAGES,
+} from '../../common/constants/messages';
 import { FilesService } from '../../files/services';
 import { HashtagsService } from '../../hastags/services';
 import { CreatePostDto, UpdatePostDto } from '../dto';
@@ -30,7 +34,7 @@ export class PostsService {
         private readonly hashtagsService: HashtagsService,
     ) {}
 
-    async findAll({ includes, hashtags }: GetPostsQueryDto, userId: number) {
+    async findAll({ includes, hashtags }: GetPostsQueryDto, userId: string) {
         const postsQb = this.postsRepository.createQueryBuilder('post').where(
             new Brackets((qb) => {
                 qb.where('post.userId = :userId', { userId });
@@ -84,7 +88,7 @@ export class PostsService {
         return posts;
     }
 
-    async findOne(id: string, userId: number) {
+    async findOne(id: string, userId: string) {
         const where: FindOptionsWhere<Post>[] = [
             { id, status: PostStatusEnum.PUBLISHED },
         ];
@@ -100,7 +104,7 @@ export class PostsService {
 
     async create(
         { title, description, imagesIds }: CreatePostDto,
-        userId: number,
+        userId: string,
     ) {
         const hashtags =
             await this.hashtagsService.getHashatgsFromTextAndSave(description);
@@ -128,7 +132,7 @@ export class PostsService {
 
                 if (files.length !== imagesIds.length)
                     throw new BadRequestException(
-                        'Загруженные файлы не найдены или уже используются в другом посте',
+                        ERROR_MESSAGES.POST.FILES_NOT_FOUND,
                     );
 
                 const newPostFiles = imagesIds.map((imageId, index) => ({
@@ -159,15 +163,15 @@ export class PostsService {
     async update(
         id: string,
         { title, description, imagesIds }: UpdatePostDto = {},
-        userId: number,
+        userId: string,
     ) {
         const post = await this.postsRepository.findOne({
             where: { id },
             relations: ['files', 'files.file', 'user'],
         });
-        if (!post) throw new NotFoundException('Пост не найден');
+        if (!post) throw new NotFoundException(ERROR_MESSAGES.POST.NOT_FOUND);
         if (post.user.id !== userId)
-            throw new ForbiddenException('У вас нет доступа к этому посту');
+            throw new ForbiddenException(ERROR_MESSAGES.POST.ACCESS_DENIED);
 
         const hashtags = description
             ? {
@@ -200,7 +204,7 @@ export class PostsService {
 
                 if (files.length !== imagesIds.length)
                     throw new BadRequestException(
-                        'Загруженные файлы не найдены или уже используются в другом посте',
+                        ERROR_MESSAGES.POST.FILES_NOT_FOUND,
                     );
 
                 const filesToUpdate = imagesIds.map((fileId, index) => {
@@ -257,7 +261,7 @@ export class PostsService {
         return this.findOne(id, userId);
     }
 
-    async delete(id: string, userId: number) {
+    async delete(id: string, userId: string) {
         const post = await this.postsRepository.findOne({
             where: { id },
             relations: ['files', 'files.file', 'user'],
@@ -265,7 +269,7 @@ export class PostsService {
         if (!post) return 'Success';
 
         if (post.user.id !== userId)
-            throw new ForbiddenException('У вас нет доступа к этому посту');
+            throw new ForbiddenException(ERROR_MESSAGES.POST.ACCESS_DENIED);
 
         await this.postsRepository.manager.transaction(async (manager) => {
             await manager.delete(Post, id);
@@ -276,26 +280,28 @@ export class PostsService {
             );
         });
 
-        return 'Success';
+        return SUCCESS_MESSAGES.POST.DELETED;
     }
 
-    async publishPost(id: string, userId: number) {
+    async publishPost(id: string, userId: string) {
         const post = await this.postsRepository.findOne({
             where: { id },
             relations: ['user'],
         });
 
-        if (!post) throw new NotFoundException('Пост не найден');
+        if (!post) throw new NotFoundException(ERROR_MESSAGES.POST.NOT_FOUND);
         if (post.user.id !== userId)
-            throw new ForbiddenException('У вас нет доступа к этому посту');
+            throw new ForbiddenException(ERROR_MESSAGES.POST.ACCESS_DENIED);
         if (post.status !== PostStatusEnum.DRAFT)
-            throw new BadRequestException('Пост уже опубликован');
+            throw new BadRequestException(
+                ERROR_MESSAGES.POST.ALREADY_PUBLISHED,
+            );
 
         await this.postsRepository.update(id, {
             status: PostStatusEnum.PUBLISHED,
         });
 
-        return 'Success';
+        return SUCCESS_MESSAGES.POST.PUBLISHED;
     }
 
     private async addSignedUrlsToPost(post: Post): Promise<PostResponseDto> {
