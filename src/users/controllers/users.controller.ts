@@ -5,6 +5,7 @@ import {
     Delete,
     Get,
     Param,
+    ParseUUIDPipe,
     Patch,
     Post,
     UploadedFile,
@@ -83,26 +84,26 @@ export class UsersController {
 
     @Post('subscribe')
     @ApiOperation(USERS_API_DOCS.OPERATIONS.SUBSCRIBE)
-    @ApiBody(USERS_API_DOCS.BODIES.SUBSCRIBE)
+    @ApiBody(USERS_BODIES.SUBSCRIBE)
     @ApiOkResponse(USERS_API_DOCS.RESPONSES.SUBSCRIBE)
     @ApiResponse(USERS_API_DOCS.RESPONSES.BAD_REQUEST_SUBSCRIBE)
     @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
     async subscribeUser(
         @AuthUser() { sub: userId }: JwtUserData,
-        @Body('targetUserId') targetUserId: number,
+        @Body('targetUserId', ParseUUIDPipe) targetUserId: string,
     ) {
         return this.usersService.subscribeUser(userId, targetUserId);
     }
 
     @Delete('unsubscribe')
     @ApiOperation(USERS_API_DOCS.OPERATIONS.UNSUBSCRIBE)
-    @ApiBody(USERS_API_DOCS.BODIES.UNSUBSCRIBE)
+    @ApiBody(USERS_BODIES.UNSUBSCRIBE)
     @ApiOkResponse(USERS_API_DOCS.RESPONSES.UNSUBSCRIBE)
     @ApiResponse(USERS_API_DOCS.RESPONSES.BAD_REQUEST_UNSUBSCRIBE)
     @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
     async unsubscribeUser(
         @AuthUser() { sub: userId }: JwtUserData,
-        @Body('targetUserId') targetUserId: number,
+        @Body('targetUserId', ParseUUIDPipe) targetUserId: string,
     ) {
         return this.usersService.unsubscribeUser(userId, targetUserId);
     }
@@ -113,7 +114,7 @@ export class UsersController {
     @ApiOkResponse(USERS_API_DOCS.RESPONSES.GET_SUBSCRIPTIONS)
     @ApiResponse(USERS_API_DOCS.RESPONSES.NOT_FOUND)
     @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
-    async getUserSubscriptions(@Param('userId') userId: number) {
+    async getUserSubscriptions(@Param('userId', ParseUUIDPipe) userId: string) {
         return this.usersService.getSubscriptions(userId);
     }
 
@@ -123,8 +124,42 @@ export class UsersController {
     @ApiOkResponse(USERS_API_DOCS.RESPONSES.GET_FOLLOWERS)
     @ApiResponse(USERS_API_DOCS.RESPONSES.NOT_FOUND)
     @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
-    async getUserFollowers(@Param('userId') userId: number) {
+    async getUserFollowers(@Param('userId', ParseUUIDPipe) userId: string) {
         return this.usersService.getFollowers(userId);
+    }
+
+    @Get('blocked')
+    @ApiOperation(USERS_API_DOCS.OPERATIONS.GET_BLOCKED_USERS)
+    @ApiOkResponse(USERS_API_DOCS.RESPONSES.GET_BLOCKED_USERS)
+    @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
+    async getBlockedUsers(@AuthUser() { sub: userId }: JwtUserData) {
+        return this.usersService.getBlockedUsers(userId);
+    }
+
+    @Post('block/:userId')
+    @ApiOperation(USERS_API_DOCS.OPERATIONS.BLOCK_USER)
+    @ApiParam(USERS_API_DOCS.PARAMS.TARGET_USER_ID)
+    @ApiOkResponse(USERS_API_DOCS.RESPONSES.BLOCK_USER)
+    @ApiResponse(USERS_API_DOCS.RESPONSES.BAD_REQUEST_BLOCK)
+    @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
+    async blockUser(
+        @AuthUser() { sub: userId }: JwtUserData,
+        @Param('userId', ParseUUIDPipe) targetUserId: string,
+    ) {
+        return this.usersService.blockUser(userId, targetUserId);
+    }
+
+    @Delete('unblock/:userId')
+    @ApiOperation(USERS_API_DOCS.OPERATIONS.UNBLOCK_USER)
+    @ApiParam(USERS_API_DOCS.PARAMS.TARGET_USER_ID)
+    @ApiOkResponse(USERS_API_DOCS.RESPONSES.UNBLOCK_USER)
+    @ApiResponse(USERS_API_DOCS.RESPONSES.BAD_REQUEST_UNBLOCK)
+    @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
+    async unblockUser(
+        @AuthUser() { sub: userId }: JwtUserData,
+        @Param('userId', ParseUUIDPipe) targetUserId: string,
+    ) {
+        return this.usersService.unblockUser(userId, targetUserId);
     }
 
     @Get('public/me')
@@ -141,8 +176,11 @@ export class UsersController {
     @ApiParam(USERS_API_DOCS.PARAMS.ID)
     @ApiOkResponse(USERS_API_DOCS.RESPONSES.GET_PUBLIC_PROFILE)
     @ApiResponse(USERS_API_DOCS.RESPONSES.NOT_FOUND)
-    async getPublicProfile(@Param('id') id: number) {
-        return this.usersService.getPublicProfile(id);
+    async getPublicProfile(
+        @Param('id', ParseUUIDPipe) id: string,
+        @AuthUser() { sub: viewerId }: JwtUserData,
+    ) {
+        return this.usersService.getPublicProfile(id, viewerId);
     }
 
     @Get('me/public-link')
@@ -154,18 +192,9 @@ export class UsersController {
         return this.usersService.generatePublicProfileLink(id);
     }
 
-    @Get('u/:slug')
-    @ApiOperation(USERS_API_DOCS.OPERATIONS.GET_PUBLIC_PROFILE_BY_SLUG)
-    @ApiParam(USERS_API_DOCS.PARAMS.SLUG)
-    @ApiOkResponse(USERS_API_DOCS.RESPONSES.GET_PUBLIC_PROFILE)
-    @ApiResponse(USERS_API_DOCS.RESPONSES.NOT_FOUND)
-    async getPublicProfileBySlug(@Param('slug') slug: string) {
-        return this.usersService.getPublicProfileBySlug(slug);
-    }
-
     @Delete('me')
     @ApiOperation(USERS_API_DOCS.OPERATIONS.DELETE_ME)
-    @ApiBody(USERS_API_DOCS.BODIES.DELETE)
+    @ApiBody(USERS_BODIES.DELETE)
     @ApiOkResponse(USERS_API_DOCS.RESPONSES.DELETE_ME)
     @ApiResponse(USERS_API_DOCS.RESPONSES.BAD_REQUEST_DELETE)
     @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)

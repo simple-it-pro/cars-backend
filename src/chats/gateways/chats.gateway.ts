@@ -23,7 +23,7 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     server: Server;
 
     private readonly logger = new Logger(ChatsGateway.name);
-    private connectedUsers = new Map<number, string>();
+    private connectedUsers = new Map<string, string>();
 
     constructor(private readonly authService: AuthService) {}
 
@@ -36,7 +36,7 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
             }
 
             const payload = await this.authService.verifyWebSocketToken(token);
-            const userId: number = payload.sub;
+            const userId: string = payload.sub;
 
             this.connectedUsers.set(userId, socket.id);
 
@@ -94,7 +94,7 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     sendNewMessageNotification(
         chatId: string,
         message: any,
-        recipientId: number,
+        recipientId: string,
     ) {
         this.server.to(`user_${recipientId}`).emit('new_message', {
             chatId,
@@ -102,7 +102,7 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         });
     }
 
-    sendReadReceipt(chatId: string, userId: number) {
+    sendReadReceipt(chatId: string, userId: string) {
         this.server.to(`chat_${chatId}`).emit('messages_read', {
             chatId,
             userId,
@@ -122,7 +122,7 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
             .emit('message_deleted', { chatId, message });
     }
 
-    private getUserIdFromSocket(socket: Socket): number | null {
+    private getUserIdFromSocket(socket: Socket): string | null {
         for (const [userId, socketId] of this.connectedUsers.entries()) {
             if (socketId === socket.id) {
                 return userId;

@@ -34,7 +34,7 @@ export class MessagesCoreService {
 
     async getChatAndEnsureMembership(
         chatId: string,
-        userId: number,
+        userId: string,
     ): Promise<Chat> {
         const chat = await this.chatRepository.findOne({
             where: { id: chatId },
@@ -60,7 +60,7 @@ export class MessagesCoreService {
         return parent;
     }
 
-    async getForwardSourceOrFail(sourceId: string, requesterId: number) {
+    async getForwardSourceOrFail(sourceId: string, requesterId: string) {
         const source = await this.messageRepository.findOne({
             where: { id: sourceId, isDeleted: false },
             relations: ['sender', 'currentContent', 'chat', 'chat.users'],
@@ -95,7 +95,7 @@ export class MessagesCoreService {
     async updateUnreadCounts(
         manager: EntityManager,
         chat: Chat,
-        senderId: number,
+        senderId: string,
     ): Promise<void> {
         const recipientIds = chat.users
             .filter((u) => u.id !== senderId)
@@ -111,7 +111,7 @@ export class MessagesCoreService {
             relations: ['user', 'chat'],
         });
 
-        const byUserId = new Map<number, UnreadChat>(
+        const byUserId = new Map<string, UnreadChat>(
             unreadExisting.map((row) => [row.user.id, row]),
         );
 
@@ -133,7 +133,7 @@ export class MessagesCoreService {
     async getMessages(
         chatId: string,
         pagination: CursorPaginationDto,
-        userId: number,
+        userId: string,
     ): Promise<{
         messages: Message[];
         hasMore: boolean;
@@ -192,7 +192,7 @@ export class MessagesCoreService {
         return { messages: result, hasMore, nextCursor };
     }
 
-    async markMessagesAsRead(chatId: string, userId: number): Promise<void> {
+    async markMessagesAsRead(chatId: string, userId: string): Promise<void> {
         await this.getChatAndEnsureMembership(chatId, userId);
 
         await this.messageRepository.manager.transaction(async (manager) => {

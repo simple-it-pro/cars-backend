@@ -312,7 +312,7 @@ export class AuthService {
         return phone.replace(/[^0-9+]/g, '');
     }
 
-    generateWebSocketToken(userId: number): WSTokenResponseDto {
+    generateWebSocketToken(userId: string): WSTokenResponseDto {
         const wsToken = this.jwtService.sign(
             {
                 sub: userId,

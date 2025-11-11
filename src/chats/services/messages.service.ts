@@ -7,7 +7,13 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 
-import { Chat, Message, MessageContent, User } from '../../database/entities';
+import {
+    Chat,
+    Message,
+    MessageContent,
+    User,
+    UserBlock,
+} from '../../database/entities';
 import { EditMessageDto, SendMessageDto, SendVoiceMessageDto } from '../dto';
 import { CursorPaginationDto } from '../../common/dto';
 import { ChatsGateway } from '../gateways';
@@ -25,19 +31,53 @@ import { NotificationMessages, NotificationType } from '../../common/types';
 @Injectable()
 export class MessagesService {
     constructor(
-        private readonly messagesCoreService: MessagesCoreService,
-        private readonly messagesAttachmentService: MessagesAttachmentService,
         @Inject(forwardRef(() => ChatsGateway))
         private readonly chatGateway: ChatsGateway,
         @InjectRepository(Message)
         private readonly messageRepository: Repository<Message>,
+        @InjectRepository(UserBlock)
+        private readonly userBlockRepository: Repository<UserBlock>,
         private readonly notificationsService: NotificationsService,
+        private readonly messagesCoreService: MessagesCoreService,
+        private readonly messagesAttachmentService: MessagesAttachmentService,
     ) {}
+
+    /* TODO: если блокируются юзеры, которые уже в чате, ничего не происходит, надо согласовать логику, если будут групповые чаты */
+    private async checkBlockStatus(
+        senderId: string,
+        chat: Chat,
+    ): Promise<void> {
+        if (chat.type === 'group') return;
+
+        const userInChat = chat.users.find((u) => u.id !== senderId);
+
+        if (!userInChat) return;
+
+        const [isBlocked, isBlockedBy] = await Promise.all([
+            this.userBlockRepository.findOne({
+                where: {
+                    user: { id: senderId },
+                    blockedUser: { id: userInChat.id },
+                },
+            }),
+            this.userBlockRepository.findOne({
+                where: {
+                    user: { id: userInChat.id },
+                    blockedUser: { id: senderId },
+                },
+            }),
+        ]);
+
+        if (isBlocked || isBlockedBy)
+            throw new ForbiddenException(
+                ERROR_MESSAGES.USER.BLOCKED_INTERACTION,
+            );
+    }
 
     private async sendNotificationsToRecipients(
         chat: Chat,
         message: Message,
-        senderId: number,
+        senderId: string,
     ) {
         const messageWithUrls = await this.getFullMessageWithUrls(message.id);
         for (const user of chat.users) {
@@ -64,7 +104,7 @@ export class MessagesService {
     private async saveAndNotifyMessage(
         transactionCallback: (manager: EntityManager) => Promise<Message>,
         chat: Chat,
-        senderId: number,
+        senderId: string,
     ): Promise<Message> {
         const saved =
             await this.messageRepository.manager.transaction(
@@ -86,6 +126,8 @@ export class MessagesService {
             chatId,
             sender.id,
         );
+
+        await this.checkBlockStatus(sender.id, chat);
 
         const uploadResult =
             await this.messagesAttachmentService.processMessageAttachments(
@@ -187,6 +229,8 @@ export class MessagesService {
             sender.id,
         );
 
+        await this.checkBlockStatus(sender.id, chat);
+
         const voiceKey =
             await this.messagesAttachmentService.processVoiceMessage(file);
 
@@ -256,7 +300,7 @@ export class MessagesService {
     async getMessages(
         chatId: string,
         pagination: CursorPaginationDto,
-        userId: number,
+        userId: string,
     ): Promise<{
         messages: Message[];
         hasMore: boolean;
@@ -283,7 +327,7 @@ export class MessagesService {
     async editMessage(
         chatId: string,
         messageId: string,
-        editorId: number,
+        editorId: string,
         dto: EditMessageDto,
     ): Promise<Message> {
         const newTextRaw = (dto.content ?? '').trim();
@@ -294,6 +338,8 @@ export class MessagesService {
             chatId,
             editorId,
         );
+
+        await this.checkBlockStatus(editorId, chat);
 
         const editedMessage = await this.messageRepository.manager.transaction(
             async (manager) => {
@@ -386,7 +432,7 @@ export class MessagesService {
         return messageWithUrls;
     }
 
-    async deleteMessage(chatId: string, messageId: string, userId: number) {
+    async deleteMessage(chatId: string, messageId: string, userId: string) {
         const message = await this.messageRepository.findOne({
             where: { id: messageId, chat: { id: chatId }, isDeleted: false },
             relations: ['sender'],
@@ -428,7 +474,7 @@ export class MessagesService {
         };
     }
 
-    async markMessagesAsRead(chatId: string, userId: number): Promise<void> {
+    async markMessagesAsRead(chatId: string, userId: string): Promise<void> {
         await this.messagesCoreService.markMessagesAsRead(chatId, userId);
         this.chatGateway.sendReadReceipt(chatId, userId);
     }

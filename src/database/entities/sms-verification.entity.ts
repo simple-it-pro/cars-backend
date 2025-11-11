@@ -9,9 +9,12 @@ import { ApiProperty } from '@nestjs/swagger';
 
 @Entity({ name: 'sms_verifications' })
 class SmsVerification {
-    @ApiProperty({ example: 1 })
-    @PrimaryGeneratedColumn()
-    id: number;
+    @ApiProperty({
+        example: '123e4567-e89b-12d3-a456-426614174000',
+        description: 'Уникальный идентификатор ',
+    })
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
 
     @ApiProperty({ example: '+79991234567' })
     @Column({ length: 20 })

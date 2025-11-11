@@ -11,9 +11,12 @@ import User from './user.entity';
 
 @Entity({ name: 'refresh_tokens' })
 class RefreshToken {
-    @ApiProperty({ example: 1 })
-    @PrimaryGeneratedColumn()
-    id: number;
+    @ApiProperty({
+        example: '123e4567-e89b-12d3-a456-426614174000',
+        description: 'Уникальный идентификатор',
+    })
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
 
     @ApiProperty({ description: 'Хэш refresh token' })
     @Column()
@@ -44,7 +47,7 @@ class RefreshToken {
     user: User;
 
     @Column()
-    userId: number;
+    userId: string;
 
     @Column({ unique: true })
     tokenId: string;

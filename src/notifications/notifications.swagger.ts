@@ -117,9 +117,10 @@ export const NOTIFICATIONS_API_DOCS = {
     PARAMS: {
         NOTIFICATION_ID: {
             name: 'id',
-            type: Number,
-            description: 'ID уведомления',
-            example: 1,
+            type: String,
+            description: 'ID уведомления (UUID)',
+            example: '123e4567-e89b-12d3-a456-426614174000',
+            format: 'uuid',
         } as ApiParamOptions,
     },
 

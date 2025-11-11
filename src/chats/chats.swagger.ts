@@ -1,4 +1,4 @@
-import { ApiResponseOptions, ApiBodyOptions } from '@nestjs/swagger';
+import { ApiBodyOptions, ApiResponseOptions } from '@nestjs/swagger';
 
 export const CHAT_RESPONSES = {
     PAGINATED_CHATS: {
@@ -14,7 +14,8 @@ export const CHAT_RESPONSES = {
                 nextCursor: {
                     type: 'string',
                     nullable: true,
-                    example: '2025-09-14T08:57:59.589Z_9c9a6b7c',
+                    example:
+                        '2025-09-14T08:57:59.589Z_123e4567-e89b-12d3-a456-426614174000',
                 },
             },
         },
@@ -34,7 +35,8 @@ export const CHAT_RESPONSES = {
                 nextCursor: {
                     type: 'string',
                     nullable: true,
-                    example: '2025-09-14T08:57:59.589Z_9c9a6b7c',
+                    example:
+                        '2025-09-14T08:57:59.589Z_123e4567-e89b-12d3-a456-426614174000',
                 },
             },
         },
@@ -136,6 +138,18 @@ export const MESSAGE_BODIES = {
                     description: 'Цитируемый текст',
                     example: 'Исходное сообщение',
                 },
+                replyToMessageId: {
+                    type: 'string',
+                    format: 'uuid',
+                    description: 'ID сообщения для ответа',
+                    example: '123e4567-e89b-12d3-a456-426614174000',
+                },
+                forwardFromMessageId: {
+                    type: 'string',
+                    format: 'uuid',
+                    description: 'ID сообщения для пересылки',
+                    example: '123e4567-e89b-12d3-a456-426614174001',
+                },
             },
         },
     } as ApiBodyOptions,
@@ -158,6 +172,18 @@ export const MESSAGE_BODIES = {
                     type: 'string',
                     description: 'Текст цитаты',
                 },
+                replyToMessageId: {
+                    type: 'string',
+                    format: 'uuid',
+                    description: 'ID сообщения для ответа',
+                    example: '123e4567-e89b-12d3-a456-426614174000',
+                },
+                forwardFromMessageId: {
+                    type: 'string',
+                    format: 'uuid',
+                    description: 'ID сообщения для пересылки',
+                    example: '123e4567-e89b-12d3-a456-426614174001',
+                },
             },
             required: ['file'],
         },
@@ -176,6 +202,16 @@ export const MESSAGE_BODIES = {
                     type: 'array',
                     description: 'Файлы для загрузки в S3',
                     items: { type: 'string', format: 'binary' },
+                },
+                quotedText: {
+                    type: 'string',
+                    description: 'Цитируемый текст',
+                },
+                forwardFromMessageId: {
+                    type: 'string',
+                    format: 'uuid',
+                    description: 'ID сообщения для пересылки',
+                    example: '123e4567-e89b-12d3-a456-426614174001',
                 },
             },
         },
@@ -203,6 +239,16 @@ export const MESSAGE_BODIES = {
                         'Доп. файлы для загрузки в S3 вместе с пересылкой',
                     items: { type: 'string', format: 'binary' },
                 },
+                quotedText: {
+                    type: 'string',
+                    description: 'Цитируемый текст',
+                },
+                replyToMessageId: {
+                    type: 'string',
+                    format: 'uuid',
+                    description: 'ID сообщения для ответа',
+                    example: '123e4567-e89b-12d3-a456-426614174000',
+                },
             },
         },
         examples: {
@@ -225,8 +271,11 @@ export const MESSAGE_BODIES = {
                 chatIds: {
                     type: 'array',
                     description: 'Массив идентификаторов чатов',
-                    example: ['chat-uuid-1', 'chat-uuid-2'],
-                    items: { type: 'string' },
+                    example: [
+                        '123e4567-e89b-12d3-a456-426614174000',
+                        '123e4567-e89b-12d3-a456-426614174001',
+                    ],
+                    items: { type: 'string', format: 'uuid' },
                 },
             },
             required: ['chatIds'],
@@ -250,10 +299,6 @@ export const CHAT_QUERIES = {
     },
 } as const;
 
-export const API_CONSUMES = {
-    MULTIPART_FORM_DATA: 'multipart/form-data',
-} as const;
-
 export const CHAT_OPERATIONS = {
     MARK_ALL_READ: {
         summary: 'Отметить все чаты как прочитанные',
@@ -275,4 +320,8 @@ export const CHAT_OPERATIONS = {
         description:
             'Удаляет пользователя из указанного чата. Если в чате не остается участников, чат удаляется полностью',
     },
+} as const;
+
+export const API_CONSUMES = {
+    MULTIPART_FORM_DATA: 'multipart/form-data',
 } as const;

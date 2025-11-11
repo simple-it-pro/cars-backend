@@ -23,7 +23,7 @@ export class NotificationsService {
     ) {}
 
     async getAll(
-        userId: number,
+        userId: string,
         filterType?: NotificationType,
         isUnread?: boolean,
     ) {
@@ -50,7 +50,7 @@ export class NotificationsService {
         });
     }
 
-    async getUnreadCount(userId: number): Promise<{ count: number }> {
+    async getUnreadCount(userId: string): Promise<{ count: number }> {
         const count = await this.notificationRepository.count({
             where: {
                 user: {
@@ -64,8 +64,8 @@ export class NotificationsService {
     }
 
     async markAsRead(
-        userId: number,
-        notificationId: number,
+        userId: string,
+        notificationId: string,
     ): Promise<{ message: string }> {
         const notification = await this.notificationRepository.findOne({
             where: {
@@ -88,7 +88,7 @@ export class NotificationsService {
     }
 
     async markAllAsRead(
-        userId: number,
+        userId: string,
     ): Promise<{ message: string; affected: number }> {
         const result = await this.notificationRepository.update(
             {
@@ -109,7 +109,7 @@ export class NotificationsService {
     }
 
     async create(
-        userId: number,
+        userId: string,
         dto: CreateNotificationDto,
     ): Promise<Notification> {
         const notification = this.notificationRepository.create({
@@ -129,8 +129,8 @@ export class NotificationsService {
     }
 
     async remove(
-        userId: number,
-        notificationId: number,
+        userId: string,
+        notificationId: string,
     ): Promise<{ message: string }> {
         const notification = await this.notificationRepository.findOne({
             where: {

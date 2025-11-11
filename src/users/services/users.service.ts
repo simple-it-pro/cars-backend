@@ -1,5 +1,6 @@
 import {
     BadRequestException,
+    ForbiddenException,
     Injectable,
     Logger,
     NotFoundException,
@@ -8,7 +9,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { instanceToPlain } from 'class-transformer';
 import * as cities from '../../common/constants/json/russian-cities.json';
-import { User, Follower, Subscription } from '../../database/entities';
+import {
+    Follower,
+    Subscription,
+    User,
+    UserBlock,
+} from '../../database/entities';
 import { UpdateUserDto } from '../dto';
 import {
     ERROR_MESSAGES,
@@ -26,16 +32,18 @@ export class UsersService {
     constructor(
         @InjectRepository(User)
         private readonly userRepository: Repository<User>,
-        private readonly storageService: StorageService,
         @InjectRepository(Subscription)
         private readonly subscriptionRepository: Repository<Subscription>,
         @InjectRepository(Follower)
         private readonly followerRepository: Repository<Follower>,
+        @InjectRepository(UserBlock)
+        private readonly userBlockRepository: Repository<UserBlock>,
+        private readonly storageService: StorageService,
         private readonly ratingService: RatingService,
         private readonly notificationsService: NotificationsService,
     ) {}
 
-    async getUserById(id: number): Promise<User | null> {
+    async getUserById(id: string): Promise<User | null> {
         const user = await this.userRepository.findOne({
             where: { id },
             withDeleted: false,
@@ -48,7 +56,7 @@ export class UsersService {
     }
 
     async updateUserById(
-        id: number,
+        id: string,
         updateUserDto: UpdateUserDto,
     ): Promise<User> {
         const user = await this.userRepository.findOne({
@@ -128,7 +136,7 @@ export class UsersService {
         });
     }
 
-    async updateAvatar(id: number, image: Express.Multer.File) {
+    async updateAvatar(id: string, image: Express.Multer.File) {
         const user = await this.userRepository.findOne({ where: { id } });
 
         if (!user) throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
@@ -156,14 +164,38 @@ export class UsersService {
         }
     }
 
-    async subscribeUser(
-        userId: number,
-        targetUserId: number,
-    ): Promise<{ message: string }> {
-        if (userId === targetUserId)
-            throw new BadRequestException(
-                ERROR_MESSAGES.SUBSCRIPTION.SELF_SUBSCRIBE,
+    private async checkBlockStatus(userId: string, targetUserId: string) {
+        const [isBlocked, isBlockedBy] = await Promise.all([
+            this.userBlockRepository.findOne({
+                where: {
+                    user: { id: userId },
+                    blockedUser: { id: targetUserId },
+                },
+            }),
+            this.userBlockRepository.findOne({
+                where: {
+                    user: { id: targetUserId },
+                    blockedUser: { id: userId },
+                },
+            }),
+        ]);
+
+        if (isBlocked)
+            throw new ForbiddenException(
+                ERROR_MESSAGES.SUBSCRIPTION.CANNOT_SUBSCRIBE_BLOCKED,
             );
+
+        if (isBlockedBy)
+            throw new ForbiddenException(
+                ERROR_MESSAGES.SUBSCRIPTION.BLOCKED_BY_USER,
+            );
+    }
+
+    async subscribeUser(
+        userId: string,
+        targetUserId: string,
+    ): Promise<{ message: string }> {
+        await this.checkBlockStatus(userId, targetUserId);
 
         const [user, targetUser] = await Promise.all([
             this.userRepository.findOne({
@@ -177,6 +209,11 @@ export class UsersService {
         if (!(user && targetUser))
             throw new BadRequestException(
                 ERROR_MESSAGES.SUBSCRIPTION.USER_NOT_FOUND,
+            );
+
+        if (userId === targetUserId)
+            throw new BadRequestException(
+                ERROR_MESSAGES.SUBSCRIPTION.SELF_SUBSCRIBE,
             );
 
         const existingSubscription = await this.subscriptionRepository.findOne({
@@ -216,8 +253,8 @@ export class UsersService {
     }
 
     async unsubscribeUser(
-        userId: number,
-        targetUserId: number,
+        userId: string,
+        targetUserId: string,
     ): Promise<{ message: string }> {
         const user = await this.userRepository.findOne({
             where: { id: userId },
@@ -257,14 +294,14 @@ export class UsersService {
         return { message: SUCCESS_MESSAGES.USER.UNSUBSCRIBED };
     }
 
-    async getSubscriptions(userId: number): Promise<Subscription[]> {
+    async getSubscriptions(userId: string): Promise<Subscription[]> {
         return this.subscriptionRepository.find({
             where: { user: { id: userId, deletedAt: IsNull() } },
             relations: ['subscribedUser'],
         });
     }
 
-    async getFollowers(userId: number): Promise<Follower[]> {
+    async getFollowers(userId: string): Promise<Follower[]> {
         return this.followerRepository.find({
             where: {
                 subscribedUser: { id: userId },
@@ -273,8 +310,77 @@ export class UsersService {
         });
     }
 
-    async getPublicProfile(id: number): Promise<Partial<User>> {
+    async getBlockedUsers(userId: string): Promise<Partial<User>[]> {
+        const blocks: UserBlock[] = await this.userBlockRepository.find({
+            where: { user: { id: userId } },
+            relations: ['blockedUser'],
+        });
+
+        const result: Partial<User>[] = [];
+
+        for (const b of blocks) {
+            const u = await this.addSignedUrlToUser(b.blockedUser);
+            result.push({
+                id: u.id,
+                nickname: u.nickname ?? null,
+                name: u.name ?? null,
+                image: u.image ?? null,
+            });
+        }
+
+        return result;
+    }
+
+    async blockUser(userId: string, targetUserId: string) {
+        const targetUser = await this.userRepository.findOne({
+            where: { id: targetUserId },
+        });
+
+        if (!targetUser)
+            throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
+
+        const existingBlock = await this.userBlockRepository.findOne({
+            where: {
+                user: { id: userId },
+                blockedUser: { id: targetUserId },
+            },
+        });
+
+        if (existingBlock)
+            throw new BadRequestException(ERROR_MESSAGES.USER.ALREADY_BLOCKED);
+
+        const block = this.userBlockRepository.create({
+            user: { id: userId },
+            blockedUser: { id: targetUserId },
+        });
+
+        await this.userBlockRepository.save(block);
+
+        return { message: SUCCESS_MESSAGES.USER.BLOCKED };
+    }
+
+    async unblockUser(userId: string, targetUserId: string) {
+        const block = await this.userBlockRepository.findOne({
+            where: {
+                user: { id: userId },
+                blockedUser: { id: targetUserId },
+            },
+        });
+
+        if (!block)
+            throw new BadRequestException(ERROR_MESSAGES.USER.NOT_BLOCKED);
+
+        await this.userBlockRepository.remove(block);
+
+        return { message: SUCCESS_MESSAGES.USER.UNBLOCKED };
+    }
+
+    async getPublicProfile(
+        id: string,
+        viewerId: string,
+    ): Promise<Partial<User> & { isBlocked: boolean }> {
         await this.ratingService.calculateAndUpdateUserRating(id);
+
         const user = await this.userRepository.findOne({
             where: { id, deletedAt: IsNull() },
             select: [
@@ -300,10 +406,19 @@ export class UsersService {
             );
         }
 
-        return this.addSignedUrlToUser(user);
+        const isBlocked = await this.userBlockRepository.exists({
+            where: [
+                { user: { id: viewerId }, blockedUser: { id } },
+                { user: { id }, blockedUser: { id: viewerId } },
+            ],
+        });
+
+        const withUrl = await this.addSignedUrlToUser(user);
+
+        return { ...withUrl, isBlocked };
     }
 
-    async getMyPublicProfile(id: number): Promise<Partial<User>> {
+    async getMyPublicProfile(id: string): Promise<Partial<User>> {
         await this.ratingService.calculateAndUpdateUserRating(id);
         const user = await this.userRepository.findOne({
             where: { id, deletedAt: IsNull() },
@@ -325,16 +440,14 @@ export class UsersService {
     }
 
     async generatePublicProfileLink(
-        id: number,
+        id: string,
     ): Promise<{ publicUrl: string; message: string }> {
         const user = await this.userRepository.findOne({
             where: { id, deletedAt: IsNull() },
-            select: ['id', 'nickname', 'isDeactivated'],
+            select: ['id', 'isDeactivated'],
         });
 
-        if (!user) {
-            throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
-        }
+        if (!user) throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
 
         if (user.isDeactivated) {
             throw new BadRequestException(
@@ -342,10 +455,8 @@ export class UsersService {
             );
         }
 
-        const slug = user.nickname || user.id.toString();
-
         /* TODO: заменить в последующем на deep url */
-        const publicUrl = `${process.env.APP_URL || 'https://yourapp.com'}/u/${slug}`;
+        const publicUrl = `${process.env.APP_URL || 'https://yourapp.com'}/u/${user.id}`;
 
         this.logger.log(
             `Сгенерирована ссылка для пользователя ${user.id}: ${publicUrl}`,
@@ -357,58 +468,7 @@ export class UsersService {
         };
     }
 
-    async getPublicProfileBySlug(slug: string): Promise<Partial<User>> {
-        this.logger.log(`Публичный профиль получен по slug: ${slug}`);
-
-        let user: User | null;
-
-        if (isNaN(Number(slug))) {
-            user = await this.userRepository.findOne({
-                where: {
-                    nickname: slug,
-                    deletedAt: IsNull(),
-                    isDeactivated: false,
-                },
-                select: [
-                    'id',
-                    'nickname',
-                    'name',
-                    'city',
-                    'about',
-                    'image',
-                    'rating',
-                    'createdAt',
-                ],
-            });
-        } else {
-            user = await this.userRepository.findOne({
-                where: {
-                    id: Number(slug),
-                    deletedAt: IsNull(),
-                    isDeactivated: false,
-                },
-                select: [
-                    'id',
-                    'nickname',
-                    'name',
-                    'city',
-                    'about',
-                    'image',
-                    'rating',
-                    'createdAt',
-                ],
-            });
-        }
-
-        if (!user) {
-            throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
-        }
-
-        await this.ratingService.calculateAndUpdateUserRating(user.id);
-        return this.addSignedUrlToUser(user);
-    }
-
-    async deleteUser(id: number): Promise<{ message: string }> {
+    async deleteUser(id: string): Promise<{ message: string }> {
         const user = await this.userRepository.findOne({
             where: { id },
             withDeleted: false,
@@ -421,7 +481,7 @@ export class UsersService {
         return { message: SUCCESS_MESSAGES.USER.DELETED };
     }
 
-    async deactivateUser(id: number): Promise<User> {
+    async deactivateUser(id: string): Promise<User> {
         const user = await this.userRepository.findOne({
             where: { id },
             withDeleted: false,
@@ -433,7 +493,7 @@ export class UsersService {
         return this.userRepository.save(user);
     }
 
-    async activateUser(id: number): Promise<User> {
+    async activateUser(id: string): Promise<User> {
         const user = await this.userRepository.findOne({
             where: { id },
             withDeleted: false,
