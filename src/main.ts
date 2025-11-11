@@ -32,7 +32,9 @@ async function bootstrap() {
         httpsOptions,
     );
 
-    app.useGlobalPipes(new ValidationPipe());
+    app.useGlobalPipes(
+        new ValidationPipe({ transform: true, whitelist: true }),
+    );
 
     const config = new DocumentBuilder()
         .setTitle('Автосалоны')

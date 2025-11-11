@@ -10,3 +10,7 @@ export { default as Subscription } from './subscription.entity';
 export { default as Follower } from './follower.entity';
 export { default as Notification } from './notification.entity';
 export { default as UserBlock } from './user-block.entity';
+export { default as Post } from './post.entity';
+export { default as Hashtag } from './hashtags.entity';
+export { default as FileEntity } from './file.entity';
+export { default as PostFile } from './post-file.entity';
