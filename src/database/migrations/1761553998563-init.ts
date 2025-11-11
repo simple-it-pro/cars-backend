@@ -4,7 +4,7 @@ export class Init1761553998563 implements MigrationInterface {
     name = 'Init1761553998563';
 
     public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`ALTER TABLE "cars"."users" ADD "image" jsonb`);
+        await queryRunner.query(`ALTER TABLE "cars"."users" ADD COLUMN IF NOT EXISTS "image" jsonb`);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {

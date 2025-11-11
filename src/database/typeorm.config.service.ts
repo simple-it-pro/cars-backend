@@ -16,7 +16,7 @@ class TypeormConfigService implements TypeOrmOptionsFactory {
         return {
             type: 'postgres',
             url: this.dbConfig.url,
-            synchronize: true,
+            synchronize: false,
             migrationsRun: false,
             migrationsTableName: 'migrations',
             entities: [

@@ -18,16 +18,30 @@ services:
     volumes:
       - redis_data:/data
 
+  cars-migrations:
+    build: 
+      context: .
+      dockerfile: ./Dockerfile.Migrations
+    container_name: cars-migrations
+    depends_on:
+      - postgres-cars
+    restart: no
+    env_file:
+      - .env.production
+    command: ["npm", "run", "migration:run"]
+
   cars-backend:
     container_name: cars-backend
     build:
       context: .
+      dockerfile: ./Dockerfile
     env_file:
       - .env.production
     ports:
       - "3000:3000"
     depends_on:
       - postgres-cars
+      - cars-migrations
     restart: unless-stopped
     volumes:
       - /etc/letsencrypt/live/simpleit-gitlab.ru/fullchain.pem:/app/ssl/certs/fullchain.pem:ro
