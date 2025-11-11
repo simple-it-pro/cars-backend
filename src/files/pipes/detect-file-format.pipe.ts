@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, PipeTransform } from '@nestjs/common';
+import { Injectable, PipeTransform } from '@nestjs/common';
 import { fileTypeFromBuffer } from 'file-type';
 
 import { isSingleFile, isFileArray, isFileRecord } from '../utils';

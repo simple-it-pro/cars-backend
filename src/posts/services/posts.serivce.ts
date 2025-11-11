@@ -4,13 +4,15 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, Repository, SelectQueryBuilder } from 'typeorm';
 
 import { FilesService } from '../../files/services';
+import { HashtagsService } from '../../hastags/services';
 import { CreatePostDto, UpdatePostDto } from '../dto';
 import { FileStatusEnum, PostStatusEnum } from '../../database/enums';
 import { FileEntity, Post, PostFile } from '../../database/entities';
 import { PostResponseDto } from '../dto/responses';
+import { GetPostsQueryDto } from '../dto/queries';
 
 @Injectable()
 export class PostsService {
@@ -18,24 +20,60 @@ export class PostsService {
         @InjectRepository(Post)
         private readonly postsRepository: Repository<Post>,
         private readonly filesService: FilesService,
+        private readonly hashtagsService: HashtagsService,
     ) {}
 
-    async findAll() {
-        const posts = await this.postsRepository.find({
-            relations: ['files', 'files.file'],
-        });
+    async findAll({ includes, hashtags }: GetPostsQueryDto) {
+        const postsQb = this.postsRepository.createQueryBuilder('post');
 
-        const postsWithFiles = await Promise.all(
-            posts.map((post) => this.addSignedUrlsToPost(post)),
-        );
+        if (includes) {
+            for (const include of includes) {
+                if (include === 'files')
+                    postsQb
+                        .leftJoinAndSelect('post.files', 'files')
+                        .leftJoinAndSelect('files.file', 'file');
+                if (include === 'hashtags')
+                    postsQb.leftJoinAndSelect('post.hashtags', 'hashtags');
+            }
+        }
 
-        return postsWithFiles;
+        if (hashtags) {
+            postsQb.where(
+                (qb: SelectQueryBuilder<Post>) =>
+                    'post.id IN ' +
+                    qb
+                        .subQuery()
+                        .select('post_sub.id')
+                        .from(Post, 'post_sub')
+                        .innerJoin('post_sub.hashtags', 'filterHashtag')
+                        .where('filterHashtag.name IN (:...hashtags)', {
+                            hashtags,
+                        })
+                        .groupBy('post_sub.id')
+                        .having('COUNT(DISTINCT filterHashtag.id) = :count', {
+                            count: hashtags.length,
+                        })
+                        .getQuery(),
+            );
+        }
+
+        const posts = await postsQb.getMany();
+
+        if (includes?.includes('files')) {
+            const postsWithFiles = await Promise.all(
+                posts.map((post) => this.addSignedUrlsToPost(post)),
+            );
+
+            return postsWithFiles;
+        }
+
+        return posts;
     }
 
     async findOne(id: string) {
         const post = await this.postsRepository.findOne({
             where: { id },
-            relations: ['files', 'files.file'],
+            relations: ['files', 'files.file', 'hashtags'],
         });
 
         return post && this.addSignedUrlsToPost(post);
@@ -45,12 +83,16 @@ export class PostsService {
         { title, description, imagesIds }: CreatePostDto,
         userId: number,
     ) {
+        const hashtags =
+            await this.hashtagsService.getHashatgsFromTextAndSave(description);
+
         const savedPost = await this.postsRepository.manager.transaction(
             async (manager) => {
                 const newPost = manager.create(Post, {
                     title,
                     description,
                     status: PostStatusEnum.DRAFT,
+                    hashtags,
                     user: {
                         id: userId,
                     },
@@ -95,12 +137,24 @@ export class PostsService {
     }
 
     // TODO: Remove dublicates from imagesIds array
-    async update(id: string, { title, description, imagesIds }: UpdatePostDto) {
+    async update(
+        id: string,
+        { title, description, imagesIds }: UpdatePostDto = {},
+    ) {
         const post = await this.postsRepository.findOne({
             where: { id },
             relations: ['files', 'files.file'],
         });
         if (!post) throw new NotFoundException('Пост не найден');
+
+        const hashtags = description
+            ? {
+                  hashtags:
+                      await this.hashtagsService.getHashatgsFromTextAndSave(
+                          description,
+                      ),
+              }
+            : {};
 
         await this.postsRepository.manager.transaction(async (manager) => {
             if (imagesIds) {
@@ -170,7 +224,12 @@ export class PostsService {
                 }
             }
 
-            await manager.update(Post, id, { title, description });
+            await manager.save(Post, {
+                id: post.id,
+                title,
+                description,
+                ...hashtags,
+            });
         });
 
         return this.findOne(id);
@@ -191,6 +250,8 @@ export class PostsService {
                 { status: FileStatusEnum.TEMPORARY },
             );
         });
+
+        return 'Success';
     }
 
     private async addSignedUrlsToPost(post: Post): Promise<PostResponseDto> {

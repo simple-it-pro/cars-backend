@@ -70,7 +70,11 @@ class Post {
     user: User;
 
     @ManyToMany(() => Hashtag, (hashtag) => hashtag.posts)
-    @JoinTable()
+    @JoinTable({
+        name: 'post_hashtags',
+        joinColumn: { name: 'postId', referencedColumnName: 'id' },
+        inverseJoinColumn: { name: 'hashtagId', referencedColumnName: 'id' },
+    })
     hashtags: Hashtag[];
 }
 

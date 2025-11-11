@@ -16,7 +16,7 @@ export class FileTypeValidator extends FileValidator<
         super(options);
     }
 
-    async isValid(
+    isValid(
         files?:
             | FileValidatorType
             | FileValidatorType[]

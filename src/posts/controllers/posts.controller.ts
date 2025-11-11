@@ -7,12 +7,14 @@ import {
     UseGuards,
     Put,
     Delete,
+    Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
 import { PostsService } from '../services';
 import { CreatePostDto, UpdatePostDto } from '../dto';
 import { GetPostParamsDto } from '../dto/params';
+import { GetPostsQueryDto } from '../dto/queries';
 import { AuthUser } from '../../auth/decorators';
 import { JwtUserData } from '../../users/types';
 import { JwtGuard } from '../../auth/guards';
@@ -26,8 +28,9 @@ export class PostsController {
     @ApiOperation({ summary: 'Получить все посты' })
     @ApiResponse({ status: 200, description: 'Посты успешно получены' })
     @Get()
-    async getPosts() {
-        return this.postsService.findAll();
+    async getPosts(@Query() queryParams: GetPostsQueryDto) {
+        console.log('queryParams: ', queryParams);
+        return this.postsService.findAll(queryParams);
     }
 
     @ApiOperation({ summary: 'Получить пост по ID' })

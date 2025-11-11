@@ -1,8 +1,4 @@
-import {
-    Injectable,
-    BadRequestException,
-    NotFoundException,
-} from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -42,7 +38,7 @@ export class PostFilesService {
 
         const newPostFiles = postWithFiles.files
             .sort((a, b) => a.order - b.order)
-            .reduce<PostFile[]>((acc, postFile, index) => {
+            .reduce<PostFile[]>((acc, postFile) => {
                 if (postFile.file.id === id) return acc;
 
                 const order =
