@@ -212,12 +212,6 @@ export const USERS_API_DOCS = {
             description: 'Генерирует уникальную публичную ссылку для профиля',
         } as ApiOperationOptions,
 
-        GET_PUBLIC_PROFILE_BY_SLUG: {
-            summary: 'Получение публичного профиля по slug',
-            description:
-                'Возвращает публичную информацию о пользователе по его nickname или ID',
-        } as ApiOperationOptions,
-
         DELETE_ME: {
             summary: 'Удаление профиля',
             description:

@@ -310,15 +310,25 @@ export class UsersService {
         });
     }
 
-    async getBlockedUsers(userId: string) {
+    async getBlockedUsers(userId: string): Promise<Partial<User>[]> {
         const blocks: UserBlock[] = await this.userBlockRepository.find({
-            where: {
-                user: { id: userId },
-            },
+            where: { user: { id: userId } },
             relations: ['blockedUser'],
         });
 
-        return blocks.map((block: UserBlock): User => block.blockedUser);
+        const result: Partial<User>[] = [];
+
+        for (const b of blocks) {
+            const u = await this.addSignedUrlToUser(b.blockedUser);
+            result.push({
+                id: u.id,
+                nickname: u.nickname ?? null,
+                name: u.name ?? null,
+                image: u.image ?? null,
+            });
+        }
+
+        return result;
     }
 
     async blockUser(userId: string, targetUserId: string) {
@@ -365,8 +375,12 @@ export class UsersService {
         return { message: SUCCESS_MESSAGES.USER.UNBLOCKED };
     }
 
-    async getPublicProfile(id: string): Promise<Partial<User>> {
+    async getPublicProfile(
+        id: string,
+        viewerId: string,
+    ): Promise<Partial<User> & { isBlocked: boolean }> {
         await this.ratingService.calculateAndUpdateUserRating(id);
+
         const user = await this.userRepository.findOne({
             where: { id, deletedAt: IsNull() },
             select: [
@@ -392,7 +406,16 @@ export class UsersService {
             );
         }
 
-        return this.addSignedUrlToUser(user);
+        const isBlocked = await this.userBlockRepository.exists({
+            where: [
+                { user: { id: viewerId }, blockedUser: { id } },
+                { user: { id }, blockedUser: { id: viewerId } },
+            ],
+        });
+
+        const withUrl = await this.addSignedUrlToUser(user);
+
+        return { ...withUrl, isBlocked };
     }
 
     async getMyPublicProfile(id: string): Promise<Partial<User>> {
@@ -443,33 +466,6 @@ export class UsersService {
             publicUrl,
             message: SUCCESS_MESSAGES.USER.PUBLIC_LINK_GENERATED,
         };
-    }
-
-    async getPublicProfileBySlug(slug: string): Promise<Partial<User>> {
-        this.logger.log(`Публичный профиль получен по slug: ${slug}`);
-
-        const user = await this.userRepository.findOne({
-            where: {
-                id: slug,
-                deletedAt: IsNull(),
-                isDeactivated: false,
-            },
-            select: [
-                'id',
-                'nickname',
-                'name',
-                'city',
-                'about',
-                'image',
-                'rating',
-                'createdAt',
-            ],
-        });
-
-        if (!user) throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
-
-        await this.ratingService.calculateAndUpdateUserRating(user.id);
-        return this.addSignedUrlToUser(user);
     }
 
     async deleteUser(id: string): Promise<{ message: string }> {
