@@ -207,11 +207,6 @@ export const USERS_API_DOCS = {
                 'Возвращает публичную информацию о текущем пользователе',
         } as ApiOperationOptions,
 
-        GENERATE_PUBLIC_LINK: {
-            summary: 'Генерация публичной ссылки',
-            description: 'Генерирует уникальную публичную ссылку для профиля',
-        } as ApiOperationOptions,
-
         DELETE_ME: {
             summary: 'Удаление профиля',
             description:
@@ -226,6 +221,17 @@ export const USERS_API_DOCS = {
         ACTIVATE_ME: {
             summary: 'Активация профиля',
             description: 'Активирует ранее деактивированный профиль',
+        } as ApiOperationOptions,
+        GET_SUBSCRIPTIONS_COUNTER: {
+            summary: 'Получение счетчика подписок',
+            description:
+                'Возвращает количество пользователей, на которых подписан текущий авторизованный пользователь',
+        } as ApiOperationOptions,
+
+        GET_FOLLOWERS_COUNTER: {
+            summary: 'Получение счетчика подписчиков',
+            description:
+                'Возвращает количество пользователей, подписанных на текущего авторизованного пользователя',
         } as ApiOperationOptions,
     },
 
@@ -308,6 +314,34 @@ export const USERS_API_DOCS = {
             },
         } as ApiResponseOptions,
 
+        GET_SUBSCRIPTIONS_COUNTER: {
+            description: 'Количество подписок успешно получено',
+            schema: {
+                type: 'object',
+                properties: {
+                    count: {
+                        type: 'number',
+                        example: 42,
+                        description: 'Общее количество подписок',
+                    },
+                },
+            },
+        } as ApiResponseOptions,
+
+        GET_FOLLOWERS_COUNTER: {
+            description: 'Количество подписчиков успешно получено',
+            schema: {
+                type: 'object',
+                properties: {
+                    count: {
+                        type: 'number',
+                        example: 128,
+                        description: 'Общее количество подписчиков',
+                    },
+                },
+            },
+        } as ApiResponseOptions,
+
         BLOCK_USER: {
             description: 'Пользователь успешно заблокирован',
             schema: {
@@ -343,23 +377,6 @@ export const USERS_API_DOCS = {
             description:
                 'Публичный профиль текущего пользователя успешно получен',
             type: User,
-        } as ApiResponseOptions,
-
-        GENERATE_PUBLIC_LINK: {
-            description: 'Публичная ссылка успешно сгенерирована',
-            schema: {
-                type: 'object',
-                properties: {
-                    publicUrl: {
-                        type: 'string',
-                        example: 'https://yourapp.com/u/john_doe',
-                    },
-                    message: {
-                        type: 'string',
-                        example: 'Публичная ссылка успешно сгенерирована',
-                    },
-                },
-            },
         } as ApiResponseOptions,
 
         DELETE_ME: {
