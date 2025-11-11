@@ -1,7 +1,7 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 import { PostStatusEnum } from '../../../database/enums';
-import { FileEntity } from '../../../database/entities';
+import { FileEntity, Hashtag } from '../../../database/entities';
 
 export class PostResponseDto {
     @ApiProperty({
@@ -41,10 +41,17 @@ export class PostResponseDto {
     })
     updatedAt: Date;
 
-    @ApiProperty({
+    @ApiPropertyOptional({
         type: () => FileEntity,
         isArray: true,
         description: 'Упорядоченные файлы поста',
     })
     files: FileEntity[];
+
+    @ApiPropertyOptional({
+        type: () => Hashtag,
+        isArray: true,
+        description: 'Хэштеги поста',
+    })
+    hashtags: Hashtag[];
 }

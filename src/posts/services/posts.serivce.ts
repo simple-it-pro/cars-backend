@@ -1,10 +1,17 @@
 import {
     BadRequestException,
+    ForbiddenException,
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository, SelectQueryBuilder } from 'typeorm';
+import {
+    Brackets,
+    FindOptionsWhere,
+    In,
+    Repository,
+    SelectQueryBuilder,
+} from 'typeorm';
 
 import { FilesService } from '../../files/services';
 import { HashtagsService } from '../../hastags/services';
@@ -23,8 +30,15 @@ export class PostsService {
         private readonly hashtagsService: HashtagsService,
     ) {}
 
-    async findAll({ includes, hashtags }: GetPostsQueryDto) {
-        const postsQb = this.postsRepository.createQueryBuilder('post');
+    async findAll({ includes, hashtags }: GetPostsQueryDto, userId: number) {
+        const postsQb = this.postsRepository.createQueryBuilder('post').where(
+            new Brackets((qb) => {
+                qb.where('post.userId = :userId', { userId });
+                qb.orWhere('post.status = :status', {
+                    status: PostStatusEnum.PUBLISHED,
+                });
+            }),
+        );
 
         if (includes) {
             for (const include of includes) {
@@ -70,10 +84,15 @@ export class PostsService {
         return posts;
     }
 
-    async findOne(id: string) {
+    async findOne(id: string, userId: number) {
+        const where: FindOptionsWhere<Post>[] = [
+            { id, status: PostStatusEnum.PUBLISHED },
+        ];
+        if (userId) where.push({ id, user: { id: userId } });
+
         const post = await this.postsRepository.findOne({
-            where: { id },
             relations: ['files', 'files.file', 'hashtags'],
+            where,
         });
 
         return post && this.addSignedUrlsToPost(post);
@@ -133,19 +152,22 @@ export class PostsService {
             },
         );
 
-        return this.findOne(savedPost.id);
+        return this.findOne(savedPost.id, userId);
     }
 
     // TODO: Remove dublicates from imagesIds array
     async update(
         id: string,
         { title, description, imagesIds }: UpdatePostDto = {},
+        userId: number,
     ) {
         const post = await this.postsRepository.findOne({
             where: { id },
-            relations: ['files', 'files.file'],
+            relations: ['files', 'files.file', 'user'],
         });
         if (!post) throw new NotFoundException('Пост не найден');
+        if (post.user.id !== userId)
+            throw new ForbiddenException('У вас нет доступа к этому посту');
 
         const hashtags = description
             ? {
@@ -232,15 +254,18 @@ export class PostsService {
             });
         });
 
-        return this.findOne(id);
+        return this.findOne(id, userId);
     }
 
-    async delete(id: string) {
+    async delete(id: string, userId: number) {
         const post = await this.postsRepository.findOne({
             where: { id },
-            relations: ['files', 'files.file'],
+            relations: ['files', 'files.file', 'user'],
         });
         if (!post) return 'Success';
+
+        if (post.user.id !== userId)
+            throw new ForbiddenException('У вас нет доступа к этому посту');
 
         await this.postsRepository.manager.transaction(async (manager) => {
             await manager.delete(Post, id);
@@ -249,6 +274,25 @@ export class PostsService {
                 post.files.map((file) => file.file.id),
                 { status: FileStatusEnum.TEMPORARY },
             );
+        });
+
+        return 'Success';
+    }
+
+    async publishPost(id: string, userId: number) {
+        const post = await this.postsRepository.findOne({
+            where: { id },
+            relations: ['user'],
+        });
+
+        if (!post) throw new NotFoundException('Пост не найден');
+        if (post.user.id !== userId)
+            throw new ForbiddenException('У вас нет доступа к этому посту');
+        if (post.status !== PostStatusEnum.DRAFT)
+            throw new BadRequestException('Пост уже опубликован');
+
+        await this.postsRepository.update(id, {
+            status: PostStatusEnum.PUBLISHED,
         });
 
         return 'Success';
