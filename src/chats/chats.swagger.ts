@@ -8,7 +8,24 @@ export const CHAT_RESPONSES = {
             properties: {
                 chats: {
                     type: 'array',
-                    items: { $ref: '#/components/schemas/Chat' },
+                    items: {
+                        allOf: [
+                            { $ref: '#/components/schemas/Chat' },
+                            {
+                                type: 'object',
+                                properties: {
+                                    isFavorite: {
+                                        type: 'boolean',
+                                        example: true,
+                                    },
+                                    isEmpty: {
+                                        type: 'boolean',
+                                        example: false,
+                                    },
+                                },
+                            },
+                        ],
+                    },
                 },
                 hasMore: { type: 'boolean', example: true },
                 nextCursor: {
@@ -115,6 +132,17 @@ export const CHAT_RESPONSES = {
             },
         },
         description: 'Чат успешно удален',
+    } as ApiResponseOptions,
+
+    TOGGLE_FAVORITE_RESPONSE: {
+        status: 200,
+        schema: {
+            type: 'object',
+            properties: {
+                isFavorite: { type: 'boolean', example: true },
+            },
+        },
+        description: 'Статус избранного изменён',
     } as ApiResponseOptions,
 } as const;
 

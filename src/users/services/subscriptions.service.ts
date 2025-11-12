@@ -189,4 +189,18 @@ export class SubscriptionsService {
                 ERROR_MESSAGES.SUBSCRIPTION.BLOCKED_BY_USER,
             );
     }
+
+    async getIsSubscribed(
+        userId: string,
+        targetUserId: string,
+    ): Promise<boolean> {
+        if (userId === targetUserId) return false;
+
+        return this.subscriptionRepository.exists({
+            where: {
+                user: { id: userId },
+                subscribedUser: { id: targetUserId },
+            },
+        });
+    }
 }

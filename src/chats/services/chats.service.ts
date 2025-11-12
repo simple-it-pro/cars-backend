@@ -200,7 +200,11 @@ export class ChatsService {
         pagination: CursorPaginationDto,
         filter: 'all' | 'favorite' | 'unread' = 'all',
         search?: string,
-    ): Promise<{ chats: Chat[]; hasMore: boolean; nextCursor?: string }> {
+    ): Promise<{
+        chats: (Chat & { isFavorite: boolean; isEmpty: boolean })[];
+        hasMore: boolean;
+        nextCursor?: string;
+    }> {
         const limit = pagination.limit || 20;
         const limitPlusOne = limit + 1;
 
@@ -211,6 +215,7 @@ export class ChatsService {
             })
             .leftJoin('chat.lastMessage', 'lastMessage');
 
+        // скрываем чаты, где есть взаимные блокировки с кем-то из участников
         qb.andWhere((qb) => {
             const subQuery = qb
                 .subQuery()
@@ -227,14 +232,14 @@ export class ChatsService {
             const { date, id } = parseCompositeCursor(pagination.cursor);
             qb.andWhere(
                 `
-          (
-            COALESCE("lastMessage"."createdAt", "chat"."createdAt") < :date
-            OR (
-              COALESCE("lastMessage"."createdAt", "chat"."createdAt") = :date
-              AND "chat"."id" < :id
+            (
+              COALESCE("lastMessage"."createdAt", "chat"."createdAt") < :date
+              OR (
+                COALESCE("lastMessage"."createdAt", "chat"."createdAt") = :date
+                AND "chat"."id" < :id
+              )
             )
-          )
-        `,
+          `,
                 { date, id },
             );
         }
@@ -319,6 +324,7 @@ export class ChatsService {
 
         const chatsWithUrls = await Promise.all(
             chats.map(async (chat) => {
+                const hasLastMessage = Boolean(chat.lastMessage);
                 if (chat.lastMessage) {
                     const messageWithUrls = await this.addSignedUrlsToMessage(
                         chat.lastMessage,
@@ -327,11 +333,13 @@ export class ChatsService {
                         ...chat,
                         lastMessage: messageWithUrls,
                         isFavorite: favoriteChatIds.has(chat.id),
+                        isEmpty: !hasLastMessage,
                     };
                 }
                 return {
                     ...chat,
                     isFavorite: favoriteChatIds.has(chat.id),
+                    isEmpty: true,
                 };
             }),
         );

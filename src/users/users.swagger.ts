@@ -80,40 +80,6 @@ export const USERS_BODIES = {
         },
     } as ApiBodyOptions,
 
-    SUBSCRIBE: {
-        description: 'Данные для подписки на пользователя',
-        schema: {
-            type: 'object',
-            properties: {
-                targetUserId: {
-                    type: 'string',
-                    example: '123e4567-e89b-12d3-a456-426614174000',
-                    description:
-                        'ID пользователя, на которого нужно подписаться (UUID)',
-                    format: 'uuid',
-                },
-            },
-            required: ['targetUserId'],
-        },
-    } as ApiBodyOptions,
-
-    UNSUBSCRIBE: {
-        description: 'Данные для отписки от пользователя',
-        schema: {
-            type: 'object',
-            properties: {
-                targetUserId: {
-                    type: 'string',
-                    example: '123e4567-e89b-12d3-a456-426614174000',
-                    description:
-                        'ID пользователя, от которого нужно отписаться (UUID)',
-                    format: 'uuid',
-                },
-            },
-            required: ['targetUserId'],
-        },
-    } as ApiBodyOptions,
-
     DELETE: {
         description: 'Подтверждение удаления аккаунта',
         schema: {
@@ -180,10 +146,41 @@ export const USERS_API_DOCS = {
         } as ApiOperationOptions,
 
         GET_BLOCKED_USERS: {
+            description: 'Список заблокированных пользователей успешно получен',
             summary: 'Получение заблокированных пользователей',
-            description:
-                'Возвращает список пользователей, которых заблокировал текущий пользователь',
-        } as ApiOperationOptions,
+            schema: {
+                type: 'array',
+                items: {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            example: '123e4567-e89b-12d3-a456-426614174000',
+                            format: 'uuid',
+                        },
+                        nickname: { type: 'string', example: 'blocked_user' },
+                        name: {
+                            type: 'string',
+                            example: 'Заблокированный пользователь',
+                        },
+                        image: {
+                            type: 'object',
+                            nullable: true,
+                            properties: {
+                                url: {
+                                    type: 'string',
+                                    example:
+                                        'https://signed.example.com/photo.jpg',
+                                },
+                                name: { type: 'string', example: 'photo.jpg' },
+                                size: { type: 'number', example: 12345 },
+                            },
+                        },
+                    },
+                    required: ['id'],
+                },
+            },
+        } as ApiResponseOptions,
 
         BLOCK_USER: {
             summary: 'Блокировка пользователя',
@@ -238,7 +235,34 @@ export const USERS_API_DOCS = {
     RESPONSES: {
         GET_ME: {
             description: 'Данные пользователя успешно получены',
-            type: User,
+            schema: {
+                allOf: [
+                    { $ref: '#/components/schemas/User' },
+                    {
+                        type: 'object',
+                        properties: {
+                            counters: {
+                                type: 'object',
+                                properties: {
+                                    subscriptionsCount: {
+                                        type: 'number',
+                                        example: 12,
+                                    },
+                                    followersCount: {
+                                        type: 'number',
+                                        example: 34,
+                                    },
+                                    reviewsCount: {
+                                        type: 'number',
+                                        example: 5,
+                                    },
+                                },
+                            },
+                        },
+                        required: ['counters'],
+                    },
+                ],
+            },
         } as ApiResponseOptions,
 
         UPDATE_ME: {
@@ -370,13 +394,70 @@ export const USERS_API_DOCS = {
 
         GET_PUBLIC_PROFILE: {
             description: 'Публичный профиль успешно получен',
-            type: User,
+            schema: {
+                allOf: [
+                    { $ref: '#/components/schemas/User' },
+                    {
+                        type: 'object',
+                        properties: {
+                            counters: {
+                                type: 'object',
+                                properties: {
+                                    subscriptionsCount: {
+                                        type: 'number',
+                                        example: 12,
+                                    },
+                                    followersCount: {
+                                        type: 'number',
+                                        example: 34,
+                                    },
+                                    reviewsCount: {
+                                        type: 'number',
+                                        example: 5,
+                                    },
+                                },
+                            },
+                            isBlocked: { type: 'boolean', example: false },
+                            isSubscribed: { type: 'boolean', example: true },
+                        },
+                        required: ['counters', 'isBlocked', 'isSubscribed'],
+                    },
+                ],
+            },
         } as ApiResponseOptions,
 
         GET_MY_PUBLIC_PROFILE: {
             description:
                 'Публичный профиль текущего пользователя успешно получен',
-            type: User,
+            schema: {
+                allOf: [
+                    { $ref: '#/components/schemas/User' },
+                    {
+                        type: 'object',
+                        properties: {
+                            counters: {
+                                type: 'object',
+                                properties: {
+                                    subscriptionsCount: {
+                                        type: 'number',
+                                        example: 12,
+                                    },
+                                    followersCount: {
+                                        type: 'number',
+                                        example: 34,
+                                    },
+                                    reviewsCount: {
+                                        type: 'number',
+                                        example: 5,
+                                    },
+                                },
+                            },
+                            isSubscribed: { type: 'boolean', example: false },
+                        },
+                        required: ['counters', 'isSubscribed'],
+                    },
+                ],
+            },
         } as ApiResponseOptions,
 
         DELETE_ME: {

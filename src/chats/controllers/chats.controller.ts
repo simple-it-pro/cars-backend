@@ -389,11 +389,7 @@ export class ChatsController {
     }
 
     @ApiOperation({ summary: 'Добавить/убрать чат из избранного' })
-    @ApiResponse({
-        status: 200,
-        type: Chat,
-        description: 'Статус избранного изменен',
-    })
+    @ApiResponse(CHAT_RESPONSES.TOGGLE_FAVORITE_RESPONSE)
     @Post(':chatId/favorite')
     async toggleFavorite(
         @Param() { chatId }: ChatIdParamsDto,

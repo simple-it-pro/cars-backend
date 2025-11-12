@@ -1,6 +1,5 @@
 import {
     ApiBearerAuth,
-    ApiBody,
     ApiOkResponse,
     ApiOperation,
     ApiParam,
@@ -8,7 +7,6 @@ import {
     ApiTags,
 } from '@nestjs/swagger';
 import {
-    Body,
     Controller,
     Delete,
     Get,
@@ -19,7 +17,7 @@ import {
 } from '@nestjs/common';
 import { JwtGuard } from '../../auth/guards';
 import { SubscriptionsService } from '../services';
-import { USERS_API_DOCS, USERS_BODIES } from '../users.swagger';
+import { USERS_API_DOCS } from '../users.swagger';
 import { AuthUser } from '../../auth/decorators';
 import { JwtUserData } from '../types';
 
@@ -46,28 +44,26 @@ export class SubscriptionsController {
         return this.subscriptionsService.getFollowersCounter(userId);
     }
 
-    @Post('subscribe')
+    @Post('subscribe/:id')
     @ApiOperation(USERS_API_DOCS.OPERATIONS.SUBSCRIBE)
-    @ApiBody(USERS_BODIES.SUBSCRIBE)
     @ApiOkResponse(USERS_API_DOCS.RESPONSES.SUBSCRIBE)
     @ApiResponse(USERS_API_DOCS.RESPONSES.BAD_REQUEST_SUBSCRIBE)
     @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
     async subscribeUser(
         @AuthUser() { sub: userId }: JwtUserData,
-        @Body('targetUserId', ParseUUIDPipe) targetUserId: string,
+        @Param('targetUserId', ParseUUIDPipe) targetUserId: string,
     ) {
         return this.subscriptionsService.subscribeUser(userId, targetUserId);
     }
 
-    @Delete('unsubscribe')
+    @Delete('unsubscribe/:id')
     @ApiOperation(USERS_API_DOCS.OPERATIONS.UNSUBSCRIBE)
-    @ApiBody(USERS_BODIES.UNSUBSCRIBE)
     @ApiOkResponse(USERS_API_DOCS.RESPONSES.UNSUBSCRIBE)
     @ApiResponse(USERS_API_DOCS.RESPONSES.BAD_REQUEST_UNSUBSCRIBE)
     @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
     async unsubscribeUser(
         @AuthUser() { sub: userId }: JwtUserData,
-        @Body('targetUserId', ParseUUIDPipe) targetUserId: string,
+        @Param('targetUserId', ParseUUIDPipe) targetUserId: string,
     ) {
         return this.subscriptionsService.unsubscribeUser(userId, targetUserId);
     }

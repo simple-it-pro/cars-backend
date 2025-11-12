@@ -19,6 +19,7 @@ import { StorageService } from '../../storage/services';
 import { RatingService } from './rating.service';
 import { SubscriptionsService } from './subscriptions.service';
 import { UserWithCounters } from '../types/user-with-counters';
+import { UserProfile } from '../types/user-profile';
 
 @Injectable()
 export class UsersService {
@@ -223,10 +224,7 @@ export class UsersService {
         return { message: SUCCESS_MESSAGES.USER.UNBLOCKED };
     }
 
-    async getPublicProfile(
-        id: string,
-        viewerId: string,
-    ): Promise<UserWithCounters & { isBlocked: boolean }> {
+    async getPublicProfile(id: string, viewerId: string): Promise<UserProfile> {
         await this.ratingService.calculateAndUpdateUserRating(id);
 
         const user = await this.userRepository.findOne({
@@ -255,20 +253,23 @@ export class UsersService {
             );
         }
 
-        const isBlocked = await this.userBlockRepository.exists({
-            where: [
-                { user: { id: viewerId }, blockedUser: { id } },
-                { user: { id }, blockedUser: { id: viewerId } },
-            ],
-        });
-
-        const userWithImageUrl = await this.addSignedUrlToUser(user);
-
-        const counters = await this.getUserCounters(id);
+        const [isBlocked, isSubscribed, userWithImageUrl, counters] =
+            await Promise.all([
+                this.userBlockRepository.exists({
+                    where: [
+                        { user: { id: viewerId }, blockedUser: { id } },
+                        { user: { id }, blockedUser: { id: viewerId } },
+                    ],
+                }),
+                this.subscriptionsService.getIsSubscribed(viewerId, id),
+                this.addSignedUrlToUser(user),
+                this.getUserCounters(id),
+            ]);
 
         return {
             ...userWithImageUrl,
             isBlocked,
+            isSubscribed,
             counters,
         };
     }
