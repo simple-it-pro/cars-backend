@@ -21,10 +21,11 @@ import {
     Post,
     RefreshToken,
     Review,
+    Car,
     Subscription,
     UnreadChat,
     UserBlock,
-} from './';
+} from '.';
 import { Image } from '../interfaces';
 
 @Entity({ name: 'users' })
@@ -195,6 +196,9 @@ class User {
 
     @OneToMany(() => Post, (post) => post.user)
     posts: Post[];
+
+    @OneToMany(() => Car, (car) => car.owner)
+    cars: Car[];
 }
 
 export default User;

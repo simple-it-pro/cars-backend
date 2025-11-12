@@ -4,8 +4,10 @@ import {
     CreateDateColumn,
     Entity,
     Index,
+    ManyToOne,
     PrimaryGeneratedColumn,
     UpdateDateColumn,
+    JoinColumn,
 } from 'typeorm';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
@@ -14,6 +16,7 @@ import {
     FuelTypes,
     TransmissionTypes,
 } from '../enums/cars';
+import { User } from '.';
 
 const numericToNumber = {
     to: (value: number | null | undefined) =>
@@ -23,10 +26,10 @@ const numericToNumber = {
 };
 
 @Entity({ name: 'cars' })
-@Index('idx_cars_owner_status', ['ownerId', 'status'])
+@Index('idx_cars_owner_status', ['owner', 'status'])
 @Index('idx_cars_make_model_year', ['make', 'model', 'year'])
 @Check('chk_cars_mileage_nonneg', '"mileageKm" >= 0')
-export class Car {
+class Car {
     @ApiProperty({
         example: '123e4567-e89b-12d3-a456-426614174000',
         description: 'Уникальный идентификатор автомобиля',
@@ -52,9 +55,13 @@ export class Car {
 
     @ApiProperty({
         example: '7c9e6679-7425-40de-944b-e07fc1f90ae7',
-        description: 'Идентификатор владельца (пользователя)',
+        description: 'Владелец автомобиля',
+        type: () => User,
     })
-    @Index('idx_cars_owner_id')
+    @ManyToOne(() => User, (user) => user.cars, { onDelete: 'CASCADE' })
+    @JoinColumn({ name: 'ownerId' })
+    owner: User;
+
     @Column({ type: 'uuid' })
     ownerId: string;
 
@@ -157,3 +164,5 @@ export class Car {
     })
     fuelConsumption?: number | null;
 }
+
+export default Car;
