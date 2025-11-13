@@ -11,12 +11,6 @@ export class PostResponseDto {
     id: string;
 
     @ApiProperty({
-        example: 'Заголовок поста',
-        description: 'Заголовок поста',
-    })
-    title: string;
-
-    @ApiProperty({
         example: 'Описание поста',
         description: 'Описание поста',
     })
@@ -28,6 +22,12 @@ export class PostResponseDto {
         description: 'Статус поста',
     })
     status: PostStatusEnum;
+
+    @ApiPropertyOptional({
+        type: () => FileEntity,
+        description: 'Обложка поста',
+    })
+    cover: FileEntity;
 
     @ApiProperty({
         example: '2025-09-14T08:57:59.589Z',
@@ -46,12 +46,12 @@ export class PostResponseDto {
         isArray: true,
         description: 'Упорядоченные файлы поста',
     })
-    files: FileEntity[];
+    files?: FileEntity[];
 
     @ApiPropertyOptional({
         type: () => Hashtag,
         isArray: true,
         description: 'Хэштеги поста',
     })
-    hashtags: Hashtag[];
+    hashtags?: Hashtag[];
 }

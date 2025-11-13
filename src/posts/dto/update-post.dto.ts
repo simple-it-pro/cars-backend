@@ -11,14 +11,6 @@ import {
 
 export class UpdatePostDto {
     @ApiPropertyOptional({
-        description: 'Заголовок поста',
-        example: 'Заголовок поста',
-    })
-    @IsString()
-    @IsOptional()
-    title?: string;
-
-    @ApiPropertyOptional({
         description: 'Текст поста',
         example: 'Текст поста',
     })

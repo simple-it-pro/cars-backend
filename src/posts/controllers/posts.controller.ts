@@ -25,6 +25,8 @@ import { AuthUser } from '../../auth/decorators';
 import { JwtUserData } from '../../users/types';
 import { JwtGuard } from '../../auth/guards';
 import { PostResponseDto } from '../dto/responses';
+import { CursorDto } from '../../shared/pagination/cursor';
+import { CursorOptionsDto } from '../../shared/pagination/cursor';
 
 @ApiTags('Posts')
 @ApiBearerAuth('JWT-auth')
@@ -37,15 +39,15 @@ export class PostsController {
     @ApiResponse({
         status: 200,
         description: 'Посты успешно получены',
-        type: PostResponseDto,
-        isArray: true,
+        type: () => CursorDto<PostResponseDto>,
     })
     @Get()
     async getPosts(
         @AuthUser() { sub: userId }: JwtUserData,
         @Query() queryParams: GetPostsQueryDto,
+        @Query() cursorOptionsDto: CursorOptionsDto,
     ) {
-        return this.postsService.findAll(queryParams, userId);
+        return this.postsService.findAll(queryParams, cursorOptionsDto, userId);
     }
 
     @ApiOperation({ summary: 'Получить пост по ID' })

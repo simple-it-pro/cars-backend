@@ -5,13 +5,7 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-    Brackets,
-    FindOptionsWhere,
-    In,
-    Repository,
-    SelectQueryBuilder,
-} from 'typeorm';
+import { Brackets, In, Repository, SelectQueryBuilder } from 'typeorm';
 
 import {
     ERROR_MESSAGES,
@@ -22,8 +16,15 @@ import { HashtagsService } from '../../hastags/services';
 import { CreatePostDto, UpdatePostDto } from '../dto';
 import { FileStatusEnum, PostStatusEnum } from '../../database/enums';
 import { FileEntity, Post, PostFile } from '../../database/entities';
+import {
+    createCursorMeta,
+    CursorDto,
+    CursorOptionsDto,
+    parseCompositeCursor,
+} from '../../shared/pagination/cursor';
 import { PostResponseDto } from '../dto/responses';
 import { GetPostsQueryDto } from '../dto/queries';
+import { PostWithFile } from '../types';
 
 @Injectable()
 export class PostsService {
@@ -34,35 +35,32 @@ export class PostsService {
         private readonly hashtagsService: HashtagsService,
     ) {}
 
-    async findAll(
-        { includes, hashtags, userId: userIdQuery }: GetPostsQueryDto,
-        userId: string,
-    ) {
-        const postsQb = this.postsRepository.createQueryBuilder('post');
-
-        console.log('userIdQuery', userIdQuery);
-        console.log('userId', userId);
-
-        if (userIdQuery) {
-            if (userIdQuery === userId) {
-                postsQb.where('post.userId = :userIdQuery', { userIdQuery });
-            } else {
-                postsQb
-                    .where('post.userId = :userIdQuery', { userIdQuery })
-                    .andWhere('post.status = :status', {
-                        status: PostStatusEnum.PUBLISHED,
-                    });
-            }
-        } else {
-            postsQb.where(
-                new Brackets((qb) => {
-                    qb.where('post.userId = :userId', { userId });
-                    qb.orWhere('post.status = :status', {
-                        status: PostStatusEnum.PUBLISHED,
-                    });
-                }),
-            );
-        }
+    makePostQueryBuilder({
+        includes,
+        hashtags,
+    }: Omit<GetPostsQueryDto, 'userId'>) {
+        const postsQb = this.postsRepository
+            .createQueryBuilder('post')
+            .select([
+                'post.id AS id',
+                'post.description AS description',
+                'post.status AS status',
+                'post.createdAt AS "createdAt"',
+                'post.updatedAt AS "updatedAt"',
+            ])
+            .addSelect((qb: SelectQueryBuilder<Post>) =>
+                qb
+                    .subQuery()
+                    .select(`to_jsonb(file)`, 'cover')
+                    .from(PostFile, 'post_file')
+                    .where('post_file.postId = post.id')
+                    .orderBy('post_file.order', 'ASC')
+                    .leftJoin('post_file.file', 'file')
+                    .groupBy('post_file.id')
+                    .addGroupBy('file.id')
+                    .limit(1),
+            )
+            .groupBy('post.id');
 
         if (hashtags) {
             postsQb.andWhere(
@@ -88,51 +86,109 @@ export class PostsService {
             for (const include of includes) {
                 if (include === 'files')
                     postsQb
-                        .leftJoinAndSelect('post.files', 'files')
-                        .leftJoinAndSelect('files.file', 'file');
+                        .addSelect(
+                            `
+                            jsonb_agg(
+                                DISTINCT to_jsonb(files) || jsonb_build_object(
+                                    'file', to_jsonb(file)
+                                )
+                            ) AS files
+                        `,
+                        )
+                        .leftJoin('post.files', 'files')
+                        .leftJoin('files.file', 'file')
+                        .addGroupBy('files.id');
                 if (include === 'hashtags')
-                    postsQb.leftJoinAndSelect('post.hashtags', 'hashtags');
+                    postsQb
+                        .addSelect(`jsonb_agg(hashtags)`, 'hashtags')
+                        .leftJoin('post.hashtags', 'hashtags');
             }
         }
 
-        const posts = await postsQb.getMany();
+        return postsQb;
+    }
 
-        if (includes?.includes('files')) {
-            const postsWithFiles = await Promise.all(
-                posts.map((post) => this.addSignedUrlsToPost(post)),
+    async findAll(
+        { includes, hashtags, userId: userIdQuery }: GetPostsQueryDto,
+        cursorOptionsDto: CursorOptionsDto,
+        userId: string,
+    ) {
+        const postsQb = this.makePostQueryBuilder({ includes, hashtags });
+
+        // Build base where conditions
+        if (userIdQuery) {
+            if (userIdQuery === userId) {
+                postsQb.andWhere('post.userId = :userIdQuery', { userIdQuery });
+            } else {
+                postsQb
+                    .andWhere('post.userId = :userIdQuery', { userIdQuery })
+                    .andWhere('post.status = :status', {
+                        status: PostStatusEnum.PUBLISHED,
+                    });
+            }
+        } else {
+            postsQb.andWhere(
+                new Brackets((qb) => {
+                    qb.where('post.userId = :userId', { userId });
+                    qb.orWhere('post.status = :status', {
+                        status: PostStatusEnum.PUBLISHED,
+                    });
+                }),
             );
-
-            return postsWithFiles;
         }
 
-        return posts;
+        postsQb
+            .orderBy('post.createdAt', cursorOptionsDto.order)
+            .addOrderBy('post.id', cursorOptionsDto.order)
+            .limit(cursorOptionsDto.take);
+
+        const itemCount = await postsQb.getCount();
+
+        if (cursorOptionsDto.cursor) {
+            const { date, id } = parseCompositeCursor(cursorOptionsDto.cursor);
+            postsQb.andWhere(
+                new Brackets((qb) => {
+                    qb.where('post.createdAt <= :date', { date });
+                    qb.orWhere('post.createdAt = :date AND post.id <= :id', {
+                        date,
+                        id,
+                    });
+                }),
+            );
+        }
+
+        const posts = await postsQb.getRawMany<PostWithFile>();
+
+        const postsWithFiles = await Promise.all(
+            posts.map((post) => this.addSignedUrlsToPost(post)),
+        );
+
+        return new CursorDto(
+            postsWithFiles,
+            createCursorMeta(cursorOptionsDto, postsWithFiles, itemCount),
+        );
     }
 
     async findOne(id: string, userId: string) {
-        const where: FindOptionsWhere<Post>[] = [
-            { id, status: PostStatusEnum.PUBLISHED },
-        ];
-        if (userId) where.push({ id, user: { id: userId } });
-
-        const post = await this.postsRepository.findOne({
-            relations: ['files', 'files.file', 'hashtags'],
-            where,
+        const postQb = this.makePostQueryBuilder({
+            includes: ['files', 'hashtags'],
         });
+
+        postQb.where('post.id = :id', { id });
+        if (userId) postQb.andWhere('post.userId = :userId', { userId });
+
+        const post = await postQb.getRawOne<PostWithFile>();
 
         return post && this.addSignedUrlsToPost(post);
     }
 
-    async create(
-        { title, description, imagesIds }: CreatePostDto,
-        userId: string,
-    ) {
+    async create({ description, imagesIds }: CreatePostDto, userId: string) {
         const hashtags =
             await this.hashtagsService.getHashatgsFromTextAndSave(description);
 
         const savedPost = await this.postsRepository.manager.transaction(
             async (manager) => {
                 const newPost = manager.create(Post, {
-                    title,
                     description,
                     status: PostStatusEnum.DRAFT,
                     hashtags,
@@ -182,7 +238,7 @@ export class PostsService {
     // TODO: Remove dublicates from imagesIds array
     async update(
         id: string,
-        { title, description, imagesIds }: UpdatePostDto = {},
+        { description, imagesIds }: UpdatePostDto = {},
         userId: string,
     ) {
         const post = await this.postsRepository.findOne({
@@ -272,7 +328,6 @@ export class PostsService {
 
             await manager.save(Post, {
                 id: post.id,
-                title,
                 description,
                 ...hashtags,
             });
@@ -324,16 +379,21 @@ export class PostsService {
         return SUCCESS_MESSAGES.POST.PUBLISHED;
     }
 
-    private async addSignedUrlsToPost(post: Post): Promise<PostResponseDto> {
-        if (!post.files || post.files.length === 0)
-            return post as unknown as PostResponseDto;
+    private async addSignedUrlsToPost(
+        post: PostWithFile,
+    ): Promise<PostResponseDto> {
+        post.cover = await this.filesService.addSignedUrlToFile(post.cover);
 
-        const files = post.files
-            .sort((a, b) => a.order - b.order)
-            .map((file) => file.file);
-        const filesWithUrls =
-            await this.filesService.addSignedUrlsToFiles(files);
+        if (post.files?.length) {
+            const files = post.files
+                .sort((a, b) => a.order - b.order)
+                .map((file) => file.file);
+            const filesWithUrls =
+                await this.filesService.addSignedUrlsToFiles(files);
 
-        return { ...post, files: filesWithUrls };
+            return { ...post, files: filesWithUrls };
+        }
+
+        return post as PostResponseDto;
     }
 }
