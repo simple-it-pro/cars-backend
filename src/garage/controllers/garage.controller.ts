@@ -30,10 +30,10 @@ import { JwtGuard } from '../../auth/guards';
 import { AuthUser } from '../../auth/decorators';
 import { JwtUserData } from '../../users/types';
 import { CarStatus } from '../../database/enums/cars';
-import { GARAGE_API_DOCS, GARAGE_BODIES } from '../garage.swagger';
+import { GARAGE_API_DOCS, GARAGE_BODIES } from '../swagger';
 import { FilesInterceptor } from '@nestjs/platform-express';
 
-@ApiTags('Garage')
+@ApiTags('Garage - Cars')
 @Controller('garage/cars')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtGuard)

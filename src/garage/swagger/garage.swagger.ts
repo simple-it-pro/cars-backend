@@ -10,7 +10,7 @@ import {
     CarStatus,
     FuelTypes,
     TransmissionTypes,
-} from '../database/enums/cars';
+} from '../../database/enums/cars';
 
 export const GARAGE_API_DOCS = {
     OPERATIONS: {

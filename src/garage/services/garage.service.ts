@@ -130,11 +130,11 @@ export class GarageService {
         const updateData: Partial<Car> = { status };
 
         if (status === CarStatus.LISTED) {
-            if (!price) {
+            if (!price)
                 throw new BadRequestException(
-                    'Price is required when putting car for sale',
+                    ERROR_MESSAGES.GARAGE.CAR.PRICE_REQUIRED,
                 );
-            }
+
             this.validateCarForPublication(car);
             updateData.price = price;
 
@@ -253,12 +253,13 @@ export class GarageService {
             car: updatedCar,
         };
     }
+
     async reorderPhotos(carId: string, photoIds: string[], userId: string) {
         const car = await this.getOne(userId, carId);
 
         if (photoIds.length !== car.photos.length) {
             throw new BadRequestException(
-                'Количество photoIds должно совпадать с количеством фото автомобиля',
+                ERROR_MESSAGES.GARAGE.CAR.PHOTO_IDS_COUNT_MISMATCH,
             );
         }
 
@@ -266,7 +267,7 @@ export class GarageService {
         for (const id of photoIds) {
             if (!existingIds.has(id)) {
                 throw new BadRequestException(
-                    `Фото с id ${id} не принадлежит этому автомобилю`,
+                    ERROR_MESSAGES.GARAGE.CAR.PHOTO_NOT_BELONGS_TO_CAR(id),
                 );
             }
         }
@@ -303,7 +304,9 @@ export class GarageService {
 
         if (missingFields.length > 0) {
             throw new BadRequestException(
-                `Missing required fields for publication: ${missingFields.join(', ')}`,
+                ERROR_MESSAGES.GARAGE.CAR.MISSING_REQUIRED_FIELDS_FOR_PUBLICATION(
+                    missingFields,
+                ),
             );
         }
 
@@ -326,7 +329,9 @@ export class GarageService {
 
         if (missingFields.length > 0) {
             throw new BadRequestException(
-                `Cannot remove required fields for car on sale: ${missingFields.join(', ')}`,
+                ERROR_MESSAGES.GARAGE.CAR.CANNOT_REMOVE_REQUIRED_FIELDS_FOR_SALE(
+                    missingFields,
+                ),
             );
         }
     }

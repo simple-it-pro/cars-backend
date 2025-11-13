@@ -131,6 +131,17 @@ export const ERROR_MESSAGES = {
             PRICE_REQUIRED: 'Цена обязательна при выставлении на продажу',
             INVALID_YEAR: 'Неверный год выпуска',
             INVALID_MILEAGE: 'Пробег не может быть отрицательным',
+            PHOTO_IDS_COUNT_MISMATCH:
+                'Количество photoIds должно совпадать с количеством фото автомобиля',
+            PHOTO_NOT_BELONGS_TO_CAR: (id: string) =>
+                `Фото с id ${id} не принадлежит этому автомобилю`,
+            MISSING_REQUIRED_FIELDS_FOR_PUBLICATION: (fields: string[]) =>
+                `Missing required fields for publication: ${fields.join(', ')}`,
+            CANNOT_REMOVE_REQUIRED_FIELDS_FOR_SALE: (fields: string[]) =>
+                `Cannot remove required fields for car on sale: ${fields.join(', ')}`,
+        },
+        SERVICE_RECORD: {
+            NOT_FOUND: 'Запись обслуживания не найдена',
         },
         EXPENSE: {
             NOT_FOUND: 'Запись расхода не найдена',
@@ -214,6 +225,11 @@ export const SUCCESS_MESSAGES = {
             STATUS_CHANGED: 'Статус автомобиля успешно изменен',
             RETRIEVED: 'Автомобиль успешно получен',
             LIST_RETRIEVED: 'Список автомобилей успешно получен',
+        },
+        SERVICE_RECORD: {
+            CREATED: 'Запись обслуживания успешно добавлена',
+            UPDATED: 'Запись обслуживания успешно обновлена',
+            DELETED: 'Запись обслуживания успешно удалена',
         },
         EXPENSE: {
             CREATED: 'Запись расхода успешно создана',

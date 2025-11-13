@@ -4,11 +4,11 @@ import {
     CreateDateColumn,
     Entity,
     Index,
+    JoinColumn,
     ManyToOne,
+    OneToMany,
     PrimaryGeneratedColumn,
     UpdateDateColumn,
-    JoinColumn,
-    OneToMany,
 } from 'typeorm';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
@@ -18,13 +18,8 @@ import {
     TransmissionTypes,
 } from '../enums/cars';
 import { CarPhoto, User } from '.';
-
-const numericToNumber = {
-    to: (value: number | null | undefined) =>
-        value === undefined ? null : value,
-    from: (value: string | null) =>
-        value === null ? null : Number.parseFloat(value),
-};
+import { CarExpense, ServiceRecord } from './';
+import { numericToNumber } from '../utils';
 
 @Entity({ name: 'cars' })
 @Index('idx_cars_owner_status', ['owner', 'status'])
@@ -167,6 +162,12 @@ class Car {
 
     @OneToMany(() => CarPhoto, (photo) => photo.car, { eager: true })
     photos: CarPhoto[];
+
+    @OneToMany(() => CarExpense, (expense) => expense.car)
+    expenses: CarExpense[];
+
+    @OneToMany(() => ServiceRecord, (record) => record.car)
+    serviceRecords: ServiceRecord[];
 }
 
 export default Car;
