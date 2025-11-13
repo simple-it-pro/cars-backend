@@ -8,6 +8,7 @@ import {
     PrimaryGeneratedColumn,
     UpdateDateColumn,
     JoinColumn,
+    OneToMany,
 } from 'typeorm';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
@@ -16,7 +17,7 @@ import {
     FuelTypes,
     TransmissionTypes,
 } from '../enums/cars';
-import { User } from '.';
+import { CarPhoto, User } from '.';
 
 const numericToNumber = {
     to: (value: number | null | undefined) =>
@@ -163,6 +164,9 @@ class Car {
         transformer: numericToNumber,
     })
     fuelConsumption?: number | null;
+
+    @OneToMany(() => CarPhoto, (photo) => photo.car, { eager: true })
+    photos: CarPhoto[];
 }
 
 export default Car;

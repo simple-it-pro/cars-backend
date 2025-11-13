@@ -2,8 +2,15 @@ import {
     ApiBodyOptions,
     ApiOperationOptions,
     ApiParamOptions,
+    ApiQueryOptions,
     ApiResponseOptions,
 } from '@nestjs/swagger';
+import {
+    Bodyworks,
+    CarStatus,
+    FuelTypes,
+    TransmissionTypes,
+} from '../database/enums/cars';
 
 export const GARAGE_API_DOCS = {
     OPERATIONS: {
@@ -72,9 +79,19 @@ export const GARAGE_API_DOCS = {
         STATUS: {
             name: 'status',
             description: 'Статус автомобиля',
-            enum: ['warehouse', 'for_sale', 'archived'],
-            example: 'warehouse',
+            enum: CarStatus,
+            example: CarStatus.WAREHOUSE,
         } as ApiParamOptions,
+    },
+
+    QUERIES: {
+        STATUS_OPTIONAL: {
+            name: 'status',
+            description: 'Необязательный фильтр по статусу автомобиля',
+            enum: CarStatus,
+            required: false,
+            example: CarStatus.WAREHOUSE,
+        } as ApiQueryOptions,
     },
 
     RESPONSES: {
@@ -238,7 +255,6 @@ export const GARAGE_API_DOCS = {
             },
         } as ApiResponseOptions,
 
-        // Error responses
         NOT_FOUND: {
             description: 'Автомобиль не найден',
             schema: {
@@ -336,29 +352,20 @@ export const GARAGE_BODIES = {
                 bodywork: {
                     type: 'string',
                     description: 'Тип кузова',
-                    enum: [
-                        'sedan',
-                        'hatchback',
-                        'universal',
-                        'suv',
-                        'coupe',
-                        'cabriolet',
-                        'minivan',
-                        'pickup',
-                    ],
-                    example: 'sedan',
+                    enum: Bodyworks,
+                    example: Bodyworks.SEDAN,
                 },
                 fuelType: {
                     type: 'string',
                     description: 'Тип топлива',
-                    enum: ['petrol', 'diesel', 'hybrid', 'electric', 'gas'],
-                    example: 'petrol',
+                    enum: FuelTypes,
+                    example: FuelTypes.PETROL,
                 },
                 transmission: {
                     type: 'string',
                     description: 'Тип коробки передач',
-                    enum: ['manual', 'automatic', 'robot', 'variator'],
-                    example: 'automatic',
+                    enum: TransmissionTypes,
+                    example: TransmissionTypes.MT,
                 },
                 mileageKm: {
                     type: 'number',
@@ -427,31 +434,22 @@ export const GARAGE_BODIES = {
                 bodywork: {
                     type: 'string',
                     description: 'Тип кузова',
-                    enum: [
-                        'sedan',
-                        'hatchback',
-                        'universal',
-                        'suv',
-                        'coupe',
-                        'cabriolet',
-                        'minivan',
-                        'pickup',
-                    ],
-                    example: 'sedan',
+                    enum: Bodyworks,
+                    example: Bodyworks.SEDAN,
                     nullable: true,
                 },
                 fuelType: {
                     type: 'string',
                     description: 'Тип топлива',
-                    enum: ['petrol', 'diesel', 'hybrid', 'electric', 'gas'],
-                    example: 'petrol',
+                    enum: FuelTypes,
+                    example: FuelTypes.PETROL,
                     nullable: true,
                 },
                 transmission: {
                     type: 'string',
                     description: 'Тип коробки передач',
-                    enum: ['manual', 'automatic', 'robot', 'variator'],
-                    example: 'automatic',
+                    enum: TransmissionTypes,
+                    example: TransmissionTypes.AT,
                     nullable: true,
                 },
                 mileageKm: {
@@ -495,8 +493,8 @@ export const GARAGE_BODIES = {
                 status: {
                     type: 'string',
                     description: 'Новый статус автомобиля',
-                    enum: ['warehouse', 'for_sale', 'archived'],
-                    example: 'for_sale',
+                    enum: CarStatus,
+                    example: CarStatus.LISTED,
                 },
                 price: {
                     type: 'number',

@@ -15,7 +15,7 @@ import {
     SUCCESS_MESSAGES,
     WARNING_MESSAGES,
 } from '../../common/constants/messages';
-import { StorageService } from '../../storage/services';
+import { FileUrlsService, StorageService } from '../../storage/services';
 import { RatingService } from './rating.service';
 import { SubscriptionsService } from './subscriptions.service';
 import { UserWithCounters } from '../types/user-with-counters';
@@ -34,6 +34,7 @@ export class UsersService {
         private readonly storageService: StorageService,
         private readonly ratingService: RatingService,
         private readonly subscriptionsService: SubscriptionsService,
+        private readonly fileUrlsService: FileUrlsService,
     ) {}
 
     async getUserById(id: string): Promise<UserWithCounters> {
@@ -44,7 +45,7 @@ export class UsersService {
 
         if (!user) throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
 
-        const userWithUrl = await this.addSignedUrlToUser(user);
+        const userWithUrl = await this.fileUrlsService.addSignedUrlsDeep(user);
         const counters = await this.getUserCounters(id);
 
         return { ...userWithUrl, counters };
@@ -111,7 +112,6 @@ export class UsersService {
         return instanceToPlain(updatedUser) as User;
     }
 
-    /* TODO: надо будет удалить после тестирования или сделать безопасно */
     async getAll() {
         return this.userRepository.find({
             select: {
@@ -152,7 +152,8 @@ export class UsersService {
             };
 
             const savedUser = await this.userRepository.save(user);
-            const userWithUrl = await this.addSignedUrlToUser(savedUser);
+            const userWithUrl =
+                await this.fileUrlsService.addSignedUrlsDeep(savedUser);
             return instanceToPlain(userWithUrl) as User;
         } catch {
             throw new BadRequestException(ERROR_MESSAGES.AVATAR.UPLOAD_FAILED);
@@ -160,7 +161,7 @@ export class UsersService {
     }
 
     async getBlockedUsers(userId: string): Promise<Partial<User>[]> {
-        const blocks: UserBlock[] = await this.userBlockRepository.find({
+        const blocks = await this.userBlockRepository.find({
             where: { user: { id: userId } },
             relations: ['blockedUser'],
         });
@@ -168,7 +169,9 @@ export class UsersService {
         const result: Partial<User>[] = [];
 
         for (const b of blocks) {
-            const u = await this.addSignedUrlToUser(b.blockedUser);
+            const u = await this.fileUrlsService.addSignedUrlsDeep(
+                b.blockedUser,
+            );
             result.push({
                 id: u.id,
                 nickname: u.nickname ?? null,
@@ -262,7 +265,7 @@ export class UsersService {
                     ],
                 }),
                 this.subscriptionsService.getIsSubscribed(viewerId, id),
-                this.addSignedUrlToUser(user),
+                this.fileUrlsService.addSignedUrlsDeep(user),
                 this.getUserCounters(id),
             ]);
 
@@ -292,7 +295,8 @@ export class UsersService {
 
         if (!user) throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
 
-        const userWithImageUrl = await this.addSignedUrlToUser(user);
+        const userWithImageUrl =
+            await this.fileUrlsService.addSignedUrlsDeep(user);
         const counters = await this.getUserCounters(id);
 
         return {
@@ -336,22 +340,6 @@ export class UsersService {
 
         user.isDeactivated = false;
         return this.userRepository.save(user);
-    }
-
-    private async addSignedUrlToUser(user: User): Promise<User> {
-        if (user.image?.url) {
-            const signedUrl = await this.storageService.getFileUrl(
-                user.image.url,
-            );
-            return {
-                ...user,
-                image: {
-                    ...user.image,
-                    url: signedUrl,
-                },
-            };
-        }
-        return user;
     }
 
     private async getUserCounters(id: string) {

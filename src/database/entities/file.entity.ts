@@ -8,7 +8,7 @@ import {
 } from 'typeorm';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-import { FileTypeEnum, FileStatusEnum } from '../enums';
+import { FileStatusEnum, FileTypeEnum } from '../enums';
 import PostFile from './post-file.entity';
 
 @Entity({ name: 'files' })

@@ -19,13 +19,13 @@ import {
 } from '../../common/constants/messages';
 import { UsersService } from '../../users/services';
 import {
-    User,
     Chat,
-    UnreadChat,
     Message,
+    UnreadChat,
+    User,
     UserBlock,
 } from '../../database/entities';
-import { StorageService } from '../../storage/services';
+import { FileUrlsService } from '../../storage/services';
 
 @Injectable()
 export class ChatsService {
@@ -39,7 +39,7 @@ export class ChatsService {
         @InjectRepository(UserBlock)
         private readonly userBlockRepository: Repository<UserBlock>,
         private readonly usersService: UsersService,
-        private readonly storageService: StorageService,
+        private readonly fileUrlsService: FileUrlsService,
     ) {}
 
     private async isUserBlocked(
@@ -163,25 +163,8 @@ export class ChatsService {
         return savedChat;
     }
 
-    private async addSignedUrlsToMessage(message: Message): Promise<Message> {
-        if (message.attachments && message.attachments.length > 0) {
-            message.attachments = await Promise.all(
-                message.attachments.map(async (attachment) => ({
-                    ...attachment,
-                    url: await this.storageService.getFileUrl(attachment.url),
-                })),
-            );
-        }
-
-        if (message.currentContent?.attachments?.length > 0) {
-            message.currentContent.attachments = await Promise.all(
-                message.currentContent.attachments.map(async (attachment) => ({
-                    ...attachment,
-                    url: await this.storageService.getFileUrl(attachment.url),
-                })),
-            );
-        }
-        return message;
+    private async addSignedMessage(message: Message) {
+        return this.fileUrlsService.addSignedUrlsDeep(message);
     }
 
     private async initializeChatData(chat: Chat, users: User[]): Promise<void> {
@@ -326,7 +309,7 @@ export class ChatsService {
             chats.map(async (chat) => {
                 const hasLastMessage = Boolean(chat.lastMessage);
                 if (chat.lastMessage) {
-                    const messageWithUrls = await this.addSignedUrlsToMessage(
+                    const messageWithUrls = await this.addSignedMessage(
                         chat.lastMessage,
                     );
                     return {
@@ -348,7 +331,10 @@ export class ChatsService {
         chatsWithUrls.sort((a, b) => order.get(a.id)! - order.get(b.id)!);
 
         const last = chatsWithUrls[chatsWithUrls.length - 1];
-        const lastMessageDate = last.lastMessage?.createdAt ?? last.createdAt;
+
+        const lastMessageDate: Date =
+            last.lastMessage?.createdAt ?? last.createdAt;
+
         const nextCursor =
             hasMore && last
                 ? createCompositeCursor(lastMessageDate, last.id)

@@ -8,14 +8,18 @@ import {
     Patch,
     Post,
     Query,
+    UploadedFiles,
     UseGuards,
+    UseInterceptors,
 } from '@nestjs/common';
 import {
     ApiBearerAuth,
     ApiBody,
+    ApiConsumes,
     ApiOkResponse,
     ApiOperation,
     ApiParam,
+    ApiQuery,
     ApiResponse,
     ApiTags,
 } from '@nestjs/swagger';
@@ -27,6 +31,7 @@ import { AuthUser } from '../../auth/decorators';
 import { JwtUserData } from '../../users/types';
 import { CarStatus } from '../../database/enums/cars';
 import { GARAGE_API_DOCS, GARAGE_BODIES } from '../garage.swagger';
+import { FilesInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('Garage')
 @Controller('garage/cars')
@@ -52,9 +57,22 @@ export class GarageController {
     @ApiOperation(GARAGE_API_DOCS.OPERATIONS.GET_ALL_CARS)
     @ApiOkResponse(GARAGE_API_DOCS.RESPONSES.GET_ALL_CARS)
     @ApiResponse(GARAGE_API_DOCS.RESPONSES.UNAUTHORIZED)
+    @ApiQuery(GARAGE_API_DOCS.QUERIES.STATUS_OPTIONAL)
     async getAll(
         @AuthUser() user: JwtUserData,
         @Query('status') status?: CarStatus,
+    ) {
+        return this.garageService.getAll(user.sub, status);
+    }
+
+    @Get('status/:status')
+    @ApiOperation(GARAGE_API_DOCS.OPERATIONS.GET_CARS_BY_STATUS)
+    @ApiParam(GARAGE_API_DOCS.PARAMS.STATUS)
+    @ApiOkResponse(GARAGE_API_DOCS.RESPONSES.GET_ALL_CARS)
+    @ApiResponse(GARAGE_API_DOCS.RESPONSES.UNAUTHORIZED)
+    async getByStatus(
+        @Param('status') status: CarStatus,
+        @AuthUser() user: JwtUserData,
     ) {
         return this.garageService.getAll(user.sub, status);
     }
@@ -121,16 +139,53 @@ export class GarageController {
             body.price,
         );
     }
-
-    @Get('status/:status')
-    @ApiOperation(GARAGE_API_DOCS.OPERATIONS.GET_CARS_BY_STATUS)
-    @ApiParam(GARAGE_API_DOCS.PARAMS.STATUS)
-    @ApiOkResponse(GARAGE_API_DOCS.RESPONSES.GET_ALL_CARS)
+    @Post(':id/photos')
+    @ApiOperation(GARAGE_API_DOCS.OPERATIONS.ADD_CAR_PHOTOS)
+    @ApiParam(GARAGE_API_DOCS.PARAMS.CAR_ID)
+    @ApiConsumes('multipart/form-data')
+    @ApiBody(GARAGE_BODIES.ADD_CAR_PHOTOS)
+    @ApiOkResponse(GARAGE_API_DOCS.RESPONSES.ADD_CAR_PHOTOS)
+    @ApiResponse(GARAGE_API_DOCS.RESPONSES.NO_PHOTOS)
+    @ApiResponse(GARAGE_API_DOCS.RESPONSES.NOT_FOUND)
     @ApiResponse(GARAGE_API_DOCS.RESPONSES.UNAUTHORIZED)
-    async getByStatus(
-        @Param('status') status: CarStatus,
+    @UseInterceptors(FilesInterceptor('photos', 10))
+    async addPhotos(
+        @Param('id', ParseUUIDPipe) id: string,
+        @UploadedFiles() photos: Express.Multer.File[],
         @AuthUser() user: JwtUserData,
     ) {
-        return this.garageService.getCarsByStatus(user.sub, status);
+        return this.garageService.addPhotos(id, user.sub, photos);
+    }
+
+    @Delete(':id/photos/:photoId')
+    @ApiOperation(GARAGE_API_DOCS.OPERATIONS.REMOVE_CAR_PHOTO)
+    @ApiParam(GARAGE_API_DOCS.PARAMS.CAR_ID)
+    @ApiParam(GARAGE_API_DOCS.PARAMS.PHOTO_ID)
+    @ApiOkResponse(GARAGE_API_DOCS.RESPONSES.REMOVE_CAR_PHOTO)
+    @ApiResponse(GARAGE_API_DOCS.RESPONSES.PHOTO_NOT_FOUND)
+    @ApiResponse(GARAGE_API_DOCS.RESPONSES.NOT_FOUND)
+    @ApiResponse(GARAGE_API_DOCS.RESPONSES.UNAUTHORIZED)
+    async removePhoto(
+        @Param('id', ParseUUIDPipe) id: string,
+        @Param('photoId', ParseUUIDPipe) photoId: string,
+        @AuthUser() user: JwtUserData,
+    ) {
+        return this.garageService.removePhoto(id, photoId, user.sub);
+    }
+
+    @Patch(':id/photos/reorder')
+    @ApiOperation(GARAGE_API_DOCS.OPERATIONS.REORDER_CAR_PHOTOS)
+    @ApiParam(GARAGE_API_DOCS.PARAMS.CAR_ID)
+    @ApiBody(GARAGE_BODIES.REORDER_PHOTOS)
+    @ApiOkResponse(GARAGE_API_DOCS.RESPONSES.REORDER_CAR_PHOTOS)
+    @ApiResponse(GARAGE_API_DOCS.RESPONSES.NOT_FOUND)
+    @ApiResponse(GARAGE_API_DOCS.RESPONSES.BAD_REQUEST)
+    @ApiResponse(GARAGE_API_DOCS.RESPONSES.UNAUTHORIZED)
+    async reorderPhotos(
+        @Param('id', ParseUUIDPipe) id: string,
+        @Body('photoIds') photoIds: string[],
+        @AuthUser() user: JwtUserData,
+    ) {
+        return this.garageService.reorderPhotos(id, photoIds, user.sub);
     }
 }

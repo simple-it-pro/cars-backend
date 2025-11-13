@@ -1,8 +1,11 @@
 import { Module } from '@nestjs/common';
-import { GarageService } from './services/garage.service';
-import { GarageController } from './controllers/garage.controller';
+import { GarageService } from './services';
+import { GarageController } from './controllers';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Car, CarPhoto, FileEntity } from '../database/entities';
 
 @Module({
+    imports: [TypeOrmModule.forFeature([Car, CarPhoto, FileEntity])],
     controllers: [GarageController],
     providers: [GarageService],
 })
