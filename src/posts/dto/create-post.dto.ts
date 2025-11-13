@@ -1,7 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
     IsString,
-    IsNotEmpty,
     Length,
     IsUUID,
     IsArray,
@@ -10,14 +9,6 @@ import {
 } from 'class-validator';
 
 export class CreatePostDto {
-    @ApiProperty({
-        description: 'Заголовок поста',
-        example: 'Заголовок поста',
-    })
-    @IsString()
-    @IsNotEmpty()
-    title: string;
-
     @ApiProperty({
         description: 'Текст поста',
         example: 'Текст поста',
