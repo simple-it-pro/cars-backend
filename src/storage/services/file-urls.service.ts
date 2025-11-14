@@ -40,9 +40,8 @@ export class FileUrlsService {
 
         const obj = value as Record<string, unknown>;
 
-        if (visited.has(obj)) {
-            return obj;
-        }
+        if (visited.has(obj)) return obj;
+
         visited.add(obj);
 
         if (typeof obj.url === 'string') {
