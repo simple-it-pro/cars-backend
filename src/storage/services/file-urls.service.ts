@@ -5,10 +5,6 @@ import { StorageService } from '.';
 export class FileUrlsService {
     constructor(private readonly storageService: StorageService) {}
 
-    async getSignedUrl(key: string): Promise<string> {
-        return this.storageService.getFileUrl(key);
-    }
-
     async addSignedUrl<T extends { url?: string }>(obj: T): Promise<T> {
         if (!obj?.url) return obj;
         const signedUrl = await this.storageService.getFileUrl(obj.url);
@@ -21,9 +17,7 @@ export class FileUrlsService {
     }
 
     async addSignedUrlsDeep<T>(obj: T): Promise<T> {
-        if (!obj || typeof obj !== 'object') {
-            return obj;
-        }
+        if (!obj || typeof obj !== 'object') return obj;
 
         if (Array.isArray(obj)) {
             const mapped = await Promise.all(
@@ -35,15 +29,13 @@ export class FileUrlsService {
         const plain = obj as Record<string, unknown>;
         const newObj: Record<string, unknown> = { ...plain };
 
-        if (typeof plain.url === 'string') {
+        if (typeof plain.url === 'string')
             newObj.url = await this.storageService.getFileUrl(plain.url);
-        }
 
         for (const key of Object.keys(plain)) {
             const value = plain[key];
-            if (value && typeof value === 'object') {
+            if (value && typeof value === 'object')
                 newObj[key] = await this.addSignedUrlsDeep(value);
-            }
         }
 
         return newObj as T;
