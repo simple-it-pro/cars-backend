@@ -290,7 +290,7 @@ export class GarageService {
     }
 
     private validateCarForPublication(car: Car) {
-        const requiredFields = [
+        const requiredFields: (keyof Car)[] = [
             'make',
             'model',
             'year',
@@ -300,12 +300,15 @@ export class GarageService {
             'mileageKm',
         ];
 
-        const missingFields = requiredFields.filter((field) => !car[field]);
+        const missingFields = requiredFields.filter((field) => {
+            const value = car[field];
+            return value === null || value === undefined;
+        });
 
         if (missingFields.length > 0) {
             throw new BadRequestException(
                 ERROR_MESSAGES.GARAGE.CAR.MISSING_REQUIRED_FIELDS_FOR_PUBLICATION(
-                    missingFields,
+                    missingFields as string[],
                 ),
             );
         }
@@ -314,7 +317,7 @@ export class GarageService {
     }
 
     private validateCarForSale(car: Partial<Car>) {
-        const requiredFields = [
+        const requiredFields: (keyof Car)[] = [
             'make',
             'model',
             'year',
@@ -325,12 +328,15 @@ export class GarageService {
             'price',
         ];
 
-        const missingFields = requiredFields.filter((field) => !car[field]);
+        const missingFields = requiredFields.filter((field) => {
+            const value = car[field];
+            return value === null || value === undefined;
+        });
 
         if (missingFields.length > 0) {
             throw new BadRequestException(
                 ERROR_MESSAGES.GARAGE.CAR.CANNOT_REMOVE_REQUIRED_FIELDS_FOR_SALE(
-                    missingFields,
+                    missingFields as string[],
                 ),
             );
         }

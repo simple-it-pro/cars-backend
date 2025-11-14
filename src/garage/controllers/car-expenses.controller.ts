@@ -12,23 +12,27 @@ import {
 import {
     ApiBearerAuth,
     ApiBody,
+    ApiExtraModels,
     ApiOkResponse,
     ApiOperation,
     ApiParam,
     ApiResponse,
     ApiTags,
 } from '@nestjs/swagger';
+
 import { JwtGuard } from '../../auth/guards';
 import { AuthUser } from '../../auth/decorators';
 import { JwtUserData } from '../../users/types';
 import { CarExpensesService } from '../services';
 import { CreateCarExpenseDto, UpdateCarExpenseDto } from '../dto';
 import { CAR_EXPENSE_API_DOCS } from '../swagger';
+import { CarExpense } from '../../database/entities';
 
 @ApiTags('Garage – Expenses')
-@Controller('garage/cars/:carId/expenses')
 @ApiBearerAuth('JWT-auth')
+@ApiExtraModels(CarExpense)
 @UseGuards(JwtGuard)
+@Controller('garage/cars/:carId/expenses')
 export class CarExpensesController {
     constructor(private readonly carExpensesService: CarExpensesService) {}
 

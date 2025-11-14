@@ -5,12 +5,8 @@ import {
     ApiQueryOptions,
     ApiResponseOptions,
 } from '@nestjs/swagger';
-import {
-    Bodyworks,
-    CarStatus,
-    FuelTypes,
-    TransmissionTypes,
-} from '../../database/enums/cars';
+import { CarStatus } from '../../database/enums/cars';
+import { CreateCarDto, UpdateCarDto } from '../dto';
 
 export const GARAGE_API_DOCS = {
     OPERATIONS: {
@@ -97,7 +93,9 @@ export const GARAGE_API_DOCS = {
     RESPONSES: {
         CREATE_CAR: {
             description: 'Автомобиль успешно создан',
+            status: 201,
             schema: {
+                type: 'object',
                 properties: {
                     message: {
                         type: 'string',
@@ -118,7 +116,9 @@ export const GARAGE_API_DOCS = {
         } as ApiResponseOptions,
         GET_ALL_CARS: {
             description: 'Список автомобилей успешно получен',
+            status: 200,
             schema: {
+                type: 'object',
                 properties: {
                     cars: {
                         type: 'array',
@@ -140,7 +140,9 @@ export const GARAGE_API_DOCS = {
         } as ApiResponseOptions,
         GET_CAR: {
             description: 'Автомобиль успешно получен',
+            status: 200,
             schema: {
+                type: 'object',
                 properties: {
                     id: { type: 'string', format: 'uuid' },
                     make: { type: 'string' },
@@ -156,7 +158,9 @@ export const GARAGE_API_DOCS = {
         } as ApiResponseOptions,
         UPDATE_CAR: {
             description: 'Автомобиль успешно обновлен',
+            status: 200,
             schema: {
+                type: 'object',
                 properties: {
                     message: {
                         type: 'string',
@@ -176,7 +180,9 @@ export const GARAGE_API_DOCS = {
         } as ApiResponseOptions,
         DELETE_CAR: {
             description: 'Автомобиль успешно удален',
+            status: 200,
             schema: {
+                type: 'object',
                 properties: {
                     message: {
                         type: 'string',
@@ -187,7 +193,9 @@ export const GARAGE_API_DOCS = {
         } as ApiResponseOptions,
         CHANGE_CAR_STATUS: {
             description: 'Статус автомобиля успешно изменен',
+            status: 200,
             schema: {
+                type: 'object',
                 properties: {
                     message: {
                         type: 'string',
@@ -206,7 +214,9 @@ export const GARAGE_API_DOCS = {
         } as ApiResponseOptions,
         ADD_CAR_PHOTOS: {
             description: 'Фото успешно добавлены',
+            status: 200,
             schema: {
+                type: 'object',
                 properties: {
                     message: {
                         type: 'string',
@@ -234,7 +244,9 @@ export const GARAGE_API_DOCS = {
         } as ApiResponseOptions,
         REMOVE_CAR_PHOTO: {
             description: 'Фото успешно удалено',
+            status: 200,
             schema: {
+                type: 'object',
                 properties: {
                     message: {
                         type: 'string',
@@ -245,7 +257,9 @@ export const GARAGE_API_DOCS = {
         } as ApiResponseOptions,
         REORDER_CAR_PHOTOS: {
             description: 'Порядок фото успешно изменен',
+            status: 200,
             schema: {
+                type: 'object',
                 properties: {
                     message: {
                         type: 'string',
@@ -257,7 +271,9 @@ export const GARAGE_API_DOCS = {
 
         NOT_FOUND: {
             description: 'Автомобиль не найден',
+            status: 404,
             schema: {
+                type: 'object',
                 properties: {
                     message: {
                         type: 'string',
@@ -270,7 +286,9 @@ export const GARAGE_API_DOCS = {
         } as ApiResponseOptions,
         PHOTO_NOT_FOUND: {
             description: 'Фото не найдено',
+            status: 404,
             schema: {
+                type: 'object',
                 properties: {
                     message: { type: 'string', example: 'Фото не найдено' },
                     error: { type: 'string', example: 'Not Found' },
@@ -280,7 +298,9 @@ export const GARAGE_API_DOCS = {
         } as ApiResponseOptions,
         BAD_REQUEST: {
             description: 'Неверные данные',
+            status: 400,
             schema: {
+                type: 'object',
                 properties: {
                     message: {
                         type: 'string',
@@ -293,7 +313,9 @@ export const GARAGE_API_DOCS = {
         } as ApiResponseOptions,
         INVALID_STATUS_TRANSITION: {
             description: 'Недопустимый переход между статусами',
+            status: 400,
             schema: {
+                type: 'object',
                 properties: {
                     message: {
                         type: 'string',
@@ -306,7 +328,9 @@ export const GARAGE_API_DOCS = {
         } as ApiResponseOptions,
         NO_PHOTOS: {
             description: 'Не загружено ни одного фото',
+            status: 400,
             schema: {
+                type: 'object',
                 properties: {
                     message: {
                         type: 'string',
@@ -319,7 +343,9 @@ export const GARAGE_API_DOCS = {
         } as ApiResponseOptions,
         UNAUTHORIZED: {
             description: 'Пользователь не авторизован',
+            status: 401,
             schema: {
+                type: 'object',
                 properties: {
                     message: { type: 'string', example: 'Unauthorized' },
                     statusCode: { type: 'number', example: 401 },
@@ -331,159 +357,13 @@ export const GARAGE_API_DOCS = {
 
 export const GARAGE_BODIES = {
     CREATE_CAR: {
-        schema: {
-            type: 'object',
-            properties: {
-                make: {
-                    type: 'string',
-                    description: 'Марка автомобиля',
-                    example: 'Toyota',
-                },
-                model: {
-                    type: 'string',
-                    description: 'Модель автомобиля',
-                    example: 'Camry',
-                },
-                year: {
-                    type: 'number',
-                    description: 'Год выпуска',
-                    example: 2020,
-                },
-                bodywork: {
-                    type: 'string',
-                    description: 'Тип кузова',
-                    enum: Bodyworks,
-                    example: Bodyworks.SEDAN,
-                },
-                fuelType: {
-                    type: 'string',
-                    description: 'Тип топлива',
-                    enum: FuelTypes,
-                    example: FuelTypes.PETROL,
-                },
-                transmission: {
-                    type: 'string',
-                    description: 'Тип коробки передач',
-                    enum: TransmissionTypes,
-                    example: TransmissionTypes.MT,
-                },
-                mileageKm: {
-                    type: 'number',
-                    description: 'Пробег, км',
-                    example: 45000,
-                },
-                color: {
-                    type: 'string',
-                    description: 'Цвет кузова',
-                    example: 'Белый',
-                    nullable: true,
-                },
-                powerHp: {
-                    type: 'number',
-                    description: 'Мощность, л.с.',
-                    example: 181,
-                    nullable: true,
-                },
-                engineVolumeL: {
-                    type: 'number',
-                    description: 'Объём двигателя, л',
-                    example: 2.5,
-                    nullable: true,
-                },
-                fuelConsumption: {
-                    type: 'number',
-                    description: 'Расход топлива, л/100 км',
-                    example: 7.8,
-                    nullable: true,
-                },
-            },
-            required: [
-                'make',
-                'model',
-                'year',
-                'bodywork',
-                'fuelType',
-                'transmission',
-                'mileageKm',
-            ],
-        },
+        description: 'Данные для создания автомобиля',
+        type: CreateCarDto,
     } as ApiBodyOptions,
 
     UPDATE_CAR: {
-        schema: {
-            type: 'object',
-            properties: {
-                make: {
-                    type: 'string',
-                    description: 'Марка автомобиля',
-                    example: 'Toyota',
-                    nullable: true,
-                },
-                model: {
-                    type: 'string',
-                    description: 'Модель автомобиля',
-                    example: 'Camry',
-                    nullable: true,
-                },
-                year: {
-                    type: 'number',
-                    description: 'Год выпуска',
-                    example: 2020,
-                    nullable: true,
-                },
-                bodywork: {
-                    type: 'string',
-                    description: 'Тип кузова',
-                    enum: Bodyworks,
-                    example: Bodyworks.SEDAN,
-                    nullable: true,
-                },
-                fuelType: {
-                    type: 'string',
-                    description: 'Тип топлива',
-                    enum: FuelTypes,
-                    example: FuelTypes.PETROL,
-                    nullable: true,
-                },
-                transmission: {
-                    type: 'string',
-                    description: 'Тип коробки передач',
-                    enum: TransmissionTypes,
-                    example: TransmissionTypes.AT,
-                    nullable: true,
-                },
-                mileageKm: {
-                    type: 'number',
-                    description: 'Пробег, км',
-                    example: 45000,
-                    nullable: true,
-                },
-                color: {
-                    type: 'string',
-                    description: 'Цвет кузова',
-                    example: 'Белый',
-                    nullable: true,
-                },
-                powerHp: {
-                    type: 'number',
-                    description: 'Мощность, л.с.',
-                    example: 181,
-                    nullable: true,
-                },
-                engineVolumeL: {
-                    type: 'number',
-                    description: 'Объём двигателя, л',
-                    example: 2.5,
-                    nullable: true,
-                },
-                fuelConsumption: {
-                    type: 'number',
-                    description: 'Расход топлива, л/100 км',
-                    example: 7.8,
-                    nullable: true,
-                },
-            },
-        },
+        description: 'Данные для обновления автомобиля',
+        type: UpdateCarDto,
     } as ApiBodyOptions,
 
     CHANGE_CAR_STATUS: {

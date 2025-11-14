@@ -65,18 +65,6 @@ export class GarageController {
         return this.garageService.getAll(user.sub, status);
     }
 
-    @Get('status/:status')
-    @ApiOperation(GARAGE_API_DOCS.OPERATIONS.GET_CARS_BY_STATUS)
-    @ApiParam(GARAGE_API_DOCS.PARAMS.STATUS)
-    @ApiOkResponse(GARAGE_API_DOCS.RESPONSES.GET_ALL_CARS)
-    @ApiResponse(GARAGE_API_DOCS.RESPONSES.UNAUTHORIZED)
-    async getByStatus(
-        @Param('status') status: CarStatus,
-        @AuthUser() user: JwtUserData,
-    ) {
-        return this.garageService.getAll(user.sub, status);
-    }
-
     @Get(':id')
     @ApiOperation(GARAGE_API_DOCS.OPERATIONS.GET_CAR)
     @ApiParam(GARAGE_API_DOCS.PARAMS.CAR_ID)

@@ -12,6 +12,7 @@ import {
 import {
     ApiBearerAuth,
     ApiBody,
+    ApiExtraModels,
     ApiOkResponse,
     ApiOperation,
     ApiParam,
@@ -25,11 +26,13 @@ import { JwtUserData } from '../../users/types';
 import { ServiceRecordsService } from '../services';
 import { CreateServiceRecordDto, UpdateServiceRecordDto } from '../dto';
 import { SERVICE_RECORDS_API_DOCS } from '../swagger';
+import { ServiceRecord } from '../../database/entities';
 
 @ApiTags('Garage – Service Records')
-@Controller('garage/cars/:carId/service-records')
 @ApiBearerAuth('JWT-auth')
+@ApiExtraModels(ServiceRecord)
 @UseGuards(JwtGuard)
+@Controller('garage/cars/:carId/service-records')
 export class ServiceRecordsController {
     constructor(
         private readonly serviceRecordsService: ServiceRecordsService,

@@ -74,7 +74,8 @@ export class ChatsService {
     async findOrCreatePrivateChat(userA: User, userB: User): Promise<Chat> {
         await this.checkMutualBlock(userA.id, userB.id);
 
-        const uniqueKey = `private_${userA.id}-${userB.id}`;
+        const [firstId, secondId] = [userA.id, userB.id].sort();
+        const uniqueKey = `private_${firstId}-${secondId}`;
 
         let chat = await this.chatRepository.findOne({
             where: { uniqueKey },
