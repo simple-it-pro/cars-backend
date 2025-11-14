@@ -2,40 +2,28 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { Car, CarExpense } from '../../database/entities';
+import { CarExpense } from '../../database/entities';
 
 import { CreateCarExpenseDto, UpdateCarExpenseDto } from '../dto';
 import {
     ERROR_MESSAGES,
     SUCCESS_MESSAGES,
 } from '../../common/constants/messages';
+import { GarageService } from './garage.service';
 
 @Injectable()
 export class CarExpensesService {
     constructor(
-        @InjectRepository(Car)
-        private readonly carRepository: Repository<Car>,
         @InjectRepository(CarExpense)
         private readonly expenseRepository: Repository<CarExpense>,
+        private readonly garageService: GarageService,
     ) {}
 
-    private async getUserCar(userId: string, carId: string): Promise<Car> {
-        const car = await this.carRepository.findOne({
-            where: { id: carId, owner: { id: userId } },
-        });
-
-        if (!car) {
-            throw new NotFoundException(ERROR_MESSAGES.GARAGE.CAR.NOT_FOUND);
-        }
-
-        return car;
-    }
-
     async getAll(userId: string, carId: string) {
-        await this.getUserCar(userId, carId);
+        await this.garageService.getUserCarAndCheckOwnership(userId, carId);
 
         const expenses = await this.expenseRepository.find({
-            where: { carId },
+            where: { car: { id: carId } },
             order: { date: 'DESC', createdAt: 'DESC' },
         });
 
@@ -46,10 +34,10 @@ export class CarExpensesService {
     }
 
     async getOne(userId: string, carId: string, expenseId: string) {
-        await this.getUserCar(userId, carId);
+        await this.garageService.getUserCarAndCheckOwnership(userId, carId);
 
         const expense = await this.expenseRepository.findOne({
-            where: { id: expenseId, carId },
+            where: { id: expenseId, car: { id: carId } },
         });
 
         if (!expense) {
@@ -62,14 +50,17 @@ export class CarExpensesService {
     }
 
     async create(userId: string, carId: string, dto: CreateCarExpenseDto) {
-        const car = await this.getUserCar(userId, carId);
+        const car = await this.garageService.getUserCarAndCheckOwnership(
+            userId,
+            carId,
+        );
 
         const date = dto.date ?? new Date();
 
         const expense = this.expenseRepository.create({
             ...dto,
             date,
-            carId: car.id,
+            car,
         });
 
         const saved = await this.expenseRepository.save(expense);
@@ -86,10 +77,10 @@ export class CarExpensesService {
         expenseId: string,
         dto: UpdateCarExpenseDto,
     ) {
-        await this.getUserCar(userId, carId);
+        await this.garageService.getUserCarAndCheckOwnership(userId, carId);
 
         const expense = await this.expenseRepository.findOne({
-            where: { id: expenseId, carId },
+            where: { id: expenseId, car: { id: carId } },
         });
 
         if (!expense) {
@@ -109,10 +100,10 @@ export class CarExpensesService {
     }
 
     async delete(userId: string, carId: string, expenseId: string) {
-        await this.getUserCar(userId, carId);
+        await this.garageService.getUserCarAndCheckOwnership(userId, carId);
 
         const expense = await this.expenseRepository.findOne({
-            where: { id: expenseId, carId },
+            where: { id: expenseId, car: { id: carId } },
         });
 
         if (!expense) {

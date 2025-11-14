@@ -289,6 +289,21 @@ export class GarageService {
         };
     }
 
+    async getUserCarAndCheckOwnership(
+        userId: string,
+        carId: string,
+    ): Promise<Car> {
+        const car = await this.carRepository.findOne({
+            where: { id: carId, owner: { id: userId } },
+        });
+
+        if (!car) {
+            throw new NotFoundException(ERROR_MESSAGES.GARAGE.CAR.NOT_FOUND);
+        }
+
+        return car;
+    }
+
     private validateCarForPublication(car: Car) {
         const requiredFields: (keyof Car)[] = [
             'make',

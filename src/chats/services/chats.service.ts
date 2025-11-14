@@ -164,10 +164,6 @@ export class ChatsService {
         return savedChat;
     }
 
-    private async addSignedMessage(message: Message) {
-        return this.fileUrlsService.addSignedUrlsDeep(message);
-    }
-
     private async initializeChatData(chat: Chat, users: User[]): Promise<void> {
         const unreadChats = users.map((user) =>
             this.unreadChatRepository.create({
@@ -199,7 +195,6 @@ export class ChatsService {
             })
             .leftJoin('chat.lastMessage', 'lastMessage');
 
-        // скрываем чаты, где есть взаимные блокировки с кем-то из участников
         qb.andWhere((qb) => {
             const subQuery = qb
                 .subQuery()
@@ -310,9 +305,10 @@ export class ChatsService {
             chats.map(async (chat) => {
                 const hasLastMessage = Boolean(chat.lastMessage);
                 if (chat.lastMessage) {
-                    const messageWithUrls = await this.addSignedMessage(
-                        chat.lastMessage,
-                    );
+                    const messageWithUrls =
+                        await this.fileUrlsService.addSignedUrlsDeep(
+                            chat.lastMessage,
+                        );
                     return {
                         ...chat,
                         lastMessage: messageWithUrls,

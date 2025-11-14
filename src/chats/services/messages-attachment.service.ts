@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { FileUrlsService, StorageService } from '../../storage/services';
 import { Message } from '../../database/entities';
 import { ERROR_MESSAGES } from '../../common/constants/messages';
@@ -6,6 +6,8 @@ import { Asset } from '../../database/interfaces';
 
 @Injectable()
 export class MessagesAttachmentService {
+    private readonly logger = new Logger(MessagesAttachmentService.name);
+
     constructor(
         private readonly storageService: StorageService,
         private readonly fileUrlsService: FileUrlsService,
@@ -57,6 +59,10 @@ export class MessagesAttachmentService {
                         size: file.size,
                     });
                 } catch (error) {
+                    this.logger.error(
+                        `Failed to upload file ${file.originalname}:`,
+                        error,
+                    );
                     errors.push({
                         fileName: file.originalname,
                         error: error.message || 'Unknown upload error',
@@ -82,10 +88,10 @@ export class MessagesAttachmentService {
             for (const attachment of message.attachments) {
                 try {
                     await this.storageService.deleteFile(attachment.url);
-                } catch {
-                    deletionErrors.push(
-                        `Failed to delete attachment: ${attachment.name || attachment.url}`,
-                    );
+                } catch (error) {
+                    const errorMsg = `Failed to delete attachment: ${attachment.name || attachment.url}`;
+                    this.logger.error(errorMsg, error);
+                    deletionErrors.push(errorMsg);
                 }
             }
         }
@@ -93,10 +99,10 @@ export class MessagesAttachmentService {
         if (message.voiceUrl) {
             try {
                 await this.storageService.deleteFile(message.voiceUrl);
-            } catch {
-                deletionErrors.push(
-                    `Failed to delete voice message: ${message.voiceUrl}`,
-                );
+            } catch (error) {
+                const errorMsg = `Failed to delete voice message: ${message.voiceUrl}`;
+                this.logger.error(errorMsg, error);
+                deletionErrors.push(errorMsg);
             }
         }
 

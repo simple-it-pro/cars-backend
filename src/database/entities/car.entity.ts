@@ -22,7 +22,7 @@ import { CarExpense, ServiceRecord } from './';
 import { numericToNumber } from '../utils';
 
 @Entity({ name: 'cars' })
-@Index('idx_cars_owner_status', ['ownerId', 'status'])
+@Index('idx_cars_owner_status', ['owner', 'status'])
 @Index('idx_cars_make_model_year', ['make', 'model', 'year'])
 @Check('chk_cars_mileage_nonneg', '"mileageKm" >= 0')
 class Car {
@@ -57,9 +57,6 @@ class Car {
     @ManyToOne(() => User, (user) => user.cars, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'ownerId' })
     owner: User;
-
-    @Column({ type: 'uuid' })
-    ownerId: string;
 
     @ApiProperty({ example: 'Toyota', description: 'Марка автомобиля' })
     @Column({ type: 'varchar', length: 80 })

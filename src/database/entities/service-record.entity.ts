@@ -25,13 +25,6 @@ class ServiceRecord {
     car: Car;
 
     @ApiProperty({
-        example: '7c9e6679-7425-40de-944b-e07fc1f90ae7',
-        description: 'ID автомобиля, для которого выполнено обслуживание',
-    })
-    @Column('uuid')
-    carId: string;
-
-    @ApiProperty({
         example: '2025-10-01T10:00:00.000Z',
         description: 'Дата выполнения обслуживания',
         type: 'string',

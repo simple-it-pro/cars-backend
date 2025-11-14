@@ -20,17 +20,14 @@ class CarExpense {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
+    @ApiProperty({
+        description: 'Автомобиль, к которому относится расход',
+        type: () => Car,
+    })
     @ManyToOne(() => Car, (car) => car.expenses, {
         onDelete: 'CASCADE',
     })
     car: Car;
-
-    @ApiProperty({
-        example: '7c9e6679-7425-40de-944b-e07fc1f90ae7',
-        description: 'ID автомобиля, к которому относится расход',
-    })
-    @Column('uuid')
-    carId: string;
 
     @ApiProperty({
         example: ExpenseTypes.FUEL,
