@@ -114,9 +114,8 @@ export class GarageService {
     async update(userId: string, carId: string, dto: UpdateCarDto) {
         const car = await this.getOne(userId, carId);
 
-        if (car.status === CarStatus.LISTED) {
+        if (car.status === CarStatus.LISTED)
             this.validateCarForSale({ ...car, ...dto });
-        }
 
         await this.carRepository.update(carId, dto);
         const updatedCar = await this.getOne(userId, carId);
@@ -136,9 +135,7 @@ export class GarageService {
             await manager.delete(CarPhoto, { carId: car.id });
 
             const fileIds = car.photos.map((photo) => photo.file.id);
-            if (fileIds.length > 0) {
-                await manager.delete(FileEntity, fileIds);
-            }
+            if (fileIds.length > 0) await manager.delete(FileEntity, fileIds);
 
             await manager.delete(Car, car.id);
         });
@@ -262,11 +259,10 @@ export class GarageService {
         const car = await this.getUserCarAndCheckOwnership(userId, carId);
 
         const photo = car.photos?.find((p) => p.file.id === fileId);
-        if (!photo) {
+        if (!photo)
             throw new NotFoundException(
                 ERROR_MESSAGES.GARAGE.CAR.PHOTO_NOT_FOUND,
             );
-        }
 
         await this.carRepository.manager.transaction(async (manager) => {
             await manager.delete(CarPhoto, { carId, fileId });
@@ -297,19 +293,17 @@ export class GarageService {
     async reorderPhotos(carId: string, fileIds: string[], userId: string) {
         const car = await this.getUserCarAndCheckOwnership(userId, carId);
 
-        if (fileIds.length !== car.photos.length) {
+        if (fileIds.length !== car.photos.length)
             throw new BadRequestException(
                 ERROR_MESSAGES.GARAGE.CAR.PHOTO_IDS_COUNT_MISMATCH,
             );
-        }
 
         const existingFileIds = new Set(car.photos.map((p) => p.file.id));
         for (const fileId of fileIds) {
-            if (!existingFileIds.has(fileId)) {
+            if (!existingFileIds.has(fileId))
                 throw new BadRequestException(
                     ERROR_MESSAGES.GARAGE.CAR.PHOTO_NOT_BELONGS_TO_CAR(fileId),
                 );
-            }
         }
 
         await this.carRepository.manager.transaction(async (manager) => {
@@ -339,17 +333,14 @@ export class GarageService {
             relations: ['photos', 'photos.file'],
         });
 
-        if (!car) {
+        if (!car)
             throw new NotFoundException(ERROR_MESSAGES.GARAGE.CAR.NOT_FOUND);
-        }
 
         return car;
     }
 
     private async addSignedUrlsToCar(car: Car): Promise<Car> {
-        if (!car.photos || car.photos.length === 0) {
-            return car;
-        }
+        if (!car.photos || car.photos.length === 0) return car;
 
         const photos = car.photos.sort((a, b) => a.order - b.order);
         const files = photos.map((photo) => photo.file);
@@ -384,13 +375,12 @@ export class GarageService {
             return value === null || value === undefined;
         });
 
-        if (missingFields.length > 0) {
+        if (missingFields.length > 0)
             throw new BadRequestException(
                 ERROR_MESSAGES.GARAGE.CAR.MISSING_REQUIRED_FIELDS_FOR_PUBLICATION(
                     missingFields as string[],
                 ),
             );
-        }
 
         this.logger.log(`Car ${car.id} validated for publication`);
     }
@@ -412,12 +402,11 @@ export class GarageService {
             return value === null || value === undefined;
         });
 
-        if (missingFields.length > 0) {
+        if (missingFields.length > 0)
             throw new BadRequestException(
                 ERROR_MESSAGES.GARAGE.CAR.CANNOT_REMOVE_REQUIRED_FIELDS_FOR_SALE(
                     missingFields as string[],
                 ),
             );
-        }
     }
 }

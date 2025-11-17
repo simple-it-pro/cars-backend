@@ -40,11 +40,10 @@ export class CarExpensesService {
             where: { id: expenseId, car: { id: carId } },
         });
 
-        if (!expense) {
+        if (!expense)
             throw new NotFoundException(
                 ERROR_MESSAGES.GARAGE.EXPENSE.NOT_FOUND,
             );
-        }
 
         return expense;
     }
@@ -83,11 +82,10 @@ export class CarExpensesService {
             where: { id: expenseId, car: { id: carId } },
         });
 
-        if (!expense) {
+        if (!expense)
             throw new NotFoundException(
                 ERROR_MESSAGES.GARAGE.EXPENSE?.NOT_FOUND,
             );
-        }
 
         const updated = await this.expenseRepository.save({
             ...expense,
