@@ -21,14 +21,14 @@ export class ServiceRecordsService {
     async getAll(userId: string, carId: string) {
         await this.garageService.getUserCarAndCheckOwnership(userId, carId);
 
-        const records = await this.recordRepository.find({
+        const [records, total] = await this.recordRepository.findAndCount({
             where: { car: { id: carId } },
             order: { serviceDate: 'DESC', createdAt: 'DESC' },
         });
 
         return {
             records,
-            total: records.length,
+            total,
         };
     }
 

@@ -22,14 +22,14 @@ export class CarExpensesService {
     async getAll(userId: string, carId: string) {
         await this.garageService.getUserCarAndCheckOwnership(userId, carId);
 
-        const expenses = await this.expenseRepository.find({
+        const [expenses, total] = await this.expenseRepository.findAndCount({
             where: { car: { id: carId } },
             order: { date: 'DESC', createdAt: 'DESC' },
         });
 
         return {
             expenses,
-            total: expenses.length,
+            total,
         };
     }
 
@@ -89,9 +89,10 @@ export class CarExpensesService {
             );
         }
 
-        Object.assign(expense, dto);
-
-        const updated = await this.expenseRepository.save(expense);
+        const updated = await this.expenseRepository.save({
+            ...expense,
+            ...dto,
+        });
 
         return {
             message: SUCCESS_MESSAGES.GARAGE.EXPENSE.UPDATED,
@@ -102,17 +103,10 @@ export class CarExpensesService {
     async delete(userId: string, carId: string, expenseId: string) {
         await this.garageService.getUserCarAndCheckOwnership(userId, carId);
 
-        const expense = await this.expenseRepository.findOne({
-            where: { id: expenseId, car: { id: carId } },
+        await this.expenseRepository.delete({
+            id: expenseId,
+            car: { id: carId },
         });
-
-        if (!expense) {
-            throw new NotFoundException(
-                ERROR_MESSAGES.GARAGE.EXPENSE.NOT_FOUND,
-            );
-        }
-
-        await this.expenseRepository.remove(expense);
 
         return {
             message: SUCCESS_MESSAGES.GARAGE.EXPENSE.DELETED,

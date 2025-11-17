@@ -7,14 +7,15 @@ import {
 import { CreateCarDto, UpdateCarDto } from '../dto';
 import { CarStatus } from '../../database/enums/cars';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Car } from '../../database/entities/';
-import { Repository } from 'typeorm';
+import { Car, CarPhoto, FileEntity } from '../../database/entities/';
+import { EntityManager, In, Repository } from 'typeorm';
 import {
     ERROR_MESSAGES,
     SUCCESS_MESSAGES,
 } from '../../common/constants/messages';
-import { CarPhoto, FileEntity } from '../../database/entities';
-import { FileStatusEnum, FileTypeEnum } from '../../database/enums';
+import { FileStatusEnum } from '../../database/enums';
+import { FilesService } from '../../files/services';
+import { FileWithFormat } from '../../files/interfaces';
 
 @Injectable()
 export class GarageService {
@@ -23,30 +24,35 @@ export class GarageService {
     constructor(
         @InjectRepository(Car)
         private readonly carRepository: Repository<Car>,
-        @InjectRepository(CarPhoto)
-        private readonly carPhotoRepository: Repository<CarPhoto>,
-        @InjectRepository(FileEntity)
-        private readonly fileRepository: Repository<FileEntity>,
+        private readonly filesService: FilesService,
     ) {}
+
+    preUploadFile(file: FileWithFormat) {
+        return this.filesService.preUploadFile(file);
+    }
 
     async getAll(userId: string, status?: CarStatus) {
         const where: any = { owner: { id: userId } };
 
         if (status) where.status = status;
 
-        const cars = await this.carRepository.find({
+        const [cars, total] = await this.carRepository.findAndCount({
             where,
-            relations: ['owner'],
+            relations: ['owner', 'photos', 'photos.file'],
             order: { createdAt: 'DESC' },
         });
 
+        const carsWithSignedUrls = await Promise.all(
+            cars.map((car) => this.addSignedUrlsToCar(car)),
+        );
+
         this.logger.log(
-            `User ${userId} retrieved ${cars.length} cars${status ? ` with status ${status}` : ''}`,
+            `User ${userId} retrieved ${total} cars${status ? ` with status ${status}` : ''}`,
         );
 
         return {
-            cars,
-            total: cars.length,
+            cars: carsWithSignedUrls,
+            total,
         };
     }
 
@@ -56,7 +62,7 @@ export class GarageService {
                 id: carId,
                 owner: { id: userId },
             },
-            relations: ['owner'],
+            relations: ['owner', 'photos', 'photos.file'],
         });
 
         if (!car) {
@@ -66,18 +72,34 @@ export class GarageService {
             throw new NotFoundException(ERROR_MESSAGES.GARAGE.CAR.NOT_FOUND);
         }
 
+        const carWithSignedUrls = await this.addSignedUrlsToCar(car);
+
         this.logger.log(`User ${userId} retrieved car ${carId}`);
-        return car;
+        return carWithSignedUrls;
     }
 
-    async create(userId: string, dto: CreateCarDto) {
+    async create(userId: string, dto: CreateCarDto & { photoIds?: string[] }) {
         const car = this.carRepository.create({
             ...dto,
             owner: { id: userId },
             status: CarStatus.WAREHOUSE,
         });
 
-        const savedCar = await this.carRepository.save(car);
+        const savedCar = await this.carRepository.manager.transaction(
+            async (manager) => {
+                const savedCar = await manager.save(Car, car);
+
+                if (dto.photoIds && dto.photoIds.length > 0) {
+                    await this.attachPhotosInternal(
+                        manager,
+                        savedCar.id,
+                        dto.photoIds,
+                    );
+                }
+
+                return savedCar;
+            },
+        );
 
         this.logger.log(
             `User ${userId} created new car: ${savedCar.id} - ${savedCar.make} ${savedCar.model}`,
@@ -85,7 +107,7 @@ export class GarageService {
 
         return {
             message: SUCCESS_MESSAGES.GARAGE.CAR.CREATED,
-            car: savedCar,
+            car: await this.getOne(userId, savedCar.id),
         };
     }
 
@@ -110,7 +132,16 @@ export class GarageService {
     async delete(userId: string, carId: string) {
         const car = await this.getOne(userId, carId);
 
-        await this.carRepository.remove(car);
+        await this.carRepository.manager.transaction(async (manager) => {
+            await manager.delete(CarPhoto, { carId: car.id });
+
+            const fileIds = car.photos.map((photo) => photo.file.id);
+            if (fileIds.length > 0) {
+                await manager.delete(FileEntity, fileIds);
+            }
+
+            await manager.delete(Car, car.id);
+        });
 
         this.logger.log(`User ${userId} deleted car: ${carId}`);
 
@@ -129,25 +160,28 @@ export class GarageService {
 
         const updateData: Partial<Car> = { status };
 
-        if (status === CarStatus.LISTED) {
-            if (!price)
-                throw new BadRequestException(
-                    ERROR_MESSAGES.GARAGE.CAR.PRICE_REQUIRED,
+        switch (status) {
+            case CarStatus.LISTED:
+                if (!price)
+                    throw new BadRequestException(
+                        ERROR_MESSAGES.GARAGE.CAR.PRICE_REQUIRED,
+                    );
+
+                this.validateCarForPublication(car);
+                updateData.price = price;
+
+                this.logger.log(
+                    `Car ${carId} prepared for sale with price: ${price}`,
                 );
-
-            this.validateCarForPublication(car);
-            updateData.price = price;
-
-            // TODO: Здесь будет интеграция с сервисом объявлений
-            this.logger.log(
-                `Car ${carId} prepared for sale with price: ${price}`,
-            );
-        } else if (status === CarStatus.ARCHIVED) {
-            updateData.price = null;
-            this.logger.log(`Car ${carId} moved to archive`);
-        } else if (status === CarStatus.WAREHOUSE) {
-            updateData.price = null;
-            this.logger.log(`Car ${carId} moved to warehouse`);
+                break;
+            case CarStatus.ARCHIVED:
+                updateData.price = null;
+                this.logger.log(`Car ${carId} moved to archive`);
+                break;
+            case CarStatus.WAREHOUSE:
+                updateData.price = null;
+                this.logger.log(`Car ${carId} moved to warehouse`);
+                break;
         }
 
         await this.carRepository.update(carId, updateData);
@@ -163,88 +197,94 @@ export class GarageService {
         };
     }
 
-    async addPhotos(
-        carId: string,
-        userId: string,
-        photos: Express.Multer.File[],
-    ) {
-        const car = await this.getOne(userId, carId);
+    async attachPhotos(carId: string, userId: string, fileIds: string[]) {
+        await this.getUserCarAndCheckOwnership(userId, carId);
 
-        if (!photos || photos.length === 0)
-            throw new BadRequestException(ERROR_MESSAGES.GARAGE.CAR.NO_PHOTOS);
-
-        if (car.photos.length + photos.length > 10)
-            throw new BadRequestException(
-                ERROR_MESSAGES.GARAGE.PHOTO.TOO_MANY_PHOTOS,
-            );
-
-        const lastOrder =
-            car.photos.length > 0
-                ? Math.max(...car.photos.map((p) => p.order))
-                : -1;
-
-        const newEntities: CarPhoto[] = [];
-
-        for (const [index, file] of photos.entries()) {
-            if (!file.mimetype.startsWith('image/')) {
-                throw new BadRequestException(
-                    ERROR_MESSAGES.GARAGE.PHOTO.INVALID_FILE_TYPE,
-                );
-            }
-
-            const ext = file.originalname.split('.').pop() || '';
-
-            const fileEntity = this.fileRepository.create({
-                name: file.originalname,
-                ext,
-                size: file.size,
-                type: FileTypeEnum.IMAGE,
-                status: FileStatusEnum.ATTACHED,
-                url: file.filename,
-            });
-
-            const savedFile = await this.fileRepository.save(fileEntity);
-
-            const carPhoto = this.carPhotoRepository.create({
-                carId: car.id,
-                fileId: savedFile.id,
-                order: lastOrder + index + 1,
-            });
-
-            newEntities.push(carPhoto);
-        }
-
-        await this.carPhotoRepository.save(newEntities);
+        await this.carRepository.manager.transaction(async (manager) => {
+            await this.attachPhotosInternal(manager, carId, fileIds);
+        });
 
         const updatedCar = await this.getOne(userId, carId);
 
         return {
-            message: SUCCESS_MESSAGES.GARAGE.PHOTO.UPLOADED,
+            message: SUCCESS_MESSAGES.GARAGE.PHOTO.ATTACHED,
             car: updatedCar,
         };
     }
 
-    async removePhoto(carId: string, photoId: string, userId: string) {
-        const car = await this.getOne(userId, carId);
+    private async attachPhotosInternal(
+        manager: EntityManager,
+        carId: string,
+        fileIds: string[],
+    ) {
+        const currentPhotos = await manager.find(CarPhoto, {
+            where: { carId },
+        });
 
-        const photo = car.photos.find((p) => p.id === photoId);
+        if (currentPhotos.length + fileIds.length > 10)
+            throw new BadRequestException(
+                ERROR_MESSAGES.GARAGE.PHOTO.TOO_MANY_PHOTOS,
+            );
+
+        const files = await manager.find(FileEntity, {
+            where: {
+                id: In(fileIds),
+                status: FileStatusEnum.TEMPORARY,
+            },
+        });
+
+        if (files.length !== fileIds.length)
+            throw new BadRequestException(
+                ERROR_MESSAGES.GARAGE.CAR.FILES_NOT_FOUND,
+            );
+
+        const lastOrder =
+            currentPhotos.length > 0
+                ? Math.max(...currentPhotos.map((p) => p.order))
+                : -1;
+
+        const newCarPhotos = fileIds.map((fileId, index) =>
+            manager.create(CarPhoto, {
+                carId,
+                fileId,
+                order: lastOrder + index + 1,
+            }),
+        );
+
+        await manager.save(CarPhoto, newCarPhotos);
+
+        await manager.update(FileEntity, fileIds, {
+            status: FileStatusEnum.ATTACHED,
+        });
+    }
+
+    async removePhoto(carId: string, fileId: string, userId: string) {
+        const car = await this.getUserCarAndCheckOwnership(userId, carId);
+
+        const photo = car.photos?.find((p) => p.file.id === fileId);
         if (!photo) {
             throw new NotFoundException(
                 ERROR_MESSAGES.GARAGE.CAR.PHOTO_NOT_FOUND,
             );
         }
 
-        await this.carPhotoRepository.delete(photoId);
-        await this.fileRepository.delete(photo.fileId);
+        await this.carRepository.manager.transaction(async (manager) => {
+            await manager.delete(CarPhoto, { carId, fileId });
 
-        const sorted = (
-            await this.carPhotoRepository.find({
+            await this.filesService.deleteFile(fileId);
+
+            const remainingPhotos = await manager.find(CarPhoto, {
                 where: { carId },
                 order: { order: 'ASC' },
-            })
-        ).map((p, i) => ({ ...p, order: i }));
+            });
 
-        await this.carPhotoRepository.save(sorted);
+            const reorderedPhotos = remainingPhotos.map((photo, index) => ({
+                ...photo,
+                order: index,
+            }));
+
+            await manager.save(CarPhoto, reorderedPhotos);
+        });
 
         const updatedCar = await this.getOne(userId, carId);
 
@@ -254,32 +294,33 @@ export class GarageService {
         };
     }
 
-    async reorderPhotos(carId: string, photoIds: string[], userId: string) {
-        const car = await this.getOne(userId, carId);
+    async reorderPhotos(carId: string, fileIds: string[], userId: string) {
+        const car = await this.getUserCarAndCheckOwnership(userId, carId);
 
-        if (photoIds.length !== car.photos.length) {
+        if (fileIds.length !== car.photos.length) {
             throw new BadRequestException(
                 ERROR_MESSAGES.GARAGE.CAR.PHOTO_IDS_COUNT_MISMATCH,
             );
         }
 
-        const existingIds = new Set(car.photos.map((p) => p.id));
-        for (const id of photoIds) {
-            if (!existingIds.has(id)) {
+        const existingFileIds = new Set(car.photos.map((p) => p.file.id));
+        for (const fileId of fileIds) {
+            if (!existingFileIds.has(fileId)) {
                 throw new BadRequestException(
-                    ERROR_MESSAGES.GARAGE.CAR.PHOTO_NOT_BELONGS_TO_CAR(id),
+                    ERROR_MESSAGES.GARAGE.CAR.PHOTO_NOT_BELONGS_TO_CAR(fileId),
                 );
             }
         }
 
-        const reordered = photoIds.map((id, index) => ({
-            id,
-            order: index,
-        }));
-
-        for (const { id, order } of reordered) {
-            await this.carPhotoRepository.update(id, { order });
-        }
+        await this.carRepository.manager.transaction(async (manager) => {
+            for (const [index, fileId] of fileIds.entries()) {
+                await manager.update(
+                    CarPhoto,
+                    { carId, fileId },
+                    { order: index },
+                );
+            }
+        });
 
         const updatedCar = await this.getOne(userId, carId);
 
@@ -295,6 +336,7 @@ export class GarageService {
     ): Promise<Car> {
         const car = await this.carRepository.findOne({
             where: { id: carId, owner: { id: userId } },
+            relations: ['photos', 'photos.file'],
         });
 
         if (!car) {
@@ -302,6 +344,28 @@ export class GarageService {
         }
 
         return car;
+    }
+
+    private async addSignedUrlsToCar(car: Car): Promise<Car> {
+        if (!car.photos || car.photos.length === 0) {
+            return car;
+        }
+
+        const photos = car.photos.sort((a, b) => a.order - b.order);
+        const files = photos.map((photo) => photo.file);
+
+        const filesWithUrls =
+            await this.filesService.addSignedUrlsToFiles(files);
+
+        const photosWithSignedUrls = photos.map((photo, index) => ({
+            ...photo,
+            file: filesWithUrls[index],
+        }));
+
+        return {
+            ...car,
+            photos: photosWithSignedUrls,
+        };
     }
 
     private validateCarForPublication(car: Car) {

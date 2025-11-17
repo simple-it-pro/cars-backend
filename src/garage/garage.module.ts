@@ -17,6 +17,7 @@ import {
     FileEntity,
     ServiceRecord,
 } from '../database/entities';
+import { FilesModule } from '../files/files.module';
 
 @Module({
     imports: [
@@ -27,6 +28,7 @@ import {
             CarExpense,
             ServiceRecord,
         ]),
+        FilesModule,
     ],
     controllers: [
         GarageController,

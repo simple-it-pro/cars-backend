@@ -123,6 +123,7 @@ export const ERROR_MESSAGES = {
             INVALID_STATUS_TRANSITION: 'Недопустимый переход между статусами',
             MISSING_REQUIRED_FIELDS:
                 'Не заполнены обязательные поля для публикации',
+            FILES_NOT_FOUND: 'Файлы не найдены или уже используются',
             NO_PHOTOS_FOR_PUBLICATION:
                 'Для публикации необходимо хотя бы одно фото',
             CANNOT_REMOVE_REQUIRED_FIELDS:
@@ -246,6 +247,7 @@ export const SUCCESS_MESSAGES = {
             LIST_RETRIEVED: 'Список обслуживаний успешно получен',
         },
         PHOTO: {
+            ATTACHED: 'Фото прикреплено',
             UPLOADED: 'Фото успешно загружены',
             DELETED: 'Фото успешно удалено',
             REORDERED: 'Порядок фото успешно изменен',

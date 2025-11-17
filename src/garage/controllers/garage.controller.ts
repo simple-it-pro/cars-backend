@@ -3,12 +3,14 @@ import {
     Controller,
     Delete,
     Get,
+    MaxFileSizeValidator,
     Param,
+    ParseFilePipe,
     ParseUUIDPipe,
     Patch,
     Post,
     Query,
-    UploadedFiles,
+    UploadedFile,
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common';
@@ -31,7 +33,10 @@ import { AuthUser } from '../../auth/decorators';
 import { JwtUserData } from '../../users/types';
 import { CarStatus } from '../../database/enums/cars';
 import { GARAGE_API_DOCS, GARAGE_BODIES } from '../swagger';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { DetectFileFormatPipe } from '../../files/pipes';
+import { FileTypeValidator } from '../../files/validators';
+import { FileWithFormat } from '../../files/interfaces';
 
 @ApiTags('Garage - Cars')
 @Controller('garage/cars')
@@ -47,7 +52,7 @@ export class GarageController {
     @ApiResponse(GARAGE_API_DOCS.RESPONSES.BAD_REQUEST)
     @ApiResponse(GARAGE_API_DOCS.RESPONSES.UNAUTHORIZED)
     async create(
-        @Body() createCarDto: CreateCarDto,
+        @Body() createCarDto: CreateCarDto & { photoIds?: string[] },
         @AuthUser() user: JwtUserData,
     ) {
         return this.garageService.create(user.sub, createCarDto);
@@ -127,53 +132,82 @@ export class GarageController {
             body.price,
         );
     }
+
     @Post(':id/photos')
-    @ApiOperation(GARAGE_API_DOCS.OPERATIONS.ADD_CAR_PHOTOS)
+    @ApiOperation(GARAGE_API_DOCS.OPERATIONS.ATTACH_CAR_PHOTOS)
     @ApiParam(GARAGE_API_DOCS.PARAMS.CAR_ID)
-    @ApiConsumes('multipart/form-data')
-    @ApiBody(GARAGE_BODIES.ADD_CAR_PHOTOS)
-    @ApiOkResponse(GARAGE_API_DOCS.RESPONSES.ADD_CAR_PHOTOS)
-    @ApiResponse(GARAGE_API_DOCS.RESPONSES.NO_PHOTOS)
+    @ApiBody(GARAGE_BODIES.ATTACH_CAR_PHOTOS)
+    @ApiOkResponse(GARAGE_API_DOCS.RESPONSES.ATTACH_CAR_PHOTOS)
+    @ApiResponse(GARAGE_API_DOCS.RESPONSES.TOO_MANY_PHOTOS)
+    @ApiResponse(GARAGE_API_DOCS.RESPONSES.FILES_NOT_FOUND)
     @ApiResponse(GARAGE_API_DOCS.RESPONSES.NOT_FOUND)
     @ApiResponse(GARAGE_API_DOCS.RESPONSES.UNAUTHORIZED)
-    @UseInterceptors(FilesInterceptor('photos', 10))
-    async addPhotos(
+    async attachPhotos(
         @Param('id', ParseUUIDPipe) id: string,
-        @UploadedFiles() photos: Express.Multer.File[],
+        @Body('fileIds') fileIds: string[],
         @AuthUser() user: JwtUserData,
     ) {
-        return this.garageService.addPhotos(id, user.sub, photos);
+        return this.garageService.attachPhotos(id, user.sub, fileIds);
     }
 
-    @Delete(':id/photos/:photoId')
+    @Delete(':id/photos/:fileId')
     @ApiOperation(GARAGE_API_DOCS.OPERATIONS.REMOVE_CAR_PHOTO)
     @ApiParam(GARAGE_API_DOCS.PARAMS.CAR_ID)
-    @ApiParam(GARAGE_API_DOCS.PARAMS.PHOTO_ID)
+    @ApiParam(GARAGE_API_DOCS.PARAMS.FILE_ID)
     @ApiOkResponse(GARAGE_API_DOCS.RESPONSES.REMOVE_CAR_PHOTO)
     @ApiResponse(GARAGE_API_DOCS.RESPONSES.PHOTO_NOT_FOUND)
     @ApiResponse(GARAGE_API_DOCS.RESPONSES.NOT_FOUND)
     @ApiResponse(GARAGE_API_DOCS.RESPONSES.UNAUTHORIZED)
     async removePhoto(
         @Param('id', ParseUUIDPipe) id: string,
-        @Param('photoId', ParseUUIDPipe) photoId: string,
+        @Param('fileId', ParseUUIDPipe) fileId: string,
         @AuthUser() user: JwtUserData,
     ) {
-        return this.garageService.removePhoto(id, photoId, user.sub);
+        return this.garageService.removePhoto(id, fileId, user.sub);
     }
 
     @Patch(':id/photos/reorder')
     @ApiOperation(GARAGE_API_DOCS.OPERATIONS.REORDER_CAR_PHOTOS)
     @ApiParam(GARAGE_API_DOCS.PARAMS.CAR_ID)
-    @ApiBody(GARAGE_BODIES.REORDER_PHOTOS)
+    @ApiBody(GARAGE_BODIES.REORDER_CAR_PHOTOS)
     @ApiOkResponse(GARAGE_API_DOCS.RESPONSES.REORDER_CAR_PHOTOS)
-    @ApiResponse(GARAGE_API_DOCS.RESPONSES.NOT_FOUND)
     @ApiResponse(GARAGE_API_DOCS.RESPONSES.BAD_REQUEST)
+    @ApiResponse(GARAGE_API_DOCS.RESPONSES.NOT_FOUND)
     @ApiResponse(GARAGE_API_DOCS.RESPONSES.UNAUTHORIZED)
     async reorderPhotos(
         @Param('id', ParseUUIDPipe) id: string,
-        @Body('photoIds') photoIds: string[],
+        @Body('fileIds') fileIds: string[],
         @AuthUser() user: JwtUserData,
     ) {
-        return this.garageService.reorderPhotos(id, photoIds, user.sub);
+        return this.garageService.reorderPhotos(id, fileIds, user.sub);
+    }
+
+    @Post('pre-upload')
+    @ApiOperation(GARAGE_API_DOCS.OPERATIONS.PRE_UPLOAD)
+    @ApiConsumes('multipart/form-data')
+    @ApiBody(GARAGE_BODIES.PRE_UPLOAD)
+    @ApiOkResponse(GARAGE_API_DOCS.RESPONSES.PRE_UPLOAD_SUCCESS)
+    @ApiResponse(GARAGE_API_DOCS.RESPONSES.INVALID_FILE_TYPE)
+    @ApiResponse(GARAGE_API_DOCS.RESPONSES.FILE_TOO_LARGE)
+    @UseInterceptors(FileInterceptor('file'))
+    async preUploadFile(
+        @UploadedFile(
+            new DetectFileFormatPipe(),
+            new ParseFilePipe({
+                validators: [
+                    new FileTypeValidator({
+                        mimeTypes: [/image\/(jpeg|jpg|png|webp)/gi],
+                    }),
+                    new MaxFileSizeValidator({
+                        maxSize: 10 * 1024 * 1024,
+                        message:
+                            'Файл слишком большой. Максимальный размер 10MB',
+                    }),
+                ],
+            }),
+        )
+        file: FileWithFormat,
+    ) {
+        return this.garageService.preUploadFile(file);
     }
 }
