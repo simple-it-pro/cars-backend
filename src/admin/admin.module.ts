@@ -3,15 +3,17 @@ import AdminJS from 'adminjs';
 import { AdminModule as AdminJSModule } from '@adminjs/nestjs';
 import * as AdminJSTypeorm from '@adminjs/typeorm';
 import { Database, Resource } from '@adminjs/typeorm';
-import { User } from '../database/entities/user.entity';
-import { Post } from '../database/entities/post.entity';
-import { Review } from '../database/entities/review.entity';
-import { Chat } from '../database/entities/chat.entity';
-import { Message } from '../database/entities/message.entity';
-import { File } from '../database/entities/file.entity';
-import { Notification } from '../database/entities/notification.entity';
-import { Follower } from '../database/entities/follower.entity';
-import { Hashtag } from '../database/entities/hashtags.entity';
+import { 
+    User, 
+    Post, 
+    Review, 
+    Chat, 
+    Message, 
+    FileEntity, 
+    Notification, 
+    Follower, 
+    Hashtag 
+} from '../database/entities';
 
 AdminJS.registerAdapter({ Database, Resource });
 
@@ -65,7 +67,7 @@ AdminJS.registerAdapter({ Database, Resource });
                             },
                         },
                         {
-                            resource: File,
+                            resource: FileEntity,
                             options: {
                                 navigation: { name: 'Медиа', icon: 'Image' },
                             },
