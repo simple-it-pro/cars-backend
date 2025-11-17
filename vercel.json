@@ -1,0 +1,44 @@
+{
+  "version": 2,
+  "name": "cars-backend-admin",
+  "builds": [
+    {
+      "src": "dist/src/main.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/admin/(.*)",
+      "dest": "dist/src/main.js"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "dist/src/main.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "dist/src/main.js"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "build": {
+    "env": {
+      "NODE_ENV": "production"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/admin/:path*",
+      "destination": "/admin/:path*"
+    }
+  ],
+  "functions": {
+    "dist/src/main.js": {
+      "memory": 3008,
+      "maxDuration": 30
+    }
+  }
+}
