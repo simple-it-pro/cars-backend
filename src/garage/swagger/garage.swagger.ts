@@ -122,7 +122,7 @@ export const GARAGE_BODIES = {
         schema: {
             type: 'object',
             properties: {
-                fileIds: {
+                photoIds: {
                     type: 'array',
                     description: 'Массив ID предварительно загруженных файлов',
                     items: {
@@ -133,7 +133,7 @@ export const GARAGE_BODIES = {
                     maxItems: 10,
                 },
             },
-            required: ['fileIds'],
+            required: ['photoIds'],
         },
     } as ApiBodyOptions,
 
@@ -142,7 +142,7 @@ export const GARAGE_BODIES = {
         schema: {
             type: 'object',
             properties: {
-                fileIds: {
+                photoIds: {
                     type: 'array',
                     description: 'Массив ID файлов в новом порядке',
                     items: {
@@ -152,7 +152,7 @@ export const GARAGE_BODIES = {
                     },
                 },
             },
-            required: ['fileIds'],
+            required: ['photoIds'],
         },
     } as ApiBodyOptions,
 } as const;
