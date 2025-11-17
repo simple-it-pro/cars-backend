@@ -14,8 +14,8 @@ stages:
 
 build_and_push_image:
   stage: build
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "dev"'
+  only:
+    - dev
   script:
     - echo "Login to Docker Hub..."
     - echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
@@ -25,6 +25,3 @@ build_and_push_image:
 
     - echo "Push Docker image to Docker Hub..."
     - docker push "$IMAGE_NAME:$IMAGE_TAG"
-
-  only:
-    - dev
