@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+    IsArray,
+    IsEnum,
+    IsNumber,
+    IsOptional,
+    IsString,
+} from 'class-validator';
 import {
     Bodyworks,
     FuelTypes,
@@ -59,4 +65,9 @@ export class CreateCarDto {
     @IsNumber()
     @IsOptional()
     price?: number;
+
+    @ApiProperty({ example: ['example.com/img.png', 'example.com/img2.png'] })
+    @IsArray()
+    @IsOptional()
+    photoIds?: string[];
 }

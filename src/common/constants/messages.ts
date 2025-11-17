@@ -123,7 +123,6 @@ export const ERROR_MESSAGES = {
             INVALID_STATUS_TRANSITION: 'Недопустимый переход между статусами',
             MISSING_REQUIRED_FIELDS:
                 'Не заполнены обязательные поля для публикации',
-            FILES_NOT_FOUND: 'Файлы не найдены или уже используются',
             NO_PHOTOS_FOR_PUBLICATION:
                 'Для публикации необходимо хотя бы одно фото',
             CANNOT_REMOVE_REQUIRED_FIELDS:
@@ -138,6 +137,8 @@ export const ERROR_MESSAGES = {
                 `Фото с id ${id} не принадлежит этому автомобилю`,
             MISSING_REQUIRED_FIELDS_FOR_PUBLICATION: (fields: string[]) =>
                 `Missing required fields for publication: ${fields.join(', ')}`,
+            FILES_NOT_FOUND: (invalidFileIds: string) =>
+                `Файлы с идентификаторами ${invalidFileIds} не найдены или уже используются`,
             CANNOT_REMOVE_REQUIRED_FIELDS_FOR_SALE: (fields: string[]) =>
                 `Cannot remove required fields for car on sale: ${fields.join(', ')}`,
         },

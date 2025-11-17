@@ -18,6 +18,7 @@ import {
     ServiceRecord,
 } from '../database/entities';
 import { FilesModule } from '../files/files.module';
+import { GarageFilesController } from './controllers/garage.files.controller';
 
 @Module({
     imports: [
@@ -32,6 +33,7 @@ import { FilesModule } from '../files/files.module';
     ],
     controllers: [
         GarageController,
+        GarageFilesController,
         CarExpensesController,
         ServiceRecordsController,
     ],

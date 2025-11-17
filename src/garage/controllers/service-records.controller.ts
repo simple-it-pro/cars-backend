@@ -28,7 +28,7 @@ import { CreateServiceRecordDto, UpdateServiceRecordDto } from '../dto';
 import { SERVICE_RECORDS_API_DOCS } from '../swagger';
 import { ServiceRecord } from '../../database/entities';
 
-@ApiTags('Garage – Service Records')
+@ApiTags('Garage Service Records')
 @ApiBearerAuth('JWT-auth')
 @ApiExtraModels(ServiceRecord)
 @UseGuards(JwtGuard)

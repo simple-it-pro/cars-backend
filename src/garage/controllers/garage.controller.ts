@@ -3,21 +3,16 @@ import {
     Controller,
     Delete,
     Get,
-    MaxFileSizeValidator,
     Param,
-    ParseFilePipe,
     ParseUUIDPipe,
     Patch,
     Post,
     Query,
-    UploadedFile,
     UseGuards,
-    UseInterceptors,
 } from '@nestjs/common';
 import {
     ApiBearerAuth,
     ApiBody,
-    ApiConsumes,
     ApiOkResponse,
     ApiOperation,
     ApiParam,
@@ -33,12 +28,8 @@ import { AuthUser } from '../../auth/decorators';
 import { JwtUserData } from '../../users/types';
 import { CarStatus } from '../../database/enums/cars';
 import { GARAGE_API_DOCS, GARAGE_BODIES } from '../swagger';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { DetectFileFormatPipe } from '../../files/pipes';
-import { FileTypeValidator } from '../../files/validators';
-import { FileWithFormat } from '../../files/interfaces';
 
-@ApiTags('Garage - Cars')
+@ApiTags('Garage Cars')
 @Controller('garage/cars')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtGuard)
@@ -52,7 +43,7 @@ export class GarageController {
     @ApiResponse(GARAGE_API_DOCS.RESPONSES.BAD_REQUEST)
     @ApiResponse(GARAGE_API_DOCS.RESPONSES.UNAUTHORIZED)
     async create(
-        @Body() createCarDto: CreateCarDto & { photoIds?: string[] },
+        @Body() createCarDto: CreateCarDto,
         @AuthUser() user: JwtUserData,
     ) {
         return this.garageService.create(user.sub, createCarDto);
@@ -131,83 +122,5 @@ export class GarageController {
             body.status,
             body.price,
         );
-    }
-
-    @Post(':id/photos')
-    @ApiOperation(GARAGE_API_DOCS.OPERATIONS.ATTACH_CAR_PHOTOS)
-    @ApiParam(GARAGE_API_DOCS.PARAMS.CAR_ID)
-    @ApiBody(GARAGE_BODIES.ATTACH_CAR_PHOTOS)
-    @ApiOkResponse(GARAGE_API_DOCS.RESPONSES.ATTACH_CAR_PHOTOS)
-    @ApiResponse(GARAGE_API_DOCS.RESPONSES.TOO_MANY_PHOTOS)
-    @ApiResponse(GARAGE_API_DOCS.RESPONSES.FILES_NOT_FOUND)
-    @ApiResponse(GARAGE_API_DOCS.RESPONSES.NOT_FOUND)
-    @ApiResponse(GARAGE_API_DOCS.RESPONSES.UNAUTHORIZED)
-    async attachPhotos(
-        @Param('id', ParseUUIDPipe) id: string,
-        @Body('fileIds') fileIds: string[],
-        @AuthUser() user: JwtUserData,
-    ) {
-        return this.garageService.attachPhotos(id, user.sub, fileIds);
-    }
-
-    @Delete(':id/photos/:fileId')
-    @ApiOperation(GARAGE_API_DOCS.OPERATIONS.REMOVE_CAR_PHOTO)
-    @ApiParam(GARAGE_API_DOCS.PARAMS.CAR_ID)
-    @ApiParam(GARAGE_API_DOCS.PARAMS.FILE_ID)
-    @ApiOkResponse(GARAGE_API_DOCS.RESPONSES.REMOVE_CAR_PHOTO)
-    @ApiResponse(GARAGE_API_DOCS.RESPONSES.PHOTO_NOT_FOUND)
-    @ApiResponse(GARAGE_API_DOCS.RESPONSES.NOT_FOUND)
-    @ApiResponse(GARAGE_API_DOCS.RESPONSES.UNAUTHORIZED)
-    async removePhoto(
-        @Param('id', ParseUUIDPipe) id: string,
-        @Param('fileId', ParseUUIDPipe) fileId: string,
-        @AuthUser() user: JwtUserData,
-    ) {
-        return this.garageService.removePhoto(id, fileId, user.sub);
-    }
-
-    @Patch(':id/photos/reorder')
-    @ApiOperation(GARAGE_API_DOCS.OPERATIONS.REORDER_CAR_PHOTOS)
-    @ApiParam(GARAGE_API_DOCS.PARAMS.CAR_ID)
-    @ApiBody(GARAGE_BODIES.REORDER_CAR_PHOTOS)
-    @ApiOkResponse(GARAGE_API_DOCS.RESPONSES.REORDER_CAR_PHOTOS)
-    @ApiResponse(GARAGE_API_DOCS.RESPONSES.BAD_REQUEST)
-    @ApiResponse(GARAGE_API_DOCS.RESPONSES.NOT_FOUND)
-    @ApiResponse(GARAGE_API_DOCS.RESPONSES.UNAUTHORIZED)
-    async reorderPhotos(
-        @Param('id', ParseUUIDPipe) id: string,
-        @Body('fileIds') fileIds: string[],
-        @AuthUser() user: JwtUserData,
-    ) {
-        return this.garageService.reorderPhotos(id, fileIds, user.sub);
-    }
-
-    @Post('pre-upload')
-    @ApiOperation(GARAGE_API_DOCS.OPERATIONS.PRE_UPLOAD)
-    @ApiConsumes('multipart/form-data')
-    @ApiBody(GARAGE_BODIES.PRE_UPLOAD)
-    @ApiOkResponse(GARAGE_API_DOCS.RESPONSES.PRE_UPLOAD_SUCCESS)
-    @ApiResponse(GARAGE_API_DOCS.RESPONSES.INVALID_FILE_TYPE)
-    @ApiResponse(GARAGE_API_DOCS.RESPONSES.FILE_TOO_LARGE)
-    @UseInterceptors(FileInterceptor('file'))
-    async preUploadFile(
-        @UploadedFile(
-            new DetectFileFormatPipe(),
-            new ParseFilePipe({
-                validators: [
-                    new FileTypeValidator({
-                        mimeTypes: [/image\/(jpeg|jpg|png|webp)/gi],
-                    }),
-                    new MaxFileSizeValidator({
-                        maxSize: 10 * 1024 * 1024,
-                        message:
-                            'Файл слишком большой. Максимальный размер 10MB',
-                    }),
-                ],
-            }),
-        )
-        file: FileWithFormat,
-    ) {
-        return this.garageService.preUploadFile(file);
     }
 }

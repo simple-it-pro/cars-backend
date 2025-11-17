@@ -78,7 +78,7 @@ export class GarageService {
         return carWithSignedUrls;
     }
 
-    async create(userId: string, dto: CreateCarDto & { photoIds?: string[] }) {
+    async create(userId: string, dto: CreateCarDto) {
         const car = this.carRepository.create({
             ...dto,
             owner: { id: userId },
@@ -131,14 +131,29 @@ export class GarageService {
     async delete(userId: string, carId: string) {
         const car = await this.getOne(userId, carId);
 
+        const fileIds = car.photos.map((photo) => photo.file.id);
+
         await this.carRepository.manager.transaction(async (manager) => {
             await manager.delete(CarPhoto, { carId: car.id });
 
-            const fileIds = car.photos.map((photo) => photo.file.id);
-            if (fileIds.length > 0) await manager.delete(FileEntity, fileIds);
+            if (fileIds.length > 0) {
+                await manager.update(FileEntity, fileIds, {
+                    status: FileStatusEnum.TEMPORARY,
+                });
+            }
 
             await manager.delete(Car, car.id);
         });
+
+        for (const fileId of fileIds) {
+            try {
+                await this.filesService.deleteFile(fileId);
+            } catch (error) {
+                this.logger.warn(
+                    `Failed to delete file ${fileId}: ${error.message}`,
+                );
+            }
+        }
 
         this.logger.log(`User ${userId} deleted car: ${carId}`);
 
@@ -154,6 +169,8 @@ export class GarageService {
         price?: number,
     ) {
         const car = await this.getOne(userId, carId);
+
+        this.validateStatusTransition(car.status, status);
 
         const updateData: Partial<Car> = { status };
 
@@ -226,13 +243,25 @@ export class GarageService {
         const files = await manager.find(FileEntity, {
             where: {
                 id: In(fileIds),
-                status: FileStatusEnum.TEMPORARY,
             },
         });
 
-        if (files.length !== fileIds.length)
+        const foundFileIds = files.map((file) => file.id);
+        const notFoundFileIds = fileIds.filter(
+            (fileId) => !foundFileIds.includes(fileId),
+        );
+
+        const notTemporaryFileIds = files
+            .filter((file) => file.status !== FileStatusEnum.TEMPORARY)
+            .map((file) => file.id);
+
+        const invalidFileIds = [...notFoundFileIds, ...notTemporaryFileIds];
+
+        if (invalidFileIds.length > 0)
             throw new BadRequestException(
-                ERROR_MESSAGES.GARAGE.CAR.FILES_NOT_FOUND,
+                ERROR_MESSAGES.GARAGE.CAR.FILES_NOT_FOUND(
+                    invalidFileIds.join(', '),
+                ),
             );
 
         const lastOrder =
@@ -258,29 +287,38 @@ export class GarageService {
     async removePhoto(carId: string, fileId: string, userId: string) {
         const car = await this.getUserCarAndCheckOwnership(userId, carId);
 
-        const photo = car.photos?.find((p) => p.file.id === fileId);
+        const photo = car.photos.find((p) => p.file.id === fileId);
         if (!photo)
             throw new NotFoundException(
                 ERROR_MESSAGES.GARAGE.CAR.PHOTO_NOT_FOUND,
             );
 
         await this.carRepository.manager.transaction(async (manager) => {
-            await manager.delete(CarPhoto, { carId, fileId });
+            await manager.update(FileEntity, fileId, {
+                status: FileStatusEnum.TEMPORARY,
+            });
 
-            await this.filesService.deleteFile(fileId);
+            await manager.delete(CarPhoto, { id: photo.id });
 
             const remainingPhotos = await manager.find(CarPhoto, {
                 where: { carId },
                 order: { order: 'ASC' },
             });
 
-            const reorderedPhotos = remainingPhotos.map((photo, index) => ({
-                ...photo,
-                order: index,
-            }));
-
-            await manager.save(CarPhoto, reorderedPhotos);
+            for (const [index, remainingPhoto] of remainingPhotos.entries()) {
+                await manager.update(CarPhoto, remainingPhoto.id, {
+                    order: index,
+                });
+            }
         });
+
+        try {
+            await this.filesService.deleteFile(fileId);
+        } catch (error) {
+            this.logger.warn(
+                `Failed to delete file ${fileId}: ${error.message}`,
+            );
+        }
 
         const updatedCar = await this.getOne(userId, carId);
 
@@ -290,27 +328,27 @@ export class GarageService {
         };
     }
 
-    async reorderPhotos(carId: string, fileIds: string[], userId: string) {
+    async reorderPhotos(carId: string, photoIds: string[], userId: string) {
         const car = await this.getUserCarAndCheckOwnership(userId, carId);
 
-        if (fileIds.length !== car.photos.length)
+        if (photoIds.length !== car.photos.length)
             throw new BadRequestException(
                 ERROR_MESSAGES.GARAGE.CAR.PHOTO_IDS_COUNT_MISMATCH,
             );
 
-        const existingFileIds = new Set(car.photos.map((p) => p.file.id));
-        for (const fileId of fileIds) {
-            if (!existingFileIds.has(fileId))
+        const existingPhotoIds = new Set(car.photos.map((p) => p.id));
+        for (const photoId of photoIds) {
+            if (!existingPhotoIds.has(photoId))
                 throw new BadRequestException(
-                    ERROR_MESSAGES.GARAGE.CAR.PHOTO_NOT_BELONGS_TO_CAR(fileId),
+                    ERROR_MESSAGES.GARAGE.CAR.PHOTO_NOT_BELONGS_TO_CAR(photoId),
                 );
         }
 
         await this.carRepository.manager.transaction(async (manager) => {
-            for (const [index, fileId] of fileIds.entries()) {
+            for (const [index, photoId] of photoIds.entries()) {
                 await manager.update(
                     CarPhoto,
-                    { carId, fileId },
+                    { id: photoId },
                     { order: index },
                 );
             }
@@ -408,5 +446,22 @@ export class GarageService {
                     missingFields as string[],
                 ),
             );
+    }
+
+    private validateStatusTransition(
+        currentStatus: CarStatus,
+        newStatus: CarStatus,
+    ) {
+        const allowedTransitions = {
+            [CarStatus.WAREHOUSE]: [CarStatus.LISTED, CarStatus.ARCHIVED],
+            [CarStatus.LISTED]: [CarStatus.ARCHIVED, CarStatus.WAREHOUSE],
+            [CarStatus.ARCHIVED]: [CarStatus.WAREHOUSE, CarStatus.LISTED],
+        };
+
+        if (!allowedTransitions[currentStatus]?.includes(newStatus)) {
+            throw new BadRequestException(
+                ERROR_MESSAGES.GARAGE.CAR.INVALID_STATUS_TRANSITION,
+            );
+        }
     }
 }

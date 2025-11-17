@@ -28,7 +28,7 @@ import { CreateCarExpenseDto, UpdateCarExpenseDto } from '../dto';
 import { CAR_EXPENSE_API_DOCS } from '../swagger';
 import { CarExpense } from '../../database/entities';
 
-@ApiTags('Garage – Expenses')
+@ApiTags('Garage Expenses')
 @ApiBearerAuth('JWT-auth')
 @ApiExtraModels(CarExpense)
 @UseGuards(JwtGuard)
