@@ -1,23 +1,20 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../src/app.module';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { ExpressAdapter } from '@nestjs/platform-express';
-import * as express from 'express';
 
-const server = express();
-let app: INestApplication;
+let cachedApp: any;
 
 async function bootstrap() {
-    if (!app) {
-        const expressApp = new ExpressAdapter(server);
-        app = await NestFactory.create(AppModule, expressApp);
+    if (!cachedApp) {
+        const app = await NestFactory.create(AppModule);
 
         app.useGlobalPipes(
             new ValidationPipe({ transform: true, whitelist: true }),
         );
 
-        // Swagger setup
+        app.enableCors();
+
         const config = new DocumentBuilder()
             .setTitle('Автосалоны')
             .setDescription('API')
@@ -34,18 +31,18 @@ async function bootstrap() {
                 'JWT-auth',
             )
             .build();
+
         const documentFactory = () => SwaggerModule.createDocument(app, config);
         SwaggerModule.setup('api', app, documentFactory);
 
-        // Enable CORS for Vercel
-        app.enableCors();
-
         await app.init();
+        cachedApp = app;
     }
-    return app;
+    return cachedApp;
 }
 
 export default async (req: any, res: any) => {
-    await bootstrap();
-    server(req, res);
+    const app = await bootstrap();
+    const server = app.getHttpAdapter().getInstance();
+    return server(req, res);
 };

@@ -30,6 +30,9 @@
     "set-tmp-lifecycle": "ts-node src/storage/set-tmp-lifecycle.ts"
   },
   "dependencies": {
+    "@adminjs/express": "^6.1.0",
+    "@adminjs/nestjs": "^7.0.0",
+    "@adminjs/typeorm": "^5.0.1",
     "@aws-sdk/client-s3": "^3.913.0",
     "@aws-sdk/s3-request-presigner": "^3.913.0",
     "@nestjs/common": "^11.0.1",
@@ -43,11 +46,14 @@
     "@nestjs/swagger": "^11.2.0",
     "@nestjs/typeorm": "^11.0.0",
     "@nestjs/websockets": "^11.1.6",
+    "adminjs": "^7.8.1",
     "axios": "^1.12.2",
     "bcryptjs": "^3.0.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "cloudinary": "^2.7.0",
+    "express-formidable": "^1.2.0",
+    "express-session": "^1.18.1",
     "file-type": "^21.0.0",
     "joi": "^18.0.1",
     "passport": "^0.7.0",
@@ -56,6 +62,7 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "socket.io": "^4.8.1",
+    "tslib": "^2.8.1",
     "typeorm": "^0.3.26"
   },
   "devDependencies": {

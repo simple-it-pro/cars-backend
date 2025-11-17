@@ -11,6 +11,7 @@ import { StorageModule } from './storage/storage.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PostsModule } from './posts/posts.module';
 import { FilesModule } from './files/files.module';
+import { AdminModule } from './admin/admin.module';
 import ROUTES from './routes';
 
 @Module({
@@ -25,6 +26,7 @@ import ROUTES from './routes';
         PostsModule,
         FilesModule,
         NotificationsModule,
+        AdminModule,
         RouterModule.register(ROUTES),
     ],
 })
