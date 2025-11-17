@@ -1,0 +1,30 @@
+image: docker:stable
+
+services:
+  - docker:dind
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+  IMAGE_NAME: "vadimfrolovsimple/autosaloon-back"
+  IMAGE_TAG: "latest"
+
+stages:
+  - build
+
+build_and_push_image:
+  stage: build
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+  script:
+    - echo "Login to Docker Hub..."
+    - echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
+    - echo "Build Docker image..."
+    - docker build -t "$IMAGE_NAME:$IMAGE_TAG" .
+
+    - echo "Push Docker image to Docker Hub..."
+    - docker push "$IMAGE_NAME:$IMAGE_TAG"
+
+  only:
+    - dev
