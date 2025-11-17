@@ -2,25 +2,27 @@ import { Module } from '@nestjs/common';
 import AdminJS from 'adminjs';
 import { AdminModule as AdminJSModule } from '@adminjs/nestjs';
 import * as AdminJSTypeorm from '@adminjs/typeorm';
-import { Database, Resource } from '@adminjs/typeorm';
-import { 
-    User, 
-    Post, 
-    Review, 
-    Chat, 
-    Message, 
-    FileEntity, 
-    Notification, 
-    Follower, 
-    Hashtag 
+import { DataSource } from 'typeorm';
+import {
+    User,
+    Post,
+    Review,
+    Chat,
+    Message,
+    FileEntity,
+    Notification,
+    Follower,
+    Hashtag
 } from '../database/entities';
 
-AdminJS.registerAdapter({ Database, Resource });
+// Register the TypeORM adapter
+AdminJS.registerAdapter(AdminJSTypeorm);
 
 @Module({
     imports: [
         AdminJSModule.createAdminAsync({
-            useFactory: () => ({
+            inject: [DataSource],
+            useFactory: (dataSource: DataSource) => ({
                 adminJsOptions: {
                     rootPath: '/admin',
                     branding: {
@@ -28,6 +30,7 @@ AdminJS.registerAdapter({ Database, Resource });
                         logo: false,
                         softwareBrothers: false,
                     },
+                    databases: [dataSource],
                     resources: [
                         {
                             resource: User,
