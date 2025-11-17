@@ -7,6 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
+    "vercel-build": "echo 'Vercel build: using TypeScript directly'",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -25,7 +26,7 @@
     "migration:run": "yarn typeorm migration:run -d typeorm.config.ts",
     "migration:revert": "yarn typeorm migration:revert -d typeorm.config.ts",
     "migration:show": "yarn typeorm migration:show -d typeorm.config.ts",
-    "prepare": "husky install",
+    "prepare": "husky install || true",
     "set-tmp-lifecycle": "ts-node src/storage/set-tmp-lifecycle.ts"
   },
   "dependencies": {
