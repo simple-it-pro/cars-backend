@@ -11,7 +11,7 @@ import { StorageModule } from './storage/storage.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PostsModule } from './posts/posts.module';
 import { FilesModule } from './files/files.module';
-import { AdminModule } from './admin/admin.module';
+// import { AdminModule } from './admin/admin.module';
 import { HealthModule } from './health/health.module';
 import ROUTES from './routes';
 
@@ -28,7 +28,7 @@ import ROUTES from './routes';
         PostsModule,
         FilesModule,
         NotificationsModule,
-        AdminModule,
+        // AdminModule, // Temporarily disabled - has compatibility issues with Vercel
         RouterModule.register(ROUTES),
     ],
 })
