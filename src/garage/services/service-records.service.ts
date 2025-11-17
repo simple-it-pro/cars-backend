@@ -83,9 +83,10 @@ export class ServiceRecordsService {
                 ERROR_MESSAGES.GARAGE.SERVICE_RECORD.NOT_FOUND,
             );
 
-        Object.assign(record, dto);
-
-        const updated = await this.recordRepository.save(record);
+        const updated = await this.recordRepository.save({
+            ...record,
+            ...dto,
+        });
 
         return {
             message: SUCCESS_MESSAGES.GARAGE.SERVICE_RECORD.UPDATED,
