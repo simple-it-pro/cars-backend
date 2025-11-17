@@ -34,20 +34,24 @@ Pricing Plan: FREE ✅
 
 **1.5** Нажмите **Create new project** и подождите 2 минуты
 
-**1.6** Когда проект создан, слева внизу нажмите **⚙️ Settings**
+**1.6** Когда проект создан (статус: Active), в **правом верхнем углу** нажмите зелёную кнопку **"Connect"**
 
-**1.7** В меню слева выберите **Database**
+**1.7** В открывшемся модальном окне выберите тип подключения: **"Transaction"** или **"Transaction Pooler"**
+   - ⚠️ **НЕ выбирайте** "Direct Connection" - это для VM, не для Vercel!
+   - ✅ **Выберите** "Transaction" - это для serverless (Vercel)
 
-**1.8** Прокрутите вниз до **Connection string**
+**1.8** Выберите формат **"URI"** (не PSQL)
 
-**1.9** Выберите **URI** (НЕ Session pooling!)
+**1.9** Нажмите кнопку **"Copy"** или скопируйте строку вручную
 
-**1.10** **Скопируйте** строку и **замените** `[YOUR-PASSWORD]` на ваш пароль из п.1.4
+**1.10** **Замените** `[YOUR-PASSWORD]` на ваш реальный пароль из п.1.4
 
-Пример готового URL:
+Пример готового URL (обратите внимание на порт **6543**, НЕ 5432!):
 ```
-postgresql://postgres:MyCars2024!Strong@db.abcdefghij.supabase.co:5432/postgres
+postgresql://postgres.abcdef:MyCars2024!Strong@aws-0-eu-central-1.pooler.supabase.com:6543/postgres
 ```
+
+📌 **Важно:** Используйте Transaction Pooler с портом **6543** для Vercel (serverless)
 
 **💾 СОХРАНИТЕ этот URL!** Он нужен на шаге 2.
 
@@ -79,7 +83,7 @@ Root Directory: . (оставить пустым)
 **2.8** Скопируйте и вставьте (ЗАМЕНИТЕ DB_URL на ваш из шага 1!):
 
 ```bash
-DB_URL=postgresql://postgres:ВАШ_ПАРОЛЬ@db.xxx.supabase.co:5432/postgres
+DB_URL=postgresql://postgres.xxxxx:ВАШ_ПАРОЛЬ@aws-0-eu-central-1.pooler.supabase.com:6543/postgres
 DB_SCHEMA=public
 JWT_ACCESS_SECRET=supabase-access-secret-min-32-chars-change-me
 JWT_REFRESH_SECRET=supabase-refresh-secret-min-32-chars-change-me
