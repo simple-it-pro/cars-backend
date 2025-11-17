@@ -11,23 +11,18 @@ export class FileUrlsService {
         return processed as T;
     }
 
+    // TODO: Improve this method with TS generics
     private async processValue(
         value: unknown,
         visited: WeakSet<object>,
     ): Promise<unknown> {
-        if (value === null || value === undefined) {
-            return value;
-        }
+        if (value === null || value === undefined) return value;
 
         const valueType = typeof value;
 
-        if (valueType !== 'object') {
-            return value;
-        }
+        if (valueType !== 'object') return value;
 
-        if (value instanceof Date) {
-            return value;
-        }
+        if (value instanceof Date) return value;
 
         if (Array.isArray(value)) {
             const result: unknown[] = [];
@@ -44,17 +39,15 @@ export class FileUrlsService {
 
         visited.add(obj);
 
-        if (typeof obj.url === 'string') {
+        if (typeof obj.url === 'string')
             obj.url = await this.storageService.getFileUrl(obj.url);
-        }
 
         const keys = Object.keys(obj);
         for (const key of keys) {
             const fieldValue = obj[key];
 
-            if (fieldValue && typeof fieldValue === 'object') {
+            if (fieldValue && typeof fieldValue === 'object')
                 obj[key] = await this.processValue(fieldValue, visited);
-            }
         }
 
         return obj;

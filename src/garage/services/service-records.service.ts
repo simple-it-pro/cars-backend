@@ -96,16 +96,10 @@ export class ServiceRecordsService {
     async delete(userId: string, carId: string, recordId: string) {
         await this.garageService.getUserCarAndCheckOwnership(userId, carId);
 
-        const result = await this.recordRepository.delete({
+        await this.recordRepository.delete({
             id: recordId,
             car: { id: carId },
         });
-
-        if (!result.affected) {
-            throw new NotFoundException(
-                ERROR_MESSAGES.GARAGE.SERVICE_RECORD.NOT_FOUND,
-            );
-        }
 
         return {
             message: SUCCESS_MESSAGES.GARAGE.SERVICE_RECORD.DELETED,
