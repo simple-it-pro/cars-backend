@@ -30,9 +30,9 @@
     "set-tmp-lifecycle": "ts-node src/storage/set-tmp-lifecycle.ts"
   },
   "dependencies": {
-    "@adminjs/express": "^5.1.1",
-    "@adminjs/nestjs": "^6.0.1",
-    "@adminjs/typeorm": "^4.0.2",
+    "@adminjs/express": "5.0.1",
+    "@adminjs/nestjs": "5.0.0",
+    "@adminjs/typeorm": "3.0.1",
     "@aws-sdk/client-s3": "^3.913.0",
     "@aws-sdk/s3-request-presigner": "^3.913.0",
     "@nestjs/common": "^11.0.1",
@@ -46,7 +46,7 @@
     "@nestjs/swagger": "^11.2.0",
     "@nestjs/typeorm": "^11.0.0",
     "@nestjs/websockets": "^11.1.6",
-    "adminjs": "^6.8.1",
+    "adminjs": "6.8.1",
     "axios": "^1.12.2",
     "bcryptjs": "^3.0.2",
     "class-transformer": "^0.5.1",
