@@ -32,9 +32,11 @@ services:
 
   cars-backend:
     container_name: cars-backend
-    build:
-      context: .
-      dockerfile: ./Dockerfile
+    image: vadimfrolovsimple/autosaloon-back:latest
+    # uncomment if you need build from local, and comment "image"
+    # build:
+      # context: .
+      # dockerfile: ./Dockerfile
     env_file:
       - .env.production
     ports:
@@ -46,6 +48,29 @@ services:
     volumes:
       - /etc/letsencrypt/live/simpleit-gitlab.ru/fullchain.pem:/app/ssl/certs/fullchain.pem:ro
       - /etc/letsencrypt/live/simpleit-gitlab.ru/privkey.pem:/app/ssl/private/privkey.pem:ro
+    labels:
+      - "com.ouroboros.enable=true"
+  
+  # Ouroboros — перезапускает контейнеры при обновлении образа
+  ouroboros:
+    image: pyouroboros/ouroboros
+    container_name: ouroboros
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ~/.docker:/root/.docker
+    environment:
+      - TZ=Europe/Moscow
+      - INTERVAL=300                         # каждые 5 минут (в секундах)
+      - CLEANUP=true
+      - LOG_LEVEL=info
+      - SELF_UPDATE=false
+      - RUN_ONCE=false
+      # - IGNORE_TAGS=latest
+      - DOCKER_USERNAME=${DOCKER_USERNAME}
+      - DOCKER_PASSWORD=${DOCKER_PASSWORD}
+      - LABEL_ENABLE=true
+      - LABELS_ONLY=true
+    restart: unless-stopped
 
 networks:
   default:
