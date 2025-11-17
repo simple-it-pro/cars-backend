@@ -12,10 +12,12 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { PostsModule } from './posts/posts.module';
 import { FilesModule } from './files/files.module';
 import { AdminModule } from './admin/admin.module';
+import { HealthModule } from './health/health.module';
 import ROUTES from './routes';
 
 @Module({
     imports: [
+        HealthModule,
         SharedModule,
         AuthModule,
         UsersModule,
