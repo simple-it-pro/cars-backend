@@ -5,7 +5,12 @@ import {
     ApiQueryOptions,
     ApiResponseOptions,
 } from '@nestjs/swagger';
-import { CarStatus } from '../../database/enums/cars';
+import {
+    Bodyworks,
+    CarStatus,
+    FuelTypes,
+    TransmissionTypes,
+} from '../../database/enums/cars';
 import { UpdateCarDto } from '../dto';
 import { Car, FileEntity } from '../../database/entities';
 
@@ -32,19 +37,19 @@ export const GARAGE_BODIES = {
                 },
                 bodywork: {
                     type: 'string',
-                    example: 'Sedan',
+                    example: Bodyworks.SEDAN,
                     description: 'Тип кузова',
                     nullable: true,
                 },
                 fuelType: {
                     type: 'string',
-                    example: 'Gasoline',
+                    example: FuelTypes.PETROL,
                     description: 'Тип топлива',
                     nullable: true,
                 },
                 transmission: {
                     type: 'string',
-                    example: 'Automatic',
+                    example: TransmissionTypes.AT,
                     description: 'Тип трансмиссии',
                     nullable: true,
                 },

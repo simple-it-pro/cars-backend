@@ -1,8 +1,8 @@
 import {
-    Injectable,
-    NotFoundException,
     BadRequestException,
+    Injectable,
     Logger,
+    NotFoundException,
 } from '@nestjs/common';
 import { CreateCarDto, UpdateCarDto } from '../dto';
 import { CarStatus } from '../../database/enums/cars';
@@ -23,7 +23,7 @@ export class GarageService {
 
     constructor(
         @InjectRepository(Car)
-        private readonly carRepository: Repository<Car>,
+        private readonly carsRepository: Repository<Car>,
         private readonly filesService: FilesService,
     ) {}
 
@@ -36,7 +36,7 @@ export class GarageService {
 
         if (status) where.status = status;
 
-        const [cars, total] = await this.carRepository.findAndCount({
+        const [cars, total] = await this.carsRepository.findAndCount({
             where,
             relations: ['owner', 'photos', 'photos.file'],
             order: { createdAt: 'DESC' },
@@ -57,7 +57,7 @@ export class GarageService {
     }
 
     async getOne(userId: string, carId: string) {
-        const car = await this.carRepository.findOne({
+        const car = await this.carsRepository.findOne({
             where: {
                 id: carId,
                 owner: { id: userId },
@@ -79,13 +79,13 @@ export class GarageService {
     }
 
     async create(userId: string, dto: CreateCarDto) {
-        const car = this.carRepository.create({
+        const car = this.carsRepository.create({
             ...dto,
             owner: { id: userId },
             status: CarStatus.WAREHOUSE,
         });
 
-        const savedCar = await this.carRepository.manager.transaction(
+        const savedCar = await this.carsRepository.manager.transaction(
             async (manager) => {
                 const savedCar = await manager.save(Car, car);
 
@@ -117,7 +117,7 @@ export class GarageService {
         if (car.status === CarStatus.LISTED)
             this.validateCarForSale({ ...car, ...dto });
 
-        await this.carRepository.update(carId, dto);
+        await this.carsRepository.update(carId, dto);
         const updatedCar = await this.getOne(userId, carId);
 
         this.logger.log(`User ${userId} updated car: ${carId}`);
@@ -133,7 +133,7 @@ export class GarageService {
 
         const fileIds = car.photos.map((photo) => photo.file.id);
 
-        await this.carRepository.manager.transaction(async (manager) => {
+        await this.carsRepository.manager.transaction(async (manager) => {
             await manager.delete(CarPhoto, { carId: car.id });
 
             if (fileIds.length > 0) {
@@ -198,7 +198,7 @@ export class GarageService {
                 break;
         }
 
-        await this.carRepository.update(carId, updateData);
+        await this.carsRepository.update(carId, updateData);
         const updatedCar = await this.getOne(userId, carId);
 
         this.logger.log(
@@ -214,7 +214,7 @@ export class GarageService {
     async attachPhotos(carId: string, userId: string, fileIds: string[]) {
         await this.getUserCarAndCheckOwnership(userId, carId);
 
-        await this.carRepository.manager.transaction(async (manager) => {
+        await this.carsRepository.manager.transaction(async (manager) => {
             await this.attachPhotosInternal(manager, carId, fileIds);
         });
 
@@ -293,7 +293,7 @@ export class GarageService {
                 ERROR_MESSAGES.GARAGE.CAR.PHOTO_NOT_FOUND,
             );
 
-        await this.carRepository.manager.transaction(async (manager) => {
+        await this.carsRepository.manager.transaction(async (manager) => {
             await manager.update(FileEntity, fileId, {
                 status: FileStatusEnum.TEMPORARY,
             });
@@ -337,22 +337,28 @@ export class GarageService {
             );
 
         const existingPhotoIds = new Set(car.photos.map((p) => p.id));
-        for (const photoId of photoIds) {
-            if (!existingPhotoIds.has(photoId))
-                throw new BadRequestException(
-                    ERROR_MESSAGES.GARAGE.CAR.PHOTO_NOT_BELONGS_TO_CAR(photoId),
-                );
+
+        const nonExistingPhotoIds = photoIds.reduce((acc, photoId) => {
+            if (!existingPhotoIds.has(photoId)) return [...acc, photoId];
+            return acc;
+        }, []);
+
+        if (nonExistingPhotoIds.length > 0) {
+            throw new BadRequestException(
+                ERROR_MESSAGES.GARAGE.CAR.PHOTO_NOT_BELONGS_TO_CAR(
+                    nonExistingPhotoIds.join(', '),
+                ),
+            );
         }
 
-        await this.carRepository.manager.transaction(async (manager) => {
-            for (const [index, photoId] of photoIds.entries()) {
-                await manager.update(
-                    CarPhoto,
-                    { id: photoId },
-                    { order: index },
-                );
-            }
-        });
+        const carPhotosToUpdate = photoIds.map((photoId, index) =>
+            this.carsRepository.manager.create(CarPhoto, {
+                id: photoId,
+                order: index,
+            }),
+        );
+
+        await this.carsRepository.manager.save(CarPhoto, carPhotosToUpdate);
 
         const updatedCar = await this.getOne(userId, carId);
 
@@ -366,7 +372,7 @@ export class GarageService {
         userId: string,
         carId: string,
     ): Promise<Car> {
-        const car = await this.carRepository.findOne({
+        const car = await this.carsRepository.findOne({
             where: { id: carId, owner: { id: userId } },
             relations: ['photos', 'photos.file'],
         });
