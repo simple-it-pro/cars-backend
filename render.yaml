@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: cars-backend
+    runtime: node
+    region: frankfurt
+    plan: free
+    branch: claude/vercel-deployment-ready-01SyTTZzk2snpS7urgBxqds6
+    buildCommand: yarn install --frozen-lockfile && yarn build
+    startCommand: node dist/src/main.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DB_URL
+        sync: false
+      - key: DB_SCHEMA
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_ACCESS_EXPIRATION_TIME
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_REFRESH_EXPIRATION_TIME
+        sync: false
+      - key: SMS_RU_API_ID
+        sync: false
+      - key: SMS_TEST_MODE
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: S3_BUCKET_NAME
+        sync: false
+      - key: S3_API_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        sync: false
