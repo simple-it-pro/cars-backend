@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import AdminJS from 'adminjs';
 import { AdminModule as AdminJSModule } from '@adminjs/nestjs';
-import * as AdminJSTypeorm from '@adminjs/typeorm';
+import { Database, Resource } from '@adminjs/typeorm';
 import { DataSource } from 'typeorm';
 import {
     User,
@@ -15,8 +15,8 @@ import {
     Hashtag
 } from '../database/entities';
 
-// Register the TypeORM adapter
-AdminJS.registerAdapter(AdminJSTypeorm);
+// Register the TypeORM adapter (AdminJS 7.x syntax)
+AdminJS.registerAdapter({ Database, Resource });
 
 @Module({
     imports: [
