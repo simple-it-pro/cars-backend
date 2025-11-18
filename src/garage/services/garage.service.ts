@@ -16,6 +16,7 @@ import {
 import { FileStatusEnum } from '../../database/enums';
 import { FilesService } from '../../files/services';
 import { FileWithFormat } from '../../files/interfaces';
+import { FileUrlsService } from '../../storage/services';
 
 @Injectable()
 export class GarageService {
@@ -25,6 +26,7 @@ export class GarageService {
         @InjectRepository(Car)
         private readonly carsRepository: Repository<Car>,
         private readonly filesService: FilesService,
+        private readonly fileUrlsService: FileUrlsService,
     ) {}
 
     preUploadFile(file: FileWithFormat) {
@@ -384,7 +386,12 @@ export class GarageService {
     }
 
     private async addSignedUrlsToCar(car: Car): Promise<Car> {
-        if (!car.photos || car.photos.length === 0) return car;
+        const userWithUrl = await this.fileUrlsService.addSignedUrlsDeep(
+            car.owner,
+        );
+
+        if (!car.photos || car.photos.length === 0)
+            return { ...car, owner: userWithUrl };
 
         const photos = car.photos.sort((a, b) => a.order - b.order);
         const files = photos.map((photo) => photo.file);
@@ -399,6 +406,7 @@ export class GarageService {
 
         return {
             ...car,
+            owner: userWithUrl,
             photos: photosWithSignedUrls,
         };
     }
