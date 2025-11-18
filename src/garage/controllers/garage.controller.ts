@@ -7,6 +7,7 @@ import {
     ParseUUIDPipe,
     Patch,
     Post,
+    Put,
     Query,
     UseGuards,
 } from '@nestjs/common';
@@ -74,7 +75,7 @@ export class GarageController {
         return this.garageService.getOne(user.sub, id);
     }
 
-    @Patch(':id')
+    @Put(':id')
     @ApiOperation(GARAGE_API_DOCS.OPERATIONS.UPDATE_CAR)
     @ApiParam(GARAGE_API_DOCS.PARAMS.CAR_ID)
     @ApiBody(GARAGE_BODIES.UPDATE_CAR)
