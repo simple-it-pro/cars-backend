@@ -1,6 +1,5 @@
 import {
     BadRequestException,
-    ForbiddenException,
     Injectable,
     Logger,
     NotFoundException,
@@ -9,22 +8,18 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { instanceToPlain } from 'class-transformer';
 import * as cities from '../../common/constants/json/russian-cities.json';
-import {
-    Follower,
-    Subscription,
-    User,
-    UserBlock,
-} from '../../database/entities';
+import { Review, User, UserBlock } from '../../database/entities';
 import { UpdateUserDto } from '../dto';
 import {
     ERROR_MESSAGES,
     SUCCESS_MESSAGES,
     WARNING_MESSAGES,
 } from '../../common/constants/messages';
-import { StorageService } from '../../storage/services';
+import { FileUrlsService, StorageService } from '../../storage/services';
 import { RatingService } from './rating.service';
-import { NotificationsService } from '../../notifications/services';
-import { NotificationMessages, NotificationType } from '../../common/types';
+import { SubscriptionsService } from './subscriptions.service';
+import { UserWithCounters } from '../types/user-with-counters';
+import { UserProfile } from '../types/user-profile';
 
 @Injectable()
 export class UsersService {
@@ -32,18 +27,17 @@ export class UsersService {
     constructor(
         @InjectRepository(User)
         private readonly userRepository: Repository<User>,
-        @InjectRepository(Subscription)
-        private readonly subscriptionRepository: Repository<Subscription>,
-        @InjectRepository(Follower)
-        private readonly followerRepository: Repository<Follower>,
         @InjectRepository(UserBlock)
         private readonly userBlockRepository: Repository<UserBlock>,
+        @InjectRepository(Review)
+        private readonly reviewRepository: Repository<Review>,
         private readonly storageService: StorageService,
         private readonly ratingService: RatingService,
-        private readonly notificationsService: NotificationsService,
+        private readonly subscriptionsService: SubscriptionsService,
+        private readonly fileUrlsService: FileUrlsService,
     ) {}
 
-    async getUserById(id: string): Promise<User | null> {
+    async getUserById(id: string): Promise<UserWithCounters> {
         const user = await this.userRepository.findOne({
             where: { id },
             withDeleted: false,
@@ -51,8 +45,10 @@ export class UsersService {
 
         if (!user) throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
 
-        const userWithUrl = await this.addSignedUrlToUser(user);
-        return instanceToPlain(userWithUrl) as User;
+        const userWithUrl = await this.fileUrlsService.addSignedUrlsDeep(user);
+        const counters = await this.getUserCounters(id);
+
+        return { ...userWithUrl, counters };
     }
 
     async updateUserById(
@@ -116,7 +112,6 @@ export class UsersService {
         return instanceToPlain(updatedUser) as User;
     }
 
-    /* TODO: надо будет удалить после тестирования или сделать безопасно */
     async getAll() {
         return this.userRepository.find({
             select: {
@@ -157,161 +152,16 @@ export class UsersService {
             };
 
             const savedUser = await this.userRepository.save(user);
-            const userWithUrl = await this.addSignedUrlToUser(savedUser);
+            const userWithUrl =
+                await this.fileUrlsService.addSignedUrlsDeep(savedUser);
             return instanceToPlain(userWithUrl) as User;
         } catch {
             throw new BadRequestException(ERROR_MESSAGES.AVATAR.UPLOAD_FAILED);
         }
     }
 
-    private async checkBlockStatus(userId: string, targetUserId: string) {
-        const [isBlocked, isBlockedBy] = await Promise.all([
-            this.userBlockRepository.findOne({
-                where: {
-                    user: { id: userId },
-                    blockedUser: { id: targetUserId },
-                },
-            }),
-            this.userBlockRepository.findOne({
-                where: {
-                    user: { id: targetUserId },
-                    blockedUser: { id: userId },
-                },
-            }),
-        ]);
-
-        if (isBlocked)
-            throw new ForbiddenException(
-                ERROR_MESSAGES.SUBSCRIPTION.CANNOT_SUBSCRIBE_BLOCKED,
-            );
-
-        if (isBlockedBy)
-            throw new ForbiddenException(
-                ERROR_MESSAGES.SUBSCRIPTION.BLOCKED_BY_USER,
-            );
-    }
-
-    async subscribeUser(
-        userId: string,
-        targetUserId: string,
-    ): Promise<{ message: string }> {
-        await this.checkBlockStatus(userId, targetUserId);
-
-        const [user, targetUser] = await Promise.all([
-            this.userRepository.findOne({
-                where: { id: userId, deletedAt: IsNull() },
-            }),
-            this.userRepository.findOne({
-                where: { id: targetUserId, deletedAt: IsNull() },
-            }),
-        ]);
-
-        if (!(user && targetUser))
-            throw new BadRequestException(
-                ERROR_MESSAGES.SUBSCRIPTION.USER_NOT_FOUND,
-            );
-
-        if (userId === targetUserId)
-            throw new BadRequestException(
-                ERROR_MESSAGES.SUBSCRIPTION.SELF_SUBSCRIBE,
-            );
-
-        const existingSubscription = await this.subscriptionRepository.findOne({
-            where: {
-                user: { id: userId },
-                subscribedUser: { id: targetUserId },
-            },
-        });
-
-        if (existingSubscription)
-            throw new BadRequestException(
-                ERROR_MESSAGES.SUBSCRIPTION.ALREADY_SUBSCRIBED,
-            );
-
-        const subscription = this.subscriptionRepository.create({
-            user: { id: userId },
-            subscribedUser: { id: targetUserId },
-        });
-
-        await this.subscriptionRepository.save(subscription);
-
-        const follower = this.followerRepository.create({
-            follower: { id: userId },
-            subscribedUser: { id: targetUserId },
-        });
-        await this.followerRepository.save(follower);
-
-        await this.notificationsService.create(targetUserId, {
-            type: NotificationType.FOLLOW,
-            title: NotificationMessages.FOLLOW,
-            description: user.name
-                ? `На вас подписался ${user.name}`
-                : 'У вас +1 подписчик',
-        });
-
-        return { message: SUCCESS_MESSAGES.USER.SUBSCRIBED };
-    }
-
-    async unsubscribeUser(
-        userId: string,
-        targetUserId: string,
-    ): Promise<{ message: string }> {
-        const user = await this.userRepository.findOne({
-            where: { id: userId },
-        });
-        const targetUser = await this.userRepository.findOne({
-            where: { id: targetUserId },
-        });
-
-        if (!user || !targetUser)
-            throw new BadRequestException(
-                ERROR_MESSAGES.SUBSCRIPTION.USER_NOT_FOUND,
-            );
-
-        const subscription = await this.subscriptionRepository.findOne({
-            where: {
-                user: { id: userId },
-                subscribedUser: { id: targetUserId },
-            },
-        });
-
-        if (!subscription)
-            throw new BadRequestException(
-                ERROR_MESSAGES.SUBSCRIPTION.NOT_SUBSCRIBED,
-            );
-
-        await this.subscriptionRepository.remove(subscription);
-
-        const follower = await this.followerRepository.findOne({
-            where: {
-                follower: { id: userId },
-                subscribedUser: { id: targetUserId },
-            },
-        });
-
-        if (follower) await this.followerRepository.remove(follower);
-
-        return { message: SUCCESS_MESSAGES.USER.UNSUBSCRIBED };
-    }
-
-    async getSubscriptions(userId: string): Promise<Subscription[]> {
-        return this.subscriptionRepository.find({
-            where: { user: { id: userId, deletedAt: IsNull() } },
-            relations: ['subscribedUser'],
-        });
-    }
-
-    async getFollowers(userId: string): Promise<Follower[]> {
-        return this.followerRepository.find({
-            where: {
-                subscribedUser: { id: userId },
-            },
-            relations: ['follower'],
-        });
-    }
-
     async getBlockedUsers(userId: string): Promise<Partial<User>[]> {
-        const blocks: UserBlock[] = await this.userBlockRepository.find({
+        const blocks = await this.userBlockRepository.find({
             where: { user: { id: userId } },
             relations: ['blockedUser'],
         });
@@ -319,7 +169,9 @@ export class UsersService {
         const result: Partial<User>[] = [];
 
         for (const b of blocks) {
-            const u = await this.addSignedUrlToUser(b.blockedUser);
+            const u = await this.fileUrlsService.addSignedUrlsDeep(
+                b.blockedUser,
+            );
             result.push({
                 id: u.id,
                 nickname: u.nickname ?? null,
@@ -375,10 +227,7 @@ export class UsersService {
         return { message: SUCCESS_MESSAGES.USER.UNBLOCKED };
     }
 
-    async getPublicProfile(
-        id: string,
-        viewerId: string,
-    ): Promise<Partial<User> & { isBlocked: boolean }> {
+    async getPublicProfile(id: string, viewerId: string): Promise<UserProfile> {
         await this.ratingService.calculateAndUpdateUserRating(id);
 
         const user = await this.userRepository.findOne({
@@ -392,6 +241,7 @@ export class UsersService {
                 'image',
                 'rating',
                 'createdAt',
+                'isDeactivated',
             ],
         });
 
@@ -406,19 +256,28 @@ export class UsersService {
             );
         }
 
-        const isBlocked = await this.userBlockRepository.exists({
-            where: [
-                { user: { id: viewerId }, blockedUser: { id } },
-                { user: { id }, blockedUser: { id: viewerId } },
-            ],
-        });
+        const [isBlocked, isSubscribed, userWithImageUrl, counters] =
+            await Promise.all([
+                this.userBlockRepository.exists({
+                    where: [
+                        { user: { id: viewerId }, blockedUser: { id } },
+                        { user: { id }, blockedUser: { id: viewerId } },
+                    ],
+                }),
+                this.subscriptionsService.getIsSubscribed(viewerId, id),
+                this.fileUrlsService.addSignedUrlsDeep(user),
+                this.getUserCounters(id),
+            ]);
 
-        const withUrl = await this.addSignedUrlToUser(user);
-
-        return { ...withUrl, isBlocked };
+        return {
+            ...userWithImageUrl,
+            isBlocked,
+            isSubscribed,
+            counters,
+        };
     }
 
-    async getMyPublicProfile(id: string): Promise<Partial<User>> {
+    async getMyPublicProfile(id: string): Promise<UserWithCounters> {
         await this.ratingService.calculateAndUpdateUserRating(id);
         const user = await this.userRepository.findOne({
             where: { id, deletedAt: IsNull() },
@@ -436,35 +295,13 @@ export class UsersService {
 
         if (!user) throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
 
-        return this.addSignedUrlToUser(user);
-    }
-
-    async generatePublicProfileLink(
-        id: string,
-    ): Promise<{ publicUrl: string; message: string }> {
-        const user = await this.userRepository.findOne({
-            where: { id, deletedAt: IsNull() },
-            select: ['id', 'isDeactivated'],
-        });
-
-        if (!user) throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
-
-        if (user.isDeactivated) {
-            throw new BadRequestException(
-                ERROR_MESSAGES.USER.PUBLIC_PROFILE_NOT_AVAILABLE,
-            );
-        }
-
-        /* TODO: заменить в последующем на deep url */
-        const publicUrl = `${process.env.APP_URL || 'https://yourapp.com'}/u/${user.id}`;
-
-        this.logger.log(
-            `Сгенерирована ссылка для пользователя ${user.id}: ${publicUrl}`,
-        );
+        const userWithImageUrl =
+            await this.fileUrlsService.addSignedUrlsDeep(user);
+        const counters = await this.getUserCounters(id);
 
         return {
-            publicUrl,
-            message: SUCCESS_MESSAGES.USER.PUBLIC_LINK_GENERATED,
+            ...userWithImageUrl,
+            counters,
         };
     }
 
@@ -505,19 +342,18 @@ export class UsersService {
         return this.userRepository.save(user);
     }
 
-    private async addSignedUrlToUser(user: User): Promise<User> {
-        if (user.image?.url) {
-            const signedUrl = await this.storageService.getFileUrl(
-                user.image.url,
-            );
-            return {
-                ...user,
-                image: {
-                    ...user.image,
-                    url: signedUrl,
-                },
-            };
-        }
-        return user;
+    private async getUserCounters(id: string) {
+        const [subscriptionsCount, followersCount, reviewsCount] =
+            await Promise.all([
+                this.subscriptionsService.getSubscriptionsCounter(id),
+                this.subscriptionsService.getFollowersCounter(id),
+                this.reviewRepository.count({ where: { user: { id } } }),
+            ]);
+
+        return {
+            subscriptionsCount,
+            followersCount,
+            reviewsCount,
+        };
     }
 }

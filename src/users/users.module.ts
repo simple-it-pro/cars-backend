@@ -1,16 +1,15 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UsersService } from './services';
-import { UsersController } from './controllers';
+import { RatingService, SubscriptionsService, UsersService } from './services';
+import { SubscriptionsController, UsersController } from './controllers';
 import {
-    User,
     Follower,
-    Subscription,
     Review,
+    Subscription,
+    User,
     UserBlock,
 } from '../database/entities';
 import { StorageModule } from '../storage/storage.module';
-import { RatingService } from './services';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
@@ -25,8 +24,8 @@ import { NotificationsModule } from '../notifications/notifications.module';
         StorageModule,
         NotificationsModule,
     ],
-    controllers: [UsersController],
-    providers: [UsersService, RatingService],
-    exports: [UsersService, RatingService],
+    controllers: [UsersController, SubscriptionsController],
+    providers: [UsersService, RatingService, SubscriptionsService],
+    exports: [UsersService, RatingService, SubscriptionsService],
 })
 export class UsersModule {}

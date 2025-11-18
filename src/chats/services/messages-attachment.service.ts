@@ -1,12 +1,17 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { StorageService } from '../../storage/services';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { FileUrlsService, StorageService } from '../../storage/services';
 import { Message } from '../../database/entities';
 import { ERROR_MESSAGES } from '../../common/constants/messages';
 import { Asset } from '../../database/interfaces';
 
 @Injectable()
 export class MessagesAttachmentService {
-    constructor(private readonly storageService: StorageService) {}
+    private readonly logger = new Logger(MessagesAttachmentService.name);
+
+    constructor(
+        private readonly storageService: StorageService,
+        private readonly fileUrlsService: FileUrlsService,
+    ) {}
 
     async processVoiceMessage(file: Express.Multer.File): Promise<string> {
         if (!file) {
@@ -30,7 +35,6 @@ export class MessagesAttachmentService {
         }>;
     }> {
         const uploadedAttachments: Array<Asset> = [];
-
         const errors: Array<{
             fileName: string;
             error: string;
@@ -55,7 +59,7 @@ export class MessagesAttachmentService {
                         size: file.size,
                     });
                 } catch (error) {
-                    console.error(
+                    this.logger.error(
                         `Failed to upload file ${file.originalname}:`,
                         error,
                     );
@@ -74,82 +78,7 @@ export class MessagesAttachmentService {
     }
 
     async addSignedUrlsToMessage(message: Message): Promise<Message> {
-        if (message.attachments && message.attachments.length > 0) {
-            message.attachments = await Promise.all(
-                message.attachments.map(async (attachment) => ({
-                    ...attachment,
-                    url: await this.storageService.getFileUrl(attachment.url),
-                })),
-            );
-        }
-
-        if (message.voiceUrl) {
-            message.voiceUrl = await this.storageService.getFileUrl(
-                message.voiceUrl,
-            );
-        }
-
-        if (
-            message.currentContent?.attachments &&
-            message.currentContent.attachments.length > 0
-        ) {
-            message.currentContent.attachments = await Promise.all(
-                message.currentContent.attachments.map(async (attachment) => ({
-                    ...attachment,
-                    url: await this.storageService.getFileUrl(attachment.url),
-                })),
-            );
-        }
-
-        if (
-            message.forwardedFrom?.currentContent?.attachments &&
-            message.forwardedFrom.currentContent.attachments.length > 0
-        ) {
-            message.forwardedFrom.currentContent.attachments =
-                await Promise.all(
-                    message.forwardedFrom.currentContent.attachments.map(
-                        async (attachment) => ({
-                            ...attachment,
-                            url: await this.storageService.getFileUrl(
-                                attachment.url,
-                            ),
-                        }),
-                    ),
-                );
-        }
-
-        if (message.forwardedFrom?.voiceUrl) {
-            message.forwardedFrom.voiceUrl =
-                await this.storageService.getFileUrl(
-                    message.forwardedFrom.voiceUrl,
-                );
-        }
-
-        if (
-            message.repliedMessage?.currentContent?.attachments &&
-            message.repliedMessage.currentContent.attachments.length > 0
-        ) {
-            message.repliedMessage.currentContent.attachments =
-                await Promise.all(
-                    message.repliedMessage.currentContent.attachments.map(
-                        async (attachment) => ({
-                            ...attachment,
-                            url: await this.storageService.getFileUrl(
-                                attachment.url,
-                            ),
-                        }),
-                    ),
-                );
-        }
-
-        if (message.repliedMessage?.voiceUrl) {
-            message.repliedMessage.voiceUrl =
-                await this.storageService.getFileUrl(
-                    message.repliedMessage.voiceUrl,
-                );
-        }
-
-        return message;
+        return this.fileUrlsService.addSignedUrlsDeep(message);
     }
 
     async deleteMessageAttachments(message: Message): Promise<string[]> {
@@ -161,8 +90,8 @@ export class MessagesAttachmentService {
                     await this.storageService.deleteFile(attachment.url);
                 } catch (error) {
                     const errorMsg = `Failed to delete attachment: ${attachment.name || attachment.url}`;
+                    this.logger.error(errorMsg, error);
                     deletionErrors.push(errorMsg);
-                    console.error(errorMsg, error);
                 }
             }
         }
@@ -172,8 +101,8 @@ export class MessagesAttachmentService {
                 await this.storageService.deleteFile(message.voiceUrl);
             } catch (error) {
                 const errorMsg = `Failed to delete voice message: ${message.voiceUrl}`;
+                this.logger.error(errorMsg, error);
                 deletionErrors.push(errorMsg);
-                console.error(errorMsg, error);
             }
         }
 

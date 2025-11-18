@@ -85,7 +85,6 @@ export const ERROR_MESSAGES = {
     DELETION: {
         FILES_PARTIAL_FAILURE: 'Некоторые файлы не были удалены из хранилища',
     },
-
     SUBSCRIPTION: {
         SELF_SUBSCRIBE: 'Нельзя подписаться на самого себя',
         USER_NOT_FOUND: 'Пользователь не найден',
@@ -110,10 +109,57 @@ export const ERROR_MESSAGES = {
     POST: {
         CANNOT_DELETE_LAST_FILE: 'Нельзя удалить последний файл поста',
         FILES_NOT_FOUND:
-            'Загруженные файлы не найдены или уже используются в другом посте',
+            'Загруженные файлы не найдены или уже используются в другом постe',
         ALREADY_PUBLISHED: 'Пост уже опубликован',
         ACCESS_DENIED: 'У вас нет доступа к этому посту',
         NOT_FOUND: 'Пост не найден',
+    },
+
+    GARAGE: {
+        CAR: {
+            NOT_FOUND: 'Автомобиль не найден',
+            NO_PHOTOS: 'Не загружено ни одного фото',
+            PHOTO_NOT_FOUND: 'Фото не найдено',
+            INVALID_STATUS_TRANSITION: 'Недопустимый переход между статусами',
+            MISSING_REQUIRED_FIELDS:
+                'Не заполнены обязательные поля для публикации',
+            NO_PHOTOS_FOR_PUBLICATION:
+                'Для публикации необходимо хотя бы одно фото',
+            CANNOT_REMOVE_REQUIRED_FIELDS:
+                'Нельзя удалять обязательные поля у автомобиля, выставленного на продажу',
+            FORBIDDEN: 'Доступ к автомобилю запрещен',
+            PRICE_REQUIRED: 'Цена обязательна при выставлении на продажу',
+            INVALID_YEAR: 'Неверный год выпуска',
+            INVALID_MILEAGE: 'Пробег не может быть отрицательным',
+            PHOTO_IDS_COUNT_MISMATCH:
+                'Количество photoIds должно совпадать с количеством фото автомобиля',
+            PHOTO_NOT_BELONGS_TO_CAR: (id: string) =>
+                `Фото с id ${id} не принадлежит этому автомобилю`,
+            MISSING_REQUIRED_FIELDS_FOR_PUBLICATION: (fields: string[]) =>
+                `Missing required fields for publication: ${fields.join(', ')}`,
+            FILES_NOT_FOUND: (invalidFileIds: string) =>
+                `Файлы с идентификаторами ${invalidFileIds} не найдены или уже используются`,
+            CANNOT_REMOVE_REQUIRED_FIELDS_FOR_SALE: (fields: string[]) =>
+                `Cannot remove required fields for car on sale: ${fields.join(', ')}`,
+        },
+        SERVICE_RECORD: {
+            NOT_FOUND: 'Запись обслуживания не найдена',
+        },
+        EXPENSE: {
+            NOT_FOUND: 'Запись расхода не найдена',
+            INVALID_DATE: 'Неверная дата',
+            INVALID_AMOUNT: 'Сумма не может быть отрицательной',
+        },
+        MAINTENANCE: {
+            NOT_FOUND: 'Запись обслуживания не найдена',
+            INVALID_DATE: 'Неверная дата',
+        },
+        PHOTO: {
+            UPLOAD_FAILED: 'Не удалось загрузить фото',
+            DELETE_FAILED: 'Не удалось удалить фото',
+            TOO_MANY_PHOTOS: 'Можно загрузить не более 10 фото',
+            INVALID_FILE_TYPE: 'Можно загружать только файлы изображений',
+        },
     },
 } as const;
 
@@ -172,6 +218,45 @@ export const SUCCESS_MESSAGES = {
     FILE: {
         DELETED: 'Файл успешно удален',
     },
+
+    GARAGE: {
+        CAR: {
+            CREATED: 'Автомобиль успешно добавлен в гараж',
+            UPDATED: 'Автомобиль успешно обновлен',
+            DELETED: 'Автомобиль успешно удален',
+            STATUS_CHANGED: 'Статус автомобиля успешно изменен',
+            RETRIEVED: 'Автомобиль успешно получен',
+            LIST_RETRIEVED: 'Список автомобилей успешно получен',
+        },
+        SERVICE_RECORD: {
+            CREATED: 'Запись обслуживания успешно добавлена',
+            UPDATED: 'Запись обслуживания успешно обновлена',
+            DELETED: 'Запись обслуживания успешно удалена',
+        },
+        EXPENSE: {
+            CREATED: 'Запись расхода успешно создана',
+            UPDATED: 'Запись расхода успешно обновлена',
+            DELETED: 'Запись расхода успешно удалена',
+            RETRIEVED: 'Запись расхода успешно получена',
+            LIST_RETRIEVED: 'Список расходов успешно получен',
+        },
+        MAINTENANCE: {
+            CREATED: 'Запись обслуживания успешно создана',
+            UPDATED: 'Запись обслуживания успешно обновлена',
+            DELETED: 'Запись обслуживания успешно удалена',
+            RETRIEVED: 'Запись обслуживания успешно получена',
+            LIST_RETRIEVED: 'Список обслуживаний успешно получен',
+        },
+        PHOTO: {
+            ATTACHED: 'Фото прикреплено',
+            UPLOADED: 'Фото успешно загружены',
+            DELETED: 'Фото успешно удалено',
+            REORDERED: 'Порядок фото успешно изменен',
+        },
+        STATS: {
+            RETRIEVED: 'Статистика успешно получена',
+        },
+    },
 } as const;
 
 export const WARNING_MESSAGES = {
@@ -183,5 +268,15 @@ export const WARNING_MESSAGES = {
             'Не удалось удалить старый аватар, но новый был загружен',
         PARTIAL_FILE_UPLOAD: 'Некоторые файлы не были загружены',
         PUBLIC_PROFILE_DEACTIVATED: 'Публичный профиль деактивирован',
+    },
+
+    GARAGE: {
+        PHOTO: {
+            PARTIAL_UPLOAD: 'Некоторые фото не были загружены',
+            PARTIAL_DELETION: 'Некоторые фото не были удалены из хранилища',
+        },
+        EXPENSE: {
+            PARTIAL_DELETION: 'Некоторые записи расходов не были удалены',
+        },
     },
 } as const;

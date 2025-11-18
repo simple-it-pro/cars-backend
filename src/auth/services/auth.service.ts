@@ -1,18 +1,17 @@
 import {
-    Injectable,
     BadRequestException,
     ForbiddenException,
     HttpException,
     HttpStatus,
-    Logger,
     Inject,
+    Injectable,
+    Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigType } from '@nestjs/config';
-import { Repository, MoreThan } from 'typeorm';
+import { MoreThan, Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
-import { instanceToPlain } from 'class-transformer';
 import { randomUUID } from 'crypto';
 import { SignOptions } from 'jsonwebtoken';
 
@@ -22,8 +21,9 @@ import {
     ERROR_MESSAGES,
     SUCCESS_MESSAGES,
 } from '../../common/constants/messages';
-import { User, SmsVerification, RefreshToken } from '../../database/entities';
+import { RefreshToken, SmsVerification, User } from '../../database/entities';
 import { auth } from '../../config';
+import { FileUrlsService } from '../../storage/services';
 
 @Injectable()
 export class AuthService {
@@ -38,14 +38,16 @@ export class AuthService {
 
     constructor(
         @Inject(auth.KEY)
-        private authConfig: ConfigType<typeof auth>,
-        @InjectRepository(User) private userRepository: Repository<User>,
+        private readonly authConfig: ConfigType<typeof auth>,
+        @InjectRepository(User)
+        private readonly userRepository: Repository<User>,
         @InjectRepository(SmsVerification)
-        private smsVerificationRepository: Repository<SmsVerification>,
+        private readonly smsVerificationRepository: Repository<SmsVerification>,
         @InjectRepository(RefreshToken)
-        private refreshTokenRepository: Repository<RefreshToken>,
-        private jwtService: JwtService,
-        private smsService: SmsService,
+        private readonly refreshTokenRepository: Repository<RefreshToken>,
+        private readonly jwtService: JwtService,
+        private readonly smsService: SmsService,
+        private readonly fileUrlsService: FileUrlsService,
     ) {}
 
     async requestVerificationCode(phone: string): Promise<{ message: string }> {
@@ -75,9 +77,7 @@ export class AuthService {
             code,
         );
 
-        if (!sent) {
-            throw new BadRequestException(ERROR_MESSAGES.AUTH.SMS_FAIL);
-        }
+        if (!sent) throw new BadRequestException(ERROR_MESSAGES.AUTH.SMS_FAIL);
 
         return { message: SUCCESS_MESSAGES.AUTH.SMS_SUCCESS };
     }
@@ -145,7 +145,10 @@ export class AuthService {
 
         const tokens = await this.generateTokens(user, userAgent, ip);
 
-        return { ...tokens, user: instanceToPlain(user) as User };
+        const userWithUrl =
+            await this.fileUrlsService.addSignedUrlsDeep<User>(user);
+
+        return { ...tokens, user: userWithUrl };
     }
 
     async refreshTokens(

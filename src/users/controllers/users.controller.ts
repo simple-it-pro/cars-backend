@@ -82,52 +82,6 @@ export class UsersController {
         return this.usersService.updateAvatar(id, image);
     }
 
-    @Post('subscribe')
-    @ApiOperation(USERS_API_DOCS.OPERATIONS.SUBSCRIBE)
-    @ApiBody(USERS_BODIES.SUBSCRIBE)
-    @ApiOkResponse(USERS_API_DOCS.RESPONSES.SUBSCRIBE)
-    @ApiResponse(USERS_API_DOCS.RESPONSES.BAD_REQUEST_SUBSCRIBE)
-    @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
-    async subscribeUser(
-        @AuthUser() { sub: userId }: JwtUserData,
-        @Body('targetUserId', ParseUUIDPipe) targetUserId: string,
-    ) {
-        return this.usersService.subscribeUser(userId, targetUserId);
-    }
-
-    @Delete('unsubscribe')
-    @ApiOperation(USERS_API_DOCS.OPERATIONS.UNSUBSCRIBE)
-    @ApiBody(USERS_BODIES.UNSUBSCRIBE)
-    @ApiOkResponse(USERS_API_DOCS.RESPONSES.UNSUBSCRIBE)
-    @ApiResponse(USERS_API_DOCS.RESPONSES.BAD_REQUEST_UNSUBSCRIBE)
-    @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
-    async unsubscribeUser(
-        @AuthUser() { sub: userId }: JwtUserData,
-        @Body('targetUserId', ParseUUIDPipe) targetUserId: string,
-    ) {
-        return this.usersService.unsubscribeUser(userId, targetUserId);
-    }
-
-    @Get('subscriptions/:userId')
-    @ApiOperation(USERS_API_DOCS.OPERATIONS.GET_SUBSCRIPTIONS)
-    @ApiParam(USERS_API_DOCS.PARAMS.USER_ID)
-    @ApiOkResponse(USERS_API_DOCS.RESPONSES.GET_SUBSCRIPTIONS)
-    @ApiResponse(USERS_API_DOCS.RESPONSES.NOT_FOUND)
-    @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
-    async getUserSubscriptions(@Param('userId', ParseUUIDPipe) userId: string) {
-        return this.usersService.getSubscriptions(userId);
-    }
-
-    @Get('followers/:userId')
-    @ApiOperation(USERS_API_DOCS.OPERATIONS.GET_FOLLOWERS)
-    @ApiParam(USERS_API_DOCS.PARAMS.USER_ID)
-    @ApiOkResponse(USERS_API_DOCS.RESPONSES.GET_FOLLOWERS)
-    @ApiResponse(USERS_API_DOCS.RESPONSES.NOT_FOUND)
-    @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
-    async getUserFollowers(@Param('userId', ParseUUIDPipe) userId: string) {
-        return this.usersService.getFollowers(userId);
-    }
-
     @Get('blocked')
     @ApiOperation(USERS_API_DOCS.OPERATIONS.GET_BLOCKED_USERS)
     @ApiOkResponse(USERS_API_DOCS.RESPONSES.GET_BLOCKED_USERS)
@@ -181,15 +135,6 @@ export class UsersController {
         @AuthUser() { sub: viewerId }: JwtUserData,
     ) {
         return this.usersService.getPublicProfile(id, viewerId);
-    }
-
-    @Get('me/public-link')
-    @ApiOperation(USERS_API_DOCS.OPERATIONS.GENERATE_PUBLIC_LINK)
-    @ApiOkResponse(USERS_API_DOCS.RESPONSES.GENERATE_PUBLIC_LINK)
-    @ApiResponse(USERS_API_DOCS.RESPONSES.NOT_FOUND)
-    @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
-    async generatePublicLink(@AuthUser() { sub: id }: JwtUserData) {
-        return this.usersService.generatePublicProfileLink(id);
     }
 
     @Delete('me')
