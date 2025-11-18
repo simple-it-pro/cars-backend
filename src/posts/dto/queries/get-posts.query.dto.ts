@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsIn, IsOptional } from 'class-validator';
+import { IsString, IsIn, IsOptional, IsUUID } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class GetPostsQueryDto {
@@ -28,4 +28,12 @@ export class GetPostsQueryDto {
         return Array.isArray(value) ? [...new Set(value)] : [value];
     })
     hashtags?: string[];
+
+    @ApiPropertyOptional({
+        description: 'ID пользователя',
+        example: '123e4567-e89b-12d3-a456-426614174000',
+    })
+    @IsUUID()
+    @IsOptional()
+    userId?: string;
 }

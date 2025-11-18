@@ -34,29 +34,38 @@ export class PostsService {
         private readonly hashtagsService: HashtagsService,
     ) {}
 
-    async findAll({ includes, hashtags }: GetPostsQueryDto, userId: string) {
-        const postsQb = this.postsRepository.createQueryBuilder('post').where(
-            new Brackets((qb) => {
-                qb.where('post.userId = :userId', { userId });
-                qb.orWhere('post.status = :status', {
-                    status: PostStatusEnum.PUBLISHED,
-                });
-            }),
-        );
+    async findAll(
+        { includes, hashtags, userId: userIdQuery }: GetPostsQueryDto,
+        userId: string,
+    ) {
+        const postsQb = this.postsRepository.createQueryBuilder('post');
 
-        if (includes) {
-            for (const include of includes) {
-                if (include === 'files')
-                    postsQb
-                        .leftJoinAndSelect('post.files', 'files')
-                        .leftJoinAndSelect('files.file', 'file');
-                if (include === 'hashtags')
-                    postsQb.leftJoinAndSelect('post.hashtags', 'hashtags');
+        console.log('userIdQuery', userIdQuery);
+        console.log('userId', userId);
+
+        if (userIdQuery) {
+            if (userIdQuery === userId) {
+                postsQb.where('post.userId = :userIdQuery', { userIdQuery });
+            } else {
+                postsQb
+                    .where('post.userId = :userIdQuery', { userIdQuery })
+                    .andWhere('post.status = :status', {
+                        status: PostStatusEnum.PUBLISHED,
+                    });
             }
+        } else {
+            postsQb.where(
+                new Brackets((qb) => {
+                    qb.where('post.userId = :userId', { userId });
+                    qb.orWhere('post.status = :status', {
+                        status: PostStatusEnum.PUBLISHED,
+                    });
+                }),
+            );
         }
 
         if (hashtags) {
-            postsQb.where(
+            postsQb.andWhere(
                 (qb: SelectQueryBuilder<Post>) =>
                     'post.id IN ' +
                     qb
@@ -73,6 +82,17 @@ export class PostsService {
                         })
                         .getQuery(),
             );
+        }
+
+        if (includes) {
+            for (const include of includes) {
+                if (include === 'files')
+                    postsQb
+                        .leftJoinAndSelect('post.files', 'files')
+                        .leftJoinAndSelect('files.file', 'file');
+                if (include === 'hashtags')
+                    postsQb.leftJoinAndSelect('post.hashtags', 'hashtags');
+            }
         }
 
         const posts = await postsQb.getMany();
