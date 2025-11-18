@@ -18,3 +18,4 @@ export { default as Car } from './car.entity';
 export { default as CarPhoto } from './car-photo.entity';
 export { default as CarExpense } from './car-expense.entity';
 export { default as ServiceRecord } from './service-record.entity';
+export { default as FeedItem } from './feed-item.entity';

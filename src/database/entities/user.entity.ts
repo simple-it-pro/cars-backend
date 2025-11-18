@@ -25,6 +25,7 @@ import {
     Subscription,
     UnreadChat,
     UserBlock,
+    FeedItem,
 } from '.';
 import { Image } from '../interfaces';
 
@@ -199,6 +200,9 @@ class User {
 
     @OneToMany(() => Car, (car) => car.owner)
     cars: Car[];
+
+    @OneToMany(() => FeedItem, (feedItem) => feedItem.author)
+    feedItems: FeedItem[];
 }
 
 export default User;
