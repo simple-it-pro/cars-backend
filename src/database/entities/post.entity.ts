@@ -25,13 +25,6 @@ class Post {
     id: string;
 
     @ApiProperty({
-        example: 'Заголовок поста',
-        description: 'Заголовок поста',
-    })
-    @Column()
-    title: string;
-
-    @ApiProperty({
         example: 'Текстовое содержимое поста',
         description: 'Текстовое содержимое поста',
     })
