@@ -112,12 +112,14 @@ export class ReviewsController {
         return this.reviewsService.answerReview(id, userId, answerReviewDto);
     }
 
+    // TODO: Когда будет админка, поставить AdminGuard
     @Patch(':id/verify')
     @ApiOperation({ summary: 'Верифицировать отзыв (для админа)' })
     async verifyReview(@Param() { id }: ReviewIdParamsDto) {
         return this.reviewsService.verifyReview(id);
     }
 
+    // TODO: Когда будет админка, поставить AdminGuard
     @Patch(':id/unverify')
     @ApiOperation({ summary: 'Снять верификацию с отзыва (для админа)' })
     async unverifyReview(@Param() { id }: ReviewIdParamsDto) {

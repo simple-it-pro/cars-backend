@@ -1,113 +1,63 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, Repository, SelectQueryBuilder } from 'typeorm';
+import { Brackets, Repository } from 'typeorm';
 
-import { Post, PostFile, UserBlock } from '../../database/entities';
+import { Subscription, UserBlock } from '../../database/entities';
 import { PostStatusEnum } from '../../database/enums';
 import {
     createCursorMeta,
     CursorDto,
     CursorOptionsDto,
-    parseCompositeCursor,
 } from '../../shared/pagination/cursor';
 import { PostResponseDto } from '../../posts/dto/responses';
-import { PostWithFile } from '../../posts/types';
 import { PostsService } from '../../posts/services';
+import { FeedTypeEnum } from '../enums';
+import { PostWithFile } from '../../posts/types';
+import { Order } from '../../shared/pagination/enums';
 
 @Injectable()
 export class FeedService {
     constructor(
-        @InjectRepository(Post)
-        private readonly postsRepository: Repository<Post>,
         @InjectRepository(UserBlock)
         private readonly userBlockRepository: Repository<UserBlock>,
+        @InjectRepository(Subscription)
+        private readonly subscriptionRepository: Repository<Subscription>,
         private readonly postsService: PostsService,
     ) {}
-
-    private makeFeedQueryBuilder(): SelectQueryBuilder<Post> {
-        const postsQb = this.postsRepository
-            .createQueryBuilder('post')
-            .select([
-                'post.id AS id',
-                'post.description AS description',
-                'post.status AS status',
-                'post."userId" AS "userId"',
-                'post."createdAt" AS "createdAt"',
-                'post."updatedAt" AS "updatedAt"',
-            ])
-            .addSelect(
-                (qb: SelectQueryBuilder<Post>) =>
-                    qb
-                        .subQuery()
-                        .select('to_jsonb(file)')
-                        .from(PostFile, 'post_file')
-                        .where('post_file."postId" = post.id')
-                        .orderBy('post_file."order"', 'ASC')
-                        .leftJoin('post_file.file', 'file')
-                        .limit(1),
-                'cover',
-            )
-            .groupBy('post.id');
-
-        postsQb
-            .addSelect(
-                `
-                jsonb_agg(
-                    DISTINCT to_jsonb(files) || jsonb_build_object(
-                        'file', to_jsonb(file)
-                    )
-                ) AS files
-            `,
-            )
-            .leftJoin('post.files', 'files')
-            .leftJoin('files.file', 'file')
-            .addGroupBy('files.id');
-
-        postsQb
-            .addSelect('jsonb_agg(hashtags)', 'hashtags')
-            .leftJoin('post.hashtags', 'hashtags');
-
-        return postsQb;
-    }
 
     async getFeedItems(
         cursorOptionsDto: CursorOptionsDto,
         userId: string,
+        feedType: FeedTypeEnum = FeedTypeEnum.ALL,
     ): Promise<CursorDto<PostResponseDto>> {
-        const [blockedByMe, blockedMe] = await Promise.all([
-            this.userBlockRepository.find({
-                where: { user: { id: userId } },
-                relations: ['blockedUser'],
-            }),
-            this.userBlockRepository.find({
-                where: { blockedUser: { id: userId } },
-                relations: ['user'],
-            }),
-        ]);
+        const blockedUserIds = await this.getBlockedUserIds(userId);
 
-        const blockedUserIds = new Set<string>();
-
-        for (const block of blockedByMe) {
-            if (block.blockedUser?.id) {
-                blockedUserIds.add(block.blockedUser.id);
-            }
-        }
-
-        for (const block of blockedMe) {
-            if (block.user?.id) {
-                blockedUserIds.add(block.user.id);
-            }
-        }
-
-        const postsQb = this.makeFeedQueryBuilder();
+        const postsQb = this.postsService.makePostQueryBuilder({
+            includes: ['files', 'hashtags'],
+        });
 
         postsQb.where('post.status = :status', {
             status: PostStatusEnum.PUBLISHED,
         });
 
-        if (blockedUserIds.size > 0) {
+        if (blockedUserIds.length > 0) {
             postsQb.andWhere('post."userId" NOT IN (:...blockedUserIds)', {
-                blockedUserIds: Array.from(blockedUserIds),
+                blockedUserIds,
+            });
+        }
+
+        if (feedType === FeedTypeEnum.SUBSCRIPTIONS) {
+            const subscriptionIds = await this.getSubscriptionIds(userId);
+
+            if (subscriptionIds.length === 0) {
+                return new CursorDto(
+                    [],
+                    createCursorMeta(cursorOptionsDto, [], 0),
+                );
+            }
+
+            postsQb.andWhere('post."userId" IN (:...subscriptionIds)', {
+                subscriptionIds,
             });
         }
 
@@ -118,29 +68,84 @@ export class FeedService {
 
         const itemCount = await postsQb.getCount();
 
-        if (cursorOptionsDto.cursor) {
-            const { date, id } = parseCompositeCursor(cursorOptionsDto.cursor);
+        if (cursorOptionsDto.parsedCursor) {
+            const { date, id } = cursorOptionsDto.parsedCursor;
 
             postsQb.andWhere(
                 new Brackets((qb) => {
-                    qb.where('post."createdAt" <= :date', { date });
-                    qb.orWhere('post."createdAt" = :date AND post.id <= :id', {
-                        date,
-                        id,
-                    });
+                    if (cursorOptionsDto.order === Order.DESC) {
+                        qb.where('post."createdAt" < :date', { date });
+                        qb.orWhere(
+                            'post."createdAt" = :date AND post.id < :id',
+                            {
+                                date,
+                                id,
+                            },
+                        );
+                    } else {
+                        qb.where('post."createdAt" > :date', { date });
+                        qb.orWhere(
+                            'post."createdAt" = :date AND post.id > :id',
+                            {
+                                date,
+                                id,
+                            },
+                        );
+                    }
                 }),
             );
         }
 
-        const posts = await postsQb.getRawMany<PostWithFile>();
+        const posts = await postsQb.getRawMany();
 
         const postsWithFiles = await Promise.all(
-            posts.map((post) => this.postsService.addSignedUrlsToPost(post)),
+            posts.map((post: PostWithFile) =>
+                this.postsService.addSignedUrlsToPost(post),
+            ),
         );
 
         return new CursorDto(
             postsWithFiles,
             createCursorMeta(cursorOptionsDto, postsWithFiles, itemCount),
         );
+    }
+
+    private async getBlockedUserIds(userId: string): Promise<string[]> {
+        const [blockedByMe, blockedMe] = await Promise.all([
+            this.userBlockRepository.find({
+                where: { user: { id: userId } },
+                select: ['blockedUser'],
+                relations: ['blockedUser'],
+            }),
+            this.userBlockRepository.find({
+                where: { blockedUser: { id: userId } },
+                select: ['user'],
+                relations: ['user'],
+            }),
+        ]);
+
+        const blockedUserIds = new Set<string>();
+
+        blockedByMe.forEach((block) => {
+            if (block.blockedUser?.id) blockedUserIds.add(block.blockedUser.id);
+        });
+
+        blockedMe.forEach((block) => {
+            if (block.user?.id) blockedUserIds.add(block.user.id);
+        });
+
+        return Array.from(blockedUserIds);
+    }
+
+    private async getSubscriptionIds(userId: string): Promise<string[]> {
+        const subscriptions = await this.subscriptionRepository.find({
+            where: { user: { id: userId } },
+            select: ['subscribedUser'],
+            relations: ['subscribedUser'],
+        });
+
+        return subscriptions
+            .map((sub) => sub.subscribedUser?.id)
+            .filter((id): id is string => !!id);
     }
 }

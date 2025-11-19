@@ -2,18 +2,11 @@ import { Module } from '@nestjs/common';
 import { FeedService } from './services';
 import { FeedController } from './controllers';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Post, UserBlock } from '../database/entities';
+import { Subscription, UserBlock } from '../database/entities';
 import { PostsModule } from '../posts/posts.module';
-import { FilesModule } from '../files/files.module';
-import { HashtagsModule } from '../hastags/hastags.module';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([Post, UserBlock]),
-        PostsModule,
-        FilesModule,
-        HashtagsModule,
-    ],
+    imports: [TypeOrmModule.forFeature([UserBlock, Subscription]), PostsModule],
     controllers: [FeedController],
     providers: [FeedService],
 })

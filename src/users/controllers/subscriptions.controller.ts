@@ -1,25 +1,26 @@
 import {
+    Controller,
+    Get,
+    Post,
+    Delete,
+    Param,
+    UseGuards,
+    Query,
+} from '@nestjs/common';
+import {
+    ApiTags,
     ApiBearerAuth,
-    ApiOkResponse,
     ApiOperation,
     ApiParam,
-    ApiResponse,
-    ApiTags,
+    ApiOkResponse,
 } from '@nestjs/swagger';
-import {
-    Controller,
-    Delete,
-    Get,
-    Param,
-    ParseUUIDPipe,
-    Post,
-    UseGuards,
-} from '@nestjs/common';
-import { JwtGuard } from '../../auth/guards';
 import { SubscriptionsService } from '../services';
-import { USERS_API_DOCS } from '../users.swagger';
+import { JwtGuard } from '../../auth/guards';
 import { AuthUser } from '../../auth/decorators';
 import { JwtUserData } from '../types';
+import { CursorOptionsDto, CursorDto } from '../../shared/pagination/cursor';
+import { SubscriptionItemDto } from '../dto/responses';
+import { GetSubscriptionsQueryDto } from '../dto/queries';
 
 @ApiTags('Users')
 @Controller()
@@ -28,63 +29,95 @@ import { JwtUserData } from '../types';
 export class SubscriptionsController {
     constructor(private readonly subscriptionsService: SubscriptionsService) {}
 
-    @Get('subscriptions')
-    @ApiOperation(USERS_API_DOCS.OPERATIONS.GET_SUBSCRIPTIONS_COUNTER)
-    @ApiOkResponse(USERS_API_DOCS.RESPONSES.GET_SUBSCRIPTIONS_COUNTER)
-    @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
-    async getSubscriptionsCounter(@AuthUser() { sub: userId }: JwtUserData) {
-        return this.subscriptionsService.getSubscriptionsCounter(userId);
+    @Get('subscriptions/:userId')
+    @ApiOperation({
+        summary: 'Получить список подписок пользователя',
+        description:
+            'Возвращает список пользователей, на которых подписан указанный пользователь с пагинацией и поиском',
+    })
+    @ApiParam({
+        name: 'userId',
+        description: 'ID пользователя, чьи подписки нужно получить',
+        example: 'c20ad4d7-6fe9-4759-8a27-a0c99bff6710',
+    })
+    @ApiOkResponse({
+        description: 'Список подписок с пагинацией',
+        type: CursorDto<SubscriptionItemDto>,
+    })
+    async getSubscriptions(
+        @Param('userId') userId: string,
+        @AuthUser() { sub: viewerId }: JwtUserData,
+        @Query() cursorOptionsDto: CursorOptionsDto,
+        @Query() queryDto: GetSubscriptionsQueryDto,
+    ) {
+        return this.subscriptionsService.getSubscriptions(
+            userId,
+            viewerId,
+            cursorOptionsDto,
+            queryDto,
+        );
     }
 
-    @Get('followers')
-    @ApiOperation(USERS_API_DOCS.OPERATIONS.GET_FOLLOWERS_COUNTER)
-    @ApiOkResponse(USERS_API_DOCS.RESPONSES.GET_FOLLOWERS_COUNTER)
-    @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
-    async getFollowersCounter(@AuthUser() { sub: userId }: JwtUserData) {
-        return this.subscriptionsService.getFollowersCounter(userId);
+    @Get('followers/:userId')
+    @ApiOperation({
+        summary: 'Получить список фолловеров пользователя',
+        description:
+            'Возвращает список пользователей, которые подписаны на указанного пользователя с пагинацией и поиском',
+    })
+    @ApiParam({
+        name: 'userId',
+        description: 'ID пользователя, чьих фолловеров нужно получить',
+        example: 'c20ad4d7-6fe9-4759-8a27-a0c99bff6710',
+    })
+    @ApiOkResponse({
+        description: 'Список фолловеров с пагинацией',
+        type: CursorDto<SubscriptionItemDto>,
+    })
+    async getFollowers(
+        @Param('userId') userId: string,
+        @AuthUser() { sub: viewerId }: JwtUserData,
+        @Query() cursorOptionsDto: CursorOptionsDto,
+        @Query() queryDto: GetSubscriptionsQueryDto,
+    ) {
+        return this.subscriptionsService.getFollowers(
+            userId,
+            viewerId,
+            cursorOptionsDto,
+            queryDto,
+        );
     }
 
-    @Post('subscribe/:id')
-    @ApiOperation(USERS_API_DOCS.OPERATIONS.SUBSCRIBE)
-    @ApiOkResponse(USERS_API_DOCS.RESPONSES.SUBSCRIBE)
-    @ApiResponse(USERS_API_DOCS.RESPONSES.BAD_REQUEST_SUBSCRIBE)
-    @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
+    @Post('subscribe/:targetUserId')
+    @ApiOperation({
+        summary: 'Подписаться на пользователя',
+        description: 'Создает подписку на указанного пользователя',
+    })
+    @ApiParam({
+        name: 'targetUserId',
+        description: 'ID пользователя, на которого нужно подписаться',
+        example: 'c20ad4d7-6fe9-4759-8a27-a0c99bff6710',
+    })
     async subscribeUser(
         @AuthUser() { sub: userId }: JwtUserData,
-        @Param('targetUserId', ParseUUIDPipe) targetUserId: string,
+        @Param('targetUserId') targetUserId: string,
     ) {
         return this.subscriptionsService.subscribeUser(userId, targetUserId);
     }
 
-    @Delete('unsubscribe/:id')
-    @ApiOperation(USERS_API_DOCS.OPERATIONS.UNSUBSCRIBE)
-    @ApiOkResponse(USERS_API_DOCS.RESPONSES.UNSUBSCRIBE)
-    @ApiResponse(USERS_API_DOCS.RESPONSES.BAD_REQUEST_UNSUBSCRIBE)
-    @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
+    @Delete('unsubscribe/:targetUserId')
+    @ApiOperation({
+        summary: 'Отписаться от пользователя',
+        description: 'Удаляет подписку на указанного пользователя',
+    })
+    @ApiParam({
+        name: 'targetUserId',
+        description: 'ID пользователя, от которого нужно отписаться',
+        example: 'c20ad4d7-6fe9-4759-8a27-a0c99bff6710',
+    })
     async unsubscribeUser(
         @AuthUser() { sub: userId }: JwtUserData,
-        @Param('targetUserId', ParseUUIDPipe) targetUserId: string,
+        @Param('targetUserId') targetUserId: string,
     ) {
         return this.subscriptionsService.unsubscribeUser(userId, targetUserId);
-    }
-
-    @Get('subscriptions/:userId')
-    @ApiOperation(USERS_API_DOCS.OPERATIONS.GET_SUBSCRIPTIONS)
-    @ApiParam(USERS_API_DOCS.PARAMS.USER_ID)
-    @ApiOkResponse(USERS_API_DOCS.RESPONSES.GET_SUBSCRIPTIONS)
-    @ApiResponse(USERS_API_DOCS.RESPONSES.NOT_FOUND)
-    @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
-    async getUserSubscriptions(@Param('userId', ParseUUIDPipe) userId: string) {
-        return this.subscriptionsService.getSubscriptions(userId);
-    }
-
-    @Get('followers/:userId')
-    @ApiOperation(USERS_API_DOCS.OPERATIONS.GET_FOLLOWERS)
-    @ApiParam(USERS_API_DOCS.PARAMS.USER_ID)
-    @ApiOkResponse(USERS_API_DOCS.RESPONSES.GET_FOLLOWERS)
-    @ApiResponse(USERS_API_DOCS.RESPONSES.NOT_FOUND)
-    @ApiResponse(USERS_API_DOCS.RESPONSES.UNAUTHORIZED)
-    async getUserFollowers(@Param('userId', ParseUUIDPipe) userId: string) {
-        return this.subscriptionsService.getFollowers(userId);
     }
 }
