@@ -48,6 +48,13 @@ class FeedItem {
     })
     rankScore?: number | null;
 
+    @ApiProperty({
+        example: true,
+        description: 'Активна ли новость',
+    })
+    @Column({ default: true })
+    isActive: boolean;
+
     @ManyToOne(() => User)
     author: User;
 }
