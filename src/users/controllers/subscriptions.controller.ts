@@ -44,7 +44,7 @@ export class SubscriptionsController {
         return this.subscriptionsService.getFollowersCounter(userId);
     }
 
-    @Post('subscribe/:id')
+    @Post('subscribe/:targetUserId')
     @ApiOperation(USERS_API_DOCS.OPERATIONS.SUBSCRIBE)
     @ApiOkResponse(USERS_API_DOCS.RESPONSES.SUBSCRIBE)
     @ApiResponse(USERS_API_DOCS.RESPONSES.BAD_REQUEST_SUBSCRIBE)
@@ -56,7 +56,7 @@ export class SubscriptionsController {
         return this.subscriptionsService.subscribeUser(userId, targetUserId);
     }
 
-    @Delete('unsubscribe/:id')
+    @Delete('unsubscribe/:targetUserId')
     @ApiOperation(USERS_API_DOCS.OPERATIONS.UNSUBSCRIBE)
     @ApiOkResponse(USERS_API_DOCS.RESPONSES.UNSUBSCRIBE)
     @ApiResponse(USERS_API_DOCS.RESPONSES.BAD_REQUEST_UNSUBSCRIBE)
