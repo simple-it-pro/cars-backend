@@ -11,5 +11,6 @@ import { HashtagsModule } from '../hastags/hastags.module';
     imports: [FilesModule, HashtagsModule, TypeOrmModule.forFeature([Post])],
     controllers: [PostsFilesController, PostsController],
     providers: [PostsService, PostFilesService],
+    exports: [PostsService],
 })
 export class PostsModule {}

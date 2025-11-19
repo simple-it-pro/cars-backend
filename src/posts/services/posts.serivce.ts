@@ -379,9 +379,7 @@ export class PostsService {
         return SUCCESS_MESSAGES.POST.PUBLISHED;
     }
 
-    private async addSignedUrlsToPost(
-        post: PostWithFile,
-    ): Promise<PostResponseDto> {
+    async addSignedUrlsToPost(post: PostWithFile): Promise<PostResponseDto> {
         post.cover = await this.filesService.addSignedUrlToFile(post.cover);
 
         if (post.files?.length) {
