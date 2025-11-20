@@ -19,7 +19,7 @@ import {
     ApiBody,
 } from '@nestjs/swagger';
 
-import { DetectFileFormatPipe } from '../../files/pipes';
+import { ConvertFileToJpegPipe, DetectFileFormatPipe } from '../../files/pipes';
 import { FileWithFormat } from '../../files/interfaces';
 import { FileTypeValidator } from '../../files/validators';
 import { JwtGuard } from '../../auth/guards';
@@ -50,10 +50,14 @@ export class PostsFilesController {
     async preUploadFile(
         @UploadedFile(
             new DetectFileFormatPipe(),
+            new ConvertFileToJpegPipe({
+                mimeTypesToConvert: [/image\/(heic|heif)/gi],
+                extensionsToConvert: ['heic', 'heif'],
+            }),
             new ParseFilePipe({
                 validators: [
                     new FileTypeValidator({
-                        mimeTypes: [/image\/(jpeg|jpg|png|webp)/gi],
+                        mimeTypes: [/image\/(jpeg|jpg|png|webp|heic|heif)/gi],
                     }),
                     new MaxFileSizeValidator({
                         maxSize: 10 * 1024 * 1024,
@@ -65,6 +69,8 @@ export class PostsFilesController {
         )
         file: FileWithFormat,
     ) {
+        console.log('file', file);
+        return 'HI THERE MY FRIEND';
         return this.postFilesService.preUploadFile(file);
     }
 
