@@ -3,6 +3,7 @@ import {
     Controller,
     Get,
     Param,
+    ParseUUIDPipe,
     Patch,
     Post,
     Query,
@@ -15,6 +16,7 @@ import {
     ApiBody,
     ApiConsumes,
     ApiOperation,
+    ApiParam,
     ApiResponse,
 } from '@nestjs/swagger';
 import { FilesInterceptor } from '@nestjs/platform-express';
@@ -26,12 +28,11 @@ import { AuthUser } from '../../auth/decorators';
 import { JwtUserData } from '../../users/types';
 
 import {
-    UserReviewsParamsDto,
-    UserReviewsQueryDto,
-    GetReviewsQueryDto,
+    GetReviewsCursorQueryDto,
+    GetUserReviewsCursorQueryDto,
 } from '../dto/queries';
 import { ReviewIdParamsDto } from '../dto/params';
-import { REVIEWS_BODIES } from '../reviews.swagger';
+import { REVIEWS_BODIES, REVIEWS_API_DOCS } from '../reviews.swagger';
 
 @Controller()
 @ApiBearerAuth('JWT-auth')
@@ -40,11 +41,11 @@ export class ReviewsController {
     constructor(private readonly reviewsService: ReviewsService) {}
 
     @Post()
-    @ApiOperation({ summary: 'Создать отзыв' })
+    @ApiOperation(REVIEWS_API_DOCS.OPERATIONS.CREATE_REVIEW)
     @ApiConsumes('multipart/form-data')
-    @ApiResponse({ status: 201, description: 'Отзыв создан' })
-    @ApiResponse({ status: 400, description: 'Неверные данные' })
     @ApiBody(REVIEWS_BODIES.CREATE_REVIEW)
+    @ApiResponse(REVIEWS_API_DOCS.RESPONSES.CREATE_REVIEW)
+    @ApiResponse(REVIEWS_API_DOCS.RESPONSES.BAD_REQUEST)
     @UseInterceptors(FilesInterceptor('images', 5))
     async create(
         @Body() createReviewDto: CreateReviewDto,
@@ -55,55 +56,74 @@ export class ReviewsController {
     }
 
     @Get()
-    @ApiOperation({ summary: 'Получить все отзывы (с пагинацией)' })
+    @ApiOperation(REVIEWS_API_DOCS.OPERATIONS.FIND_ALL)
+    @ApiResponse(REVIEWS_API_DOCS.RESPONSES.FIND_ALL)
     async findAll(
-        @Query() getReviewsQueryDto: GetReviewsQueryDto,
+        @Query() cursorOptionsDto: GetReviewsCursorQueryDto,
         @AuthUser() author?: JwtUserData,
     ) {
-        return this.reviewsService.findAll({
-            page: getReviewsQueryDto.page,
-            limit: getReviewsQueryDto.limit,
-            userId: getReviewsQueryDto.userId,
+        return this.reviewsService.findAll(cursorOptionsDto, {
+            userId: cursorOptionsDto.userId,
             authorId: author?.sub,
+            isVerified: cursorOptionsDto.isVerified,
         });
     }
 
     @Get('verified')
-    @ApiOperation({ summary: 'Получить верифицированные отзывы' })
-    async getVerifiedReviews(@Query() getReviewsQueryDto: GetReviewsQueryDto) {
+    @ApiOperation(REVIEWS_API_DOCS.OPERATIONS.GET_VERIFIED_REVIEWS)
+    @ApiResponse(REVIEWS_API_DOCS.RESPONSES.GET_VERIFIED_REVIEWS)
+    async getVerifiedReviews(
+        @Query() cursorOptionsDto: GetReviewsCursorQueryDto,
+    ) {
         return this.reviewsService.getVerifiedReviews(
-            getReviewsQueryDto.userId,
-            getReviewsQueryDto.page,
-            getReviewsQueryDto.limit,
+            cursorOptionsDto,
+            cursorOptionsDto.userId,
         );
     }
 
     @Get('user/:userId/received')
-    @ApiOperation({ summary: 'Получить отзывы, полученные пользователем' })
+    @ApiOperation(REVIEWS_API_DOCS.OPERATIONS.GET_USER_RECEIVED_REVIEWS)
+    @ApiParam(REVIEWS_API_DOCS.PARAMS.USER_ID)
+    @ApiResponse(REVIEWS_API_DOCS.RESPONSES.GET_USER_RECEIVED_REVIEWS)
     async getUserReceivedReviews(
-        @Param() { userId }: UserReviewsParamsDto,
-        @Query() { page, limit }: UserReviewsQueryDto,
+        @Param('userId', ParseUUIDPipe) userId: string,
+        @Query() cursorOptionsDto: GetUserReviewsCursorQueryDto,
     ) {
-        return this.reviewsService.getUserReceivedReviews(userId, page, limit);
+        return this.reviewsService.getUserReceivedReviews(
+            userId,
+            cursorOptionsDto,
+        );
     }
 
     @Get('user/:userId/authored')
-    @ApiOperation({ summary: 'Получить отзывы, написанные пользователем' })
+    @ApiOperation(REVIEWS_API_DOCS.OPERATIONS.GET_USER_AUTHORED_REVIEWS)
+    @ApiParam(REVIEWS_API_DOCS.PARAMS.USER_ID)
+    @ApiResponse(REVIEWS_API_DOCS.RESPONSES.GET_USER_AUTHORED_REVIEWS)
     async getUserAuthoredReviews(
-        @Param() { userId }: UserReviewsParamsDto,
-        @Query() { page, limit }: UserReviewsQueryDto,
+        @Param('userId', ParseUUIDPipe) userId: string,
+        @Query() cursorOptionsDto: GetUserReviewsCursorQueryDto,
     ) {
-        return this.reviewsService.getUserAuthoredReviews(userId, page, limit);
+        return this.reviewsService.getUserAuthoredReviews(
+            userId,
+            cursorOptionsDto,
+        );
     }
 
     @Get(':id')
-    @ApiOperation({ summary: 'Получить отзыв по ID' })
+    @ApiOperation(REVIEWS_API_DOCS.OPERATIONS.FIND_ONE)
+    @ApiParam(REVIEWS_API_DOCS.PARAMS.REVIEW_ID)
+    @ApiResponse(REVIEWS_API_DOCS.RESPONSES.FIND_ONE)
+    @ApiResponse(REVIEWS_API_DOCS.RESPONSES.NOT_FOUND)
     async findOne(@Param() { id }: ReviewIdParamsDto) {
         return this.reviewsService.findOne(id);
     }
 
     @Patch(':id/answer')
-    @ApiOperation({ summary: 'Ответить на отзыв' })
+    @ApiOperation(REVIEWS_API_DOCS.OPERATIONS.ANSWER_REVIEW)
+    @ApiParam(REVIEWS_API_DOCS.PARAMS.REVIEW_ID)
+    @ApiResponse(REVIEWS_API_DOCS.RESPONSES.ANSWER_REVIEW)
+    @ApiResponse(REVIEWS_API_DOCS.RESPONSES.BAD_REQUEST)
+    @ApiResponse(REVIEWS_API_DOCS.RESPONSES.FORBIDDEN)
     async answerReview(
         @Param() { id }: ReviewIdParamsDto,
         @AuthUser() { sub: userId }: JwtUserData,
@@ -112,16 +132,20 @@ export class ReviewsController {
         return this.reviewsService.answerReview(id, userId, answerReviewDto);
     }
 
-    // TODO: Когда будет админка, поставить AdminGuard
     @Patch(':id/verify')
-    @ApiOperation({ summary: 'Верифицировать отзыв (для админа)' })
+    @ApiOperation(REVIEWS_API_DOCS.OPERATIONS.VERIFY_REVIEW)
+    @ApiParam(REVIEWS_API_DOCS.PARAMS.REVIEW_ID)
+    @ApiResponse(REVIEWS_API_DOCS.RESPONSES.VERIFY_REVIEW)
+    @ApiResponse(REVIEWS_API_DOCS.RESPONSES.NOT_FOUND)
     async verifyReview(@Param() { id }: ReviewIdParamsDto) {
         return this.reviewsService.verifyReview(id);
     }
 
-    // TODO: Когда будет админка, поставить AdminGuard
     @Patch(':id/unverify')
-    @ApiOperation({ summary: 'Снять верификацию с отзыва (для админа)' })
+    @ApiOperation(REVIEWS_API_DOCS.OPERATIONS.UNVERIFY_REVIEW)
+    @ApiParam(REVIEWS_API_DOCS.PARAMS.REVIEW_ID)
+    @ApiResponse(REVIEWS_API_DOCS.RESPONSES.UNVERIFY_REVIEW)
+    @ApiResponse(REVIEWS_API_DOCS.RESPONSES.NOT_FOUND)
     async unverifyReview(@Param() { id }: ReviewIdParamsDto) {
         return this.reviewsService.unverifyReview(id);
     }
