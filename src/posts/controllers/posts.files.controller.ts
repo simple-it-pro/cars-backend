@@ -69,8 +69,6 @@ export class PostsFilesController {
         )
         file: FileWithFormat,
     ) {
-        console.log('file', file);
-        return 'HI THERE MY FRIEND';
         return this.postFilesService.preUploadFile(file);
     }
 
