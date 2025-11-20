@@ -4,7 +4,7 @@ import {
     ApiResponseOptions,
     ApiParamOptions,
 } from '@nestjs/swagger';
-import { Follower, Subscription, User } from '../database/entities';
+import { User } from '../../database/entities';
 
 export const USERS_BODIES = {
     UPDATE_ME: {
@@ -121,66 +121,10 @@ export const USERS_API_DOCS = {
             description: 'Позволяет пользователю загрузить новый аватар',
         } as ApiOperationOptions,
 
-        SUBSCRIBE: {
-            summary: 'Подписка на пользователя',
-            description:
-                'Позволяет текущему пользователю подписаться на другого пользователя',
-        } as ApiOperationOptions,
-
-        UNSUBSCRIBE: {
-            summary: 'Отписка от пользователя',
-            description:
-                'Позволяет текущему пользователю отписаться от другого пользователя',
-        } as ApiOperationOptions,
-
-        GET_SUBSCRIPTIONS: {
-            summary: 'Получение подписок пользователя',
-            description:
-                'Возвращает список пользователей, на которых подписан указанный пользователь',
-        } as ApiOperationOptions,
-
-        GET_FOLLOWERS: {
-            summary: 'Получение подписчиков пользователя',
-            description:
-                'Возвращает список пользователей, которые подписаны на указанного пользователя',
-        } as ApiOperationOptions,
-
         GET_BLOCKED_USERS: {
-            description: 'Список заблокированных пользователей успешно получен',
             summary: 'Получение заблокированных пользователей',
-            schema: {
-                type: 'array',
-                items: {
-                    type: 'object',
-                    properties: {
-                        id: {
-                            type: 'string',
-                            example: '123e4567-e89b-12d3-a456-426614174000',
-                            format: 'uuid',
-                        },
-                        nickname: { type: 'string', example: 'blocked_user' },
-                        name: {
-                            type: 'string',
-                            example: 'Заблокированный пользователь',
-                        },
-                        image: {
-                            type: 'object',
-                            nullable: true,
-                            properties: {
-                                url: {
-                                    type: 'string',
-                                    example:
-                                        'https://signed.example.com/photo.jpg',
-                                },
-                                name: { type: 'string', example: 'photo.jpg' },
-                                size: { type: 'number', example: 12345 },
-                            },
-                        },
-                    },
-                    required: ['id'],
-                },
-            },
-        } as ApiResponseOptions,
+            description: 'Возвращает список заблокированных пользователей',
+        } as ApiOperationOptions,
 
         BLOCK_USER: {
             summary: 'Блокировка пользователя',
@@ -218,17 +162,6 @@ export const USERS_API_DOCS = {
         ACTIVATE_ME: {
             summary: 'Активация профиля',
             description: 'Активирует ранее деактивированный профиль',
-        } as ApiOperationOptions,
-        GET_SUBSCRIPTIONS_COUNTER: {
-            summary: 'Получение счетчика подписок',
-            description:
-                'Возвращает количество пользователей, на которых подписан текущий авторизованный пользователь',
-        } as ApiOperationOptions,
-
-        GET_FOLLOWERS_COUNTER: {
-            summary: 'Получение счетчика подписчиков',
-            description:
-                'Возвращает количество пользователей, подписанных на текущего авторизованного пользователя',
         } as ApiOperationOptions,
     },
 
@@ -280,42 +213,6 @@ export const USERS_API_DOCS = {
             type: User,
         } as ApiResponseOptions,
 
-        SUBSCRIBE: {
-            description: 'Подписка успешно оформлена',
-            schema: {
-                type: 'object',
-                properties: {
-                    message: {
-                        type: 'string',
-                        example: 'Вы успешно подписались на пользователя',
-                    },
-                },
-            },
-        } as ApiResponseOptions,
-
-        UNSUBSCRIBE: {
-            description: 'Отписка выполнена успешно',
-            schema: {
-                type: 'object',
-                properties: {
-                    message: {
-                        type: 'string',
-                        example: 'Вы успешно отписались от пользователя',
-                    },
-                },
-            },
-        } as ApiResponseOptions,
-
-        GET_SUBSCRIPTIONS: {
-            description: 'Список подписок успешно получен',
-            type: [Subscription],
-        } as ApiResponseOptions,
-
-        GET_FOLLOWERS: {
-            description: 'Список подписчиков успешно получен',
-            type: [Follower],
-        } as ApiResponseOptions,
-
         GET_BLOCKED_USERS: {
             description: 'Список заблокированных пользователей успешно получен',
             schema: {
@@ -333,35 +230,21 @@ export const USERS_API_DOCS = {
                             type: 'string',
                             example: 'Заблокированный пользователь',
                         },
+                        image: {
+                            type: 'object',
+                            nullable: true,
+                            properties: {
+                                url: {
+                                    type: 'string',
+                                    example:
+                                        'https://signed.example.com/photo.jpg',
+                                },
+                                name: { type: 'string', example: 'photo.jpg' },
+                                size: { type: 'number', example: 12345 },
+                            },
+                        },
                     },
-                },
-            },
-        } as ApiResponseOptions,
-
-        GET_SUBSCRIPTIONS_COUNTER: {
-            description: 'Количество подписок успешно получено',
-            schema: {
-                type: 'object',
-                properties: {
-                    count: {
-                        type: 'number',
-                        example: 42,
-                        description: 'Общее количество подписок',
-                    },
-                },
-            },
-        } as ApiResponseOptions,
-
-        GET_FOLLOWERS_COUNTER: {
-            description: 'Количество подписчиков успешно получено',
-            schema: {
-                type: 'object',
-                properties: {
-                    count: {
-                        type: 'number',
-                        example: 128,
-                        description: 'Общее количество подписчиков',
-                    },
+                    required: ['id'],
                 },
             },
         } as ApiResponseOptions,
@@ -504,16 +387,6 @@ export const USERS_API_DOCS = {
             description: 'Файл не предоставлен или имеет недопустимый формат',
         } as ApiResponseOptions,
 
-        BAD_REQUEST_SUBSCRIBE: {
-            status: 400,
-            description: 'Пользователь не найден или уже подписан',
-        } as ApiResponseOptions,
-
-        BAD_REQUEST_UNSUBSCRIBE: {
-            status: 400,
-            description: 'Пользователь не найден или не подписан',
-        } as ApiResponseOptions,
-
         BAD_REQUEST_BLOCK: {
             status: 400,
             description: 'Пользователь не найден или уже заблокирован',
@@ -545,13 +418,6 @@ export const USERS_API_DOCS = {
             type: String,
             example: '123e4567-e89b-12d3-a456-426614174000',
             format: 'uuid',
-        } as ApiParamOptions,
-
-        SLUG: {
-            name: 'slug',
-            description: 'Nickname или ID пользователя',
-            type: String,
-            example: 'john_doe',
         } as ApiParamOptions,
 
         TARGET_USER_ID: {

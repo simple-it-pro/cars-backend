@@ -1,26 +1,27 @@
 import {
     Controller,
-    Get,
-    Post,
     Delete,
+    Get,
     Param,
-    UseGuards,
+    Post,
     Query,
+    UseGuards,
 } from '@nestjs/common';
 import {
-    ApiTags,
     ApiBearerAuth,
+    ApiOkResponse,
     ApiOperation,
     ApiParam,
-    ApiOkResponse,
+    ApiResponse,
+    ApiTags,
 } from '@nestjs/swagger';
 import { SubscriptionsService } from '../services';
 import { JwtGuard } from '../../auth/guards';
 import { AuthUser } from '../../auth/decorators';
 import { JwtUserData } from '../types';
-import { CursorOptionsDto, CursorDto } from '../../shared/pagination/cursor';
-import { SubscriptionItemDto } from '../dto/responses';
+import { CursorOptionsDto } from '../../shared/pagination/cursor';
 import { GetSubscriptionsQueryDto } from '../dto/queries';
+import { SUBSCRIPTIONS_API_DOCS } from '../swagger';
 
 @ApiTags('Users')
 @Controller()
@@ -30,20 +31,12 @@ export class SubscriptionsController {
     constructor(private readonly subscriptionsService: SubscriptionsService) {}
 
     @Get('subscriptions/:userId')
-    @ApiOperation({
-        summary: 'Получить список подписок пользователя',
-        description:
-            'Возвращает список пользователей, на которых подписан указанный пользователь с пагинацией и поиском',
-    })
-    @ApiParam({
-        name: 'userId',
-        description: 'ID пользователя, чьи подписки нужно получить',
-        example: 'c20ad4d7-6fe9-4759-8a27-a0c99bff6710',
-    })
-    @ApiOkResponse({
-        description: 'Список подписок с пагинацией',
-        type: CursorDto<SubscriptionItemDto>,
-    })
+    @ApiOperation(SUBSCRIPTIONS_API_DOCS.OPERATIONS.GET_SUBSCRIPTIONS)
+    @ApiParam(SUBSCRIPTIONS_API_DOCS.PARAMS.USER_ID)
+    @ApiOkResponse(SUBSCRIPTIONS_API_DOCS.RESPONSES.GET_SUBSCRIPTIONS)
+    @ApiResponse(SUBSCRIPTIONS_API_DOCS.RESPONSES.BAD_REQUEST)
+    @ApiResponse(SUBSCRIPTIONS_API_DOCS.RESPONSES.UNAUTHORIZED)
+    @ApiResponse(SUBSCRIPTIONS_API_DOCS.RESPONSES.NOT_FOUND)
     async getSubscriptions(
         @Param('userId') userId: string,
         @AuthUser() { sub: viewerId }: JwtUserData,
@@ -59,20 +52,12 @@ export class SubscriptionsController {
     }
 
     @Get('followers/:userId')
-    @ApiOperation({
-        summary: 'Получить список фолловеров пользователя',
-        description:
-            'Возвращает список пользователей, которые подписаны на указанного пользователя с пагинацией и поиском',
-    })
-    @ApiParam({
-        name: 'userId',
-        description: 'ID пользователя, чьих фолловеров нужно получить',
-        example: 'c20ad4d7-6fe9-4759-8a27-a0c99bff6710',
-    })
-    @ApiOkResponse({
-        description: 'Список фолловеров с пагинацией',
-        type: CursorDto<SubscriptionItemDto>,
-    })
+    @ApiOperation(SUBSCRIPTIONS_API_DOCS.OPERATIONS.GET_FOLLOWERS)
+    @ApiParam(SUBSCRIPTIONS_API_DOCS.PARAMS.USER_ID)
+    @ApiOkResponse(SUBSCRIPTIONS_API_DOCS.RESPONSES.GET_FOLLOWERS)
+    @ApiResponse(SUBSCRIPTIONS_API_DOCS.RESPONSES.BAD_REQUEST)
+    @ApiResponse(SUBSCRIPTIONS_API_DOCS.RESPONSES.UNAUTHORIZED)
+    @ApiResponse(SUBSCRIPTIONS_API_DOCS.RESPONSES.NOT_FOUND)
     async getFollowers(
         @Param('userId') userId: string,
         @AuthUser() { sub: viewerId }: JwtUserData,
@@ -88,15 +73,13 @@ export class SubscriptionsController {
     }
 
     @Post('subscribe/:targetUserId')
-    @ApiOperation({
-        summary: 'Подписаться на пользователя',
-        description: 'Создает подписку на указанного пользователя',
-    })
-    @ApiParam({
-        name: 'targetUserId',
-        description: 'ID пользователя, на которого нужно подписаться',
-        example: 'c20ad4d7-6fe9-4759-8a27-a0c99bff6710',
-    })
+    @ApiOperation(SUBSCRIPTIONS_API_DOCS.OPERATIONS.SUBSCRIBE_USER)
+    @ApiParam(SUBSCRIPTIONS_API_DOCS.PARAMS.TARGET_USER_ID)
+    @ApiOkResponse(SUBSCRIPTIONS_API_DOCS.RESPONSES.SUBSCRIBE_USER)
+    @ApiResponse(SUBSCRIPTIONS_API_DOCS.RESPONSES.BAD_REQUEST)
+    @ApiResponse(SUBSCRIPTIONS_API_DOCS.RESPONSES.UNAUTHORIZED)
+    @ApiResponse(SUBSCRIPTIONS_API_DOCS.RESPONSES.FORBIDDEN)
+    @ApiResponse(SUBSCRIPTIONS_API_DOCS.RESPONSES.NOT_FOUND)
     async subscribeUser(
         @AuthUser() { sub: userId }: JwtUserData,
         @Param('targetUserId') targetUserId: string,
@@ -105,15 +88,12 @@ export class SubscriptionsController {
     }
 
     @Delete('unsubscribe/:targetUserId')
-    @ApiOperation({
-        summary: 'Отписаться от пользователя',
-        description: 'Удаляет подписку на указанного пользователя',
-    })
-    @ApiParam({
-        name: 'targetUserId',
-        description: 'ID пользователя, от которого нужно отписаться',
-        example: 'c20ad4d7-6fe9-4759-8a27-a0c99bff6710',
-    })
+    @ApiOperation(SUBSCRIPTIONS_API_DOCS.OPERATIONS.UNSUBSCRIBE_USER)
+    @ApiParam(SUBSCRIPTIONS_API_DOCS.PARAMS.TARGET_USER_ID)
+    @ApiOkResponse(SUBSCRIPTIONS_API_DOCS.RESPONSES.UNSUBSCRIBE_USER)
+    @ApiResponse(SUBSCRIPTIONS_API_DOCS.RESPONSES.BAD_REQUEST)
+    @ApiResponse(SUBSCRIPTIONS_API_DOCS.RESPONSES.UNAUTHORIZED)
+    @ApiResponse(SUBSCRIPTIONS_API_DOCS.RESPONSES.NOT_FOUND)
     async unsubscribeUser(
         @AuthUser() { sub: userId }: JwtUserData,
         @Param('targetUserId') targetUserId: string,
