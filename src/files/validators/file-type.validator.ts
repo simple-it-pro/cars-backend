@@ -1,13 +1,11 @@
 import { FileValidator } from '@nestjs/common';
 
 import { isSingleFile, isFileArray, isFileRecord } from '../utils';
-import { FileWithFormat } from '../interfaces';
-
-type FileValidatorType = Express.Multer.File | FileWithFormat;
+import { FileInPipelineType } from '../types';
 
 export class FileTypeValidator extends FileValidator<
     { mimeTypes?: (string | RegExp)[]; extensions?: string[] },
-    FileValidatorType
+    FileInPipelineType
 > {
     constructor(options: {
         mimeTypes?: (string | RegExp)[];
@@ -18,9 +16,9 @@ export class FileTypeValidator extends FileValidator<
 
     isValid(
         files?:
-            | FileValidatorType
-            | FileValidatorType[]
-            | Record<string, FileValidatorType[]>,
+            | FileInPipelineType
+            | FileInPipelineType[]
+            | Record<string, FileInPipelineType[]>,
     ) {
         if (!files) return true;
 
@@ -33,9 +31,9 @@ export class FileTypeValidator extends FileValidator<
 
     buildErrorMessage(
         files:
-            | FileValidatorType
-            | FileValidatorType[]
-            | Record<string, FileValidatorType[]>
+            | FileInPipelineType
+            | FileInPipelineType[]
+            | Record<string, FileInPipelineType[]>
             | undefined,
     ): string {
         if (isSingleFile(files))
@@ -44,7 +42,7 @@ export class FileTypeValidator extends FileValidator<
         return `Неверный формат файлов`;
     }
 
-    private validateFileType(file: FileValidatorType) {
+    private validateFileType(file: FileInPipelineType) {
         if (this.validationOptions.extensions) {
             const ext =
                 'ext' in file
@@ -74,7 +72,7 @@ export class FileTypeValidator extends FileValidator<
         return true;
     }
 
-    private validateFileTypeArray(files: FileValidatorType[]) {
+    private validateFileTypeArray(files: FileInPipelineType[]) {
         for (const file of files) {
             const isValid = this.validateFileType(file);
             if (!isValid) return false;
@@ -83,7 +81,9 @@ export class FileTypeValidator extends FileValidator<
         return true;
     }
 
-    private validateFileTypeRecord(files: Record<string, FileValidatorType[]>) {
+    private validateFileTypeRecord(
+        files: Record<string, FileInPipelineType[]>,
+    ) {
         for (const key in files) {
             const isValid = this.validateFileTypeArray(files[key]);
             if (!isValid) return false;
