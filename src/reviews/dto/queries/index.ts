@@ -1,3 +1,2 @@
-export * from './get-reviews.query.dto';
-export * from './user-reviews.query.dto';
-export * from './pagination.query.dto';
+export * from './get-reviews-cursor.query.dto';
+export * from './get-user-reviews-query.dto';

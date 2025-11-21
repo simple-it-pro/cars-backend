@@ -12,6 +12,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { PostsModule } from './posts/posts.module';
 import { FilesModule } from './files/files.module';
 import { GarageModule } from './garage/garage.module';
+import { FeedModule } from './feed/feed.module';
 import ROUTES from './routes';
 
 @Module({
@@ -28,6 +29,7 @@ import ROUTES from './routes';
         NotificationsModule,
         RouterModule.register(ROUTES),
         GarageModule,
+        FeedModule,
     ],
 })
 export class AppModule {}
