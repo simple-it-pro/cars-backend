@@ -14,6 +14,7 @@ import { ApiProperty } from '@nestjs/swagger';
 
 import { UserRole } from '../../common/types';
 import {
+    Car,
     Chat,
     Follower,
     Message,
@@ -21,7 +22,6 @@ import {
     Post,
     RefreshToken,
     Review,
-    Car,
     Subscription,
     UnreadChat,
     UserBlock,

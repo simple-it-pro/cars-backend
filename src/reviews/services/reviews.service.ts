@@ -5,7 +5,7 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Brackets, Repository } from 'typeorm';
 
 import { Review, User, UserBlock } from '../../database/entities';
 import { Image } from '../../database/interfaces';
@@ -20,6 +20,15 @@ import {
 import { RatingService } from '../../users/services';
 import { NotificationsService } from '../../notifications/services';
 import { NotificationMessages, NotificationType } from '../../common/types';
+import {
+    createCursorMeta,
+    CursorDto,
+    CursorOptionsDto,
+} from '../../shared/pagination/cursor';
+import { ReviewResponseDto } from '../dto/responses/review-response.dto';
+import { Order } from '../../shared/pagination/enums';
+import { plainToInstance } from 'class-transformer';
+import { FileUrlsService } from '../../storage/services';
 
 @Injectable()
 export class ReviewsService {
@@ -31,6 +40,7 @@ export class ReviewsService {
         @InjectRepository(UserBlock)
         private readonly userBlockRepository: Repository<UserBlock>,
         private readonly storageService: StorageService,
+        private readonly fileUrlsService: FileUrlsService,
         private readonly ratingService: RatingService,
         private readonly notificationsService: NotificationsService,
     ) {}
@@ -141,7 +151,8 @@ export class ReviewsService {
             description: review.content,
         });
 
-        const reviewWithUrls = await this.addSignedUrlsToReview(review);
+        const reviewWithUrls =
+            await this.fileUrlsService.addSignedUrlsDeep(review);
         return {
             message: SUCCESS_MESSAGES.REVIEW.CREATED,
             review: reviewWithUrls,
@@ -157,68 +168,94 @@ export class ReviewsService {
         if (!review)
             throw new NotFoundException(ERROR_MESSAGES.REVIEW.NOT_FOUND);
 
-        return this.addSignedUrlsToReview(review);
+        return this.fileUrlsService.addSignedUrlsDeep(review);
     }
 
-    async findAll(options?: {
-        page?: number;
-        limit?: number;
-        userId?: string;
-        authorId?: string;
-        isVerified?: boolean;
-    }) {
-        const {
-            page = 1,
-            limit = 10,
-            userId,
-            authorId,
-            isVerified,
-        } = options || {};
-        const skip = (page - 1) * limit;
-
-        const queryBuilder = this.reviewsRepository
+    async findAll(
+        cursorOptionsDto: CursorOptionsDto,
+        filters?: {
+            userId?: string;
+            authorId?: string;
+            isVerified?: boolean;
+        },
+    ): Promise<CursorDto<ReviewResponseDto>> {
+        const qb = this.reviewsRepository
             .createQueryBuilder('review')
             .leftJoinAndSelect('review.user', 'user')
             .leftJoinAndSelect('review.author', 'author')
-            .orderBy('review.createdAt', 'DESC')
-            .skip(skip)
-            .take(limit);
-
-        if (userId)
-            queryBuilder.andWhere('review.userId = :userId', { userId });
-
-        if (authorId)
-            queryBuilder.andWhere('review.authorId = :authorId', { authorId });
-
-        if (isVerified !== undefined)
-            queryBuilder.andWhere('review.isVerified = :isVerified', {
-                isVerified,
+            .where('user.deletedAt IS NULL')
+            .andWhere('author.deletedAt IS NULL')
+            .andWhere('user.isDeactivated = :isDeactivated', {
+                isDeactivated: false,
+            })
+            .andWhere('author.isDeactivated = :isDeactivated', {
+                isDeactivated: false,
             });
 
-        const [reviews, total] = await queryBuilder.getManyAndCount();
+        if (filters?.userId) {
+            qb.andWhere('review.userId = :userId', { userId: filters.userId });
+        }
+
+        if (filters?.authorId) {
+            qb.andWhere('review.authorId = :authorId', {
+                authorId: filters.authorId,
+            });
+        }
+
+        if (filters?.isVerified !== undefined) {
+            qb.andWhere('review.isVerified = :isVerified', {
+                isVerified: filters.isVerified,
+            });
+        }
+
+        qb.orderBy('review.createdAt', cursorOptionsDto.order)
+            .addOrderBy('review.id', cursorOptionsDto.order)
+            .take(cursorOptionsDto.take);
+
+        const itemCount = await qb.getCount();
+
+        if (cursorOptionsDto.parsedCursor) {
+            const { date, id } = cursorOptionsDto.parsedCursor;
+
+            qb.andWhere(
+                new Brackets((qb) => {
+                    if (cursorOptionsDto.order === Order.DESC) {
+                        qb.where('review.createdAt < :date', { date });
+                        qb.orWhere(
+                            'review.createdAt = :date AND review.id < :id',
+                            { date, id },
+                        );
+                    } else {
+                        qb.where('review.createdAt > :date', { date });
+                        qb.orWhere(
+                            'review.createdAt = :date AND review.id > :id',
+                            { date, id },
+                        );
+                    }
+                }),
+            );
+        }
+
+        const reviews = await qb.getMany();
         const reviewsWithUrls = await Promise.all(
-            reviews.map((review) => this.addSignedUrlsToReview(review)),
+            reviews.map((review) =>
+                this.fileUrlsService.addSignedUrlsDeep(review),
+            ),
         );
 
-        return {
-            reviews: reviewsWithUrls,
-            pagination: {
-                page,
-                limit,
-                total,
-                pages: Math.ceil(total / limit),
-            },
-        };
+        const reviewDtos = plainToInstance(ReviewResponseDto, reviewsWithUrls);
+
+        return new CursorDto(
+            reviewDtos,
+            createCursorMeta(cursorOptionsDto, reviewDtos, itemCount),
+        );
     }
 
     async getVerifiedReviews(
+        cursorOptionsDto: CursorOptionsDto,
         userId?: string,
-        page: number = 1,
-        limit: number = 10,
-    ) {
-        return await this.findAll({
-            page,
-            limit,
+    ): Promise<CursorDto<ReviewResponseDto>> {
+        return this.findAll(cursorOptionsDto, {
             userId,
             isVerified: true,
         });
@@ -226,26 +263,16 @@ export class ReviewsService {
 
     async getUserReceivedReviews(
         userId: string,
-        page: number = 1,
-        limit: number = 10,
-    ) {
-        return await this.findAll({
-            page,
-            limit,
-            userId,
-        });
+        cursorOptionsDto: CursorOptionsDto,
+    ): Promise<CursorDto<ReviewResponseDto>> {
+        return this.findAll(cursorOptionsDto, { userId });
     }
 
     async getUserAuthoredReviews(
         authorId: string,
-        page: number = 1,
-        limit: number = 10,
-    ) {
-        return await this.findAll({
-            page,
-            limit,
-            authorId,
-        });
+        cursorOptionsDto: CursorOptionsDto,
+    ): Promise<CursorDto<ReviewResponseDto>> {
+        return this.findAll(cursorOptionsDto, { authorId });
     }
 
     async answerReview(id: string, userId: string, answerDto: AnswerReviewDto) {
@@ -273,7 +300,8 @@ export class ReviewsService {
             description: review.content,
         });
 
-        const reviewWithUrls = await this.addSignedUrlsToReview(review);
+        const reviewWithUrls =
+            await this.fileUrlsService.addSignedUrlsDeep(review);
         return {
             message: SUCCESS_MESSAGES.REVIEW.ANSWERED,
             review: reviewWithUrls,
@@ -284,7 +312,8 @@ export class ReviewsService {
         const review = await this.findOne(id);
         review.isVerified = true;
         await this.reviewsRepository.save(review);
-        const reviewWithUrls = await this.addSignedUrlsToReview(review);
+        const reviewWithUrls =
+            await this.fileUrlsService.addSignedUrlsDeep(review);
         return {
             message: SUCCESS_MESSAGES.REVIEW.VERIFIED,
             review: reviewWithUrls,
@@ -295,26 +324,11 @@ export class ReviewsService {
         const review = await this.findOne(id);
         review.isVerified = false;
         await this.reviewsRepository.save(review);
-        const reviewWithUrls = await this.addSignedUrlsToReview(review);
+        const reviewWithUrls =
+            await this.fileUrlsService.addSignedUrlsDeep(review);
         return {
             message: SUCCESS_MESSAGES.REVIEW.UNVERIFIED,
             review: reviewWithUrls,
         };
-    }
-
-    private async addSignedUrlsToReview(review: Review): Promise<Review> {
-        if (review.images && review.images.length > 0) {
-            const imagesWithUrls = await Promise.all(
-                review.images.map(async (image) => ({
-                    ...image,
-                    url: await this.storageService.getFileUrl(image.url),
-                })),
-            );
-            return {
-                ...review,
-                images: imagesWithUrls,
-            };
-        }
-        return review;
     }
 }

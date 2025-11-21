@@ -28,7 +28,7 @@ import { JwtGuard } from '../../auth/guards';
 import { AuthUser } from '../../auth/decorators';
 import { JwtUserData } from '../types';
 import { UpdateUserDto } from '../dto';
-import { USERS_API_DOCS, USERS_BODIES } from '../users.swagger';
+import { USERS_API_DOCS, USERS_BODIES } from '../swagger/users.swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('Users')

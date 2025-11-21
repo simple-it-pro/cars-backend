@@ -7,7 +7,7 @@ import {
     ERROR_MESSAGES,
     SUCCESS_MESSAGES,
 } from '../../common/constants/messages';
-import { IsNull, Repository } from 'typeorm';
+import { Brackets, IsNull, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
     Follower,
@@ -17,6 +17,16 @@ import {
 } from '../../database/entities';
 import { NotificationMessages, NotificationType } from '../../common/types';
 import { NotificationsService } from '../../notifications/services';
+import {
+    createCursorMeta,
+    CursorDto,
+    CursorOptionsDto,
+} from '../../shared/pagination/cursor';
+import { FileUrlsService } from '../../storage/services';
+import { SubscriptionItemDto, SubscriptionUserDto } from '../dto/responses';
+import { plainToInstance } from 'class-transformer';
+import { GetSubscriptionsQueryDto } from '../dto/queries';
+import { Order } from '../../shared/pagination/enums';
 
 @Injectable()
 export class SubscriptionsService {
@@ -30,6 +40,7 @@ export class SubscriptionsService {
         @InjectRepository(UserBlock)
         private readonly userBlockRepository: Repository<UserBlock>,
         private readonly notificationsService: NotificationsService,
+        private readonly fileUrlsService: FileUrlsService,
     ) {}
 
     async getSubscriptionsCounter(userId: string) {
@@ -147,20 +158,209 @@ export class SubscriptionsService {
         return { message: SUCCESS_MESSAGES.USER.UNSUBSCRIBED };
     }
 
-    async getSubscriptions(userId: string): Promise<Subscription[]> {
-        return this.subscriptionRepository.find({
-            where: { user: { id: userId, deletedAt: IsNull() } },
-            relations: ['subscribedUser'],
-        });
+    async getSubscriptions(
+        userId: string,
+        viewerId: string,
+        cursorOptionsDto: CursorOptionsDto,
+        queryDto: GetSubscriptionsQueryDto,
+    ): Promise<CursorDto<SubscriptionItemDto>> {
+        const qb = this.subscriptionRepository
+            .createQueryBuilder('subscription')
+            .leftJoinAndSelect('subscription.subscribedUser', 'user')
+            .where('subscription.user_id = :userId', { userId })
+            .andWhere('user.deletedAt IS NULL')
+            .andWhere('user.isDeactivated = :isDeactivated', {
+                isDeactivated: false,
+            });
+
+        if (queryDto.search) {
+            qb.andWhere(
+                new Brackets((qb) => {
+                    qb.where('LOWER(user.name) LIKE LOWER(:search)', {
+                        search: `%${queryDto.search}%`,
+                    }).orWhere('LOWER(user.nickname) LIKE LOWER(:search)', {
+                        search: `%${queryDto.search}%`,
+                    });
+                }),
+            );
+        }
+
+        qb.orderBy('subscription.createdAt', cursorOptionsDto.order)
+            .addOrderBy('subscription.id', cursorOptionsDto.order)
+            .take(cursorOptionsDto.take);
+
+        const itemCount = await qb.getCount();
+
+        if (cursorOptionsDto.parsedCursor) {
+            const { date, id } = cursorOptionsDto.parsedCursor;
+
+            qb.andWhere(
+                new Brackets((qb) => {
+                    if (cursorOptionsDto.order === Order.DESC) {
+                        qb.where('subscription.createdAt < :date', { date });
+                        qb.orWhere(
+                            'subscription.createdAt = :date AND subscription.id < :id',
+                            { date, id },
+                        );
+                    } else {
+                        qb.where('subscription.createdAt > :date', { date });
+                        qb.orWhere(
+                            'subscription.createdAt = :date AND subscription.id > :id',
+                            { date, id },
+                        );
+                    }
+                }),
+            );
+        }
+
+        const subscriptions = await qb.getMany();
+
+        const items = await Promise.all(
+            subscriptions.map(async (subscription) => {
+                const userWithUrl =
+                    await this.fileUrlsService.addSignedUrlsDeep(
+                        subscription.subscribedUser,
+                    );
+
+                const [isSubscribed, isBlocked] = await Promise.all([
+                    this.getIsSubscribed(
+                        viewerId,
+                        subscription.subscribedUser.id,
+                    ),
+                    this.userBlockRepository.exists({
+                        where: [
+                            {
+                                user: { id: viewerId },
+                                blockedUser: {
+                                    id: subscription.subscribedUser.id,
+                                },
+                            },
+                            {
+                                user: { id: subscription.subscribedUser.id },
+                                blockedUser: { id: viewerId },
+                            },
+                        ],
+                    }),
+                ]);
+
+                const userDto = plainToInstance(SubscriptionUserDto, {
+                    ...userWithUrl,
+                    isSubscribed,
+                    isBlocked,
+                });
+
+                return plainToInstance(SubscriptionItemDto, {
+                    id: subscription.id,
+                    createdAt: subscription.createdAt,
+                    user: userDto,
+                });
+            }),
+        );
+
+        return new CursorDto(
+            items,
+            createCursorMeta(cursorOptionsDto, items, itemCount),
+        );
     }
 
-    async getFollowers(userId: string): Promise<Follower[]> {
-        return this.followerRepository.find({
-            where: {
-                subscribedUser: { id: userId },
-            },
-            relations: ['follower'],
-        });
+    async getFollowers(
+        userId: string,
+        viewerId: string,
+        cursorOptionsDto: CursorOptionsDto,
+        queryDto: GetSubscriptionsQueryDto,
+    ): Promise<CursorDto<SubscriptionItemDto>> {
+        const qb = this.followerRepository
+            .createQueryBuilder('follower')
+            .leftJoinAndSelect('follower.follower', 'user')
+            .where('follower.subscribed_user_id = :userId', { userId })
+            .andWhere('user.deletedAt IS NULL')
+            .andWhere('user.isDeactivated = :isDeactivated', {
+                isDeactivated: false,
+            });
+
+        if (queryDto.search) {
+            qb.andWhere(
+                new Brackets((qb) => {
+                    qb.where('LOWER(user.name) LIKE LOWER(:search)', {
+                        search: `%${queryDto.search}%`,
+                    }).orWhere('LOWER(user.nickname) LIKE LOWER(:search)', {
+                        search: `%${queryDto.search}%`,
+                    });
+                }),
+            );
+        }
+
+        qb.orderBy('follower.createdAt', cursorOptionsDto.order)
+            .addOrderBy('follower.id', cursorOptionsDto.order)
+            .take(cursorOptionsDto.take);
+
+        const itemCount = await qb.getCount();
+
+        if (cursorOptionsDto.parsedCursor) {
+            const { date, id } = cursorOptionsDto.parsedCursor;
+
+            qb.andWhere(
+                new Brackets((qb) => {
+                    if (cursorOptionsDto.order === Order.DESC) {
+                        qb.where('follower.createdAt < :date', { date });
+                        qb.orWhere(
+                            'follower.createdAt = :date AND follower.id < :id',
+                            { date, id },
+                        );
+                    } else {
+                        qb.where('follower.createdAt > :date', { date });
+                        qb.orWhere(
+                            'follower.createdAt = :date AND follower.id > :id',
+                            { date, id },
+                        );
+                    }
+                }),
+            );
+        }
+
+        const followers = await qb.getMany();
+
+        const items = await Promise.all(
+            followers.map(async (follower) => {
+                const userWithUrl =
+                    await this.fileUrlsService.addSignedUrlsDeep(
+                        follower.follower,
+                    );
+
+                const [isSubscribed, isBlocked] = await Promise.all([
+                    this.getIsSubscribed(viewerId, follower.follower.id),
+                    this.userBlockRepository.exists({
+                        where: [
+                            {
+                                user: { id: viewerId },
+                                blockedUser: { id: follower.follower.id },
+                            },
+                            {
+                                user: { id: follower.follower.id },
+                                blockedUser: { id: viewerId },
+                            },
+                        ],
+                    }),
+                ]);
+
+                const userDto = plainToInstance(SubscriptionUserDto, {
+                    ...userWithUrl,
+                    isSubscribed,
+                    isBlocked,
+                });
+
+                return plainToInstance(SubscriptionItemDto, {
+                    id: follower.id,
+                    createdAt: follower.createdAt,
+                    user: userDto,
+                });
+            }),
+        );
+
+        return new CursorDto(
+            items,
+            createCursorMeta(cursorOptionsDto, items, itemCount),
+        );
     }
 
     private async checkBlockStatus(userId: string, targetUserId: string) {
