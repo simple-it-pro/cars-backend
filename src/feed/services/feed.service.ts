@@ -145,7 +145,7 @@ export class FeedService {
         });
 
         return subscriptions
-            .map((sub) => sub.subscribedUser?.id)
-            .filter((id): id is string => !!id);
+            .map((subscription) => subscription.subscribedUser?.id)
+            .filter((userId): userId is string => Boolean(userId));
     }
 }

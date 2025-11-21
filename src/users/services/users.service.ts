@@ -26,11 +26,11 @@ export class UsersService {
     private readonly logger = new Logger(UsersService.name);
     constructor(
         @InjectRepository(User)
-        private readonly userRepository: Repository<User>,
+        private readonly usersRepository: Repository<User>,
         @InjectRepository(UserBlock)
-        private readonly userBlockRepository: Repository<UserBlock>,
+        private readonly userBlocksRepository: Repository<UserBlock>,
         @InjectRepository(Review)
-        private readonly reviewRepository: Repository<Review>,
+        private readonly reviewsRepository: Repository<Review>,
         private readonly storageService: StorageService,
         private readonly ratingService: RatingService,
         private readonly subscriptionsService: SubscriptionsService,
@@ -38,7 +38,7 @@ export class UsersService {
     ) {}
 
     async getUserById(id: string): Promise<UserWithCounters> {
-        const user = await this.userRepository.findOne({
+        const user = await this.usersRepository.findOne({
             where: { id },
             withDeleted: false,
         });
@@ -55,14 +55,14 @@ export class UsersService {
         id: string,
         updateUserDto: UpdateUserDto,
     ): Promise<User> {
-        const user = await this.userRepository.findOne({
+        const user = await this.usersRepository.findOne({
             where: { id, deletedAt: IsNull() },
         });
 
         if (!user) throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
 
         if (updateUserDto.nickname) {
-            const userWithSameNickname = await this.userRepository.findOne({
+            const userWithSameNickname = await this.usersRepository.findOne({
                 where: { nickname: updateUserDto.nickname },
             });
 
@@ -73,7 +73,7 @@ export class UsersService {
         }
 
         if (updateUserDto.email) {
-            const userWithSameEmail = await this.userRepository.findOne({
+            const userWithSameEmail = await this.usersRepository.findOne({
                 where: { email: updateUserDto.email },
             });
 
@@ -84,7 +84,7 @@ export class UsersService {
         }
 
         if (updateUserDto.phone) {
-            const userWithSamePhone = await this.userRepository.findOne({
+            const userWithSamePhone = await this.usersRepository.findOne({
                 where: { phone: updateUserDto.phone },
             });
 
@@ -106,14 +106,14 @@ export class UsersService {
             user.city = city.name;
         }
 
-        this.userRepository.merge(user, updateUserDto);
+        this.usersRepository.merge(user, updateUserDto);
 
-        const updatedUser = await this.userRepository.save(user);
+        const updatedUser = await this.usersRepository.save(user);
         return instanceToPlain(updatedUser) as User;
     }
 
     async getAll() {
-        return this.userRepository.find({
+        return this.usersRepository.find({
             select: {
                 id: true,
                 createdAt: true,
@@ -132,7 +132,7 @@ export class UsersService {
     }
 
     async updateAvatar(id: string, image: Express.Multer.File) {
-        const user = await this.userRepository.findOne({ where: { id } });
+        const user = await this.usersRepository.findOne({ where: { id } });
 
         if (!user) throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
 
@@ -151,7 +151,7 @@ export class UsersService {
                 name: image.originalname,
             };
 
-            const savedUser = await this.userRepository.save(user);
+            const savedUser = await this.usersRepository.save(user);
             const userWithUrl =
                 await this.fileUrlsService.addSignedUrlsDeep(savedUser);
             return instanceToPlain(userWithUrl) as User;
@@ -161,7 +161,7 @@ export class UsersService {
     }
 
     async getBlockedUsers(userId: string): Promise<Partial<User>[]> {
-        const blocks = await this.userBlockRepository.find({
+        const blocks = await this.userBlocksRepository.find({
             where: { user: { id: userId } },
             relations: ['blockedUser'],
         });
@@ -184,14 +184,14 @@ export class UsersService {
     }
 
     async blockUser(userId: string, targetUserId: string) {
-        const targetUser = await this.userRepository.findOne({
+        const targetUser = await this.usersRepository.findOne({
             where: { id: targetUserId },
         });
 
         if (!targetUser)
             throw new BadRequestException(ERROR_MESSAGES.USER.NOT_FOUND);
 
-        const existingBlock = await this.userBlockRepository.findOne({
+        const existingBlock = await this.userBlocksRepository.findOne({
             where: {
                 user: { id: userId },
                 blockedUser: { id: targetUserId },
@@ -201,18 +201,18 @@ export class UsersService {
         if (existingBlock)
             throw new BadRequestException(ERROR_MESSAGES.USER.ALREADY_BLOCKED);
 
-        const block = this.userBlockRepository.create({
+        const block = this.userBlocksRepository.create({
             user: { id: userId },
             blockedUser: { id: targetUserId },
         });
 
-        await this.userBlockRepository.save(block);
+        await this.userBlocksRepository.save(block);
 
         return { message: SUCCESS_MESSAGES.USER.BLOCKED };
     }
 
     async unblockUser(userId: string, targetUserId: string) {
-        const block = await this.userBlockRepository.findOne({
+        const block = await this.userBlocksRepository.findOne({
             where: {
                 user: { id: userId },
                 blockedUser: { id: targetUserId },
@@ -222,7 +222,7 @@ export class UsersService {
         if (!block)
             throw new BadRequestException(ERROR_MESSAGES.USER.NOT_BLOCKED);
 
-        await this.userBlockRepository.remove(block);
+        await this.userBlocksRepository.remove(block);
 
         return { message: SUCCESS_MESSAGES.USER.UNBLOCKED };
     }
@@ -230,7 +230,7 @@ export class UsersService {
     async getPublicProfile(id: string, viewerId: string): Promise<UserProfile> {
         await this.ratingService.calculateAndUpdateUserRating(id);
 
-        const user = await this.userRepository.findOne({
+        const user = await this.usersRepository.findOne({
             where: { id, deletedAt: IsNull() },
             select: [
                 'id',
@@ -258,7 +258,7 @@ export class UsersService {
 
         const [isBlocked, isSubscribed, userWithImageUrl, counters] =
             await Promise.all([
-                this.userBlockRepository.exists({
+                this.userBlocksRepository.exists({
                     where: [
                         { user: { id: viewerId }, blockedUser: { id } },
                         { user: { id }, blockedUser: { id: viewerId } },
@@ -279,7 +279,7 @@ export class UsersService {
 
     async getMyPublicProfile(id: string): Promise<UserWithCounters> {
         await this.ratingService.calculateAndUpdateUserRating(id);
-        const user = await this.userRepository.findOne({
+        const user = await this.usersRepository.findOne({
             where: { id, deletedAt: IsNull() },
             select: [
                 'id',
@@ -306,20 +306,20 @@ export class UsersService {
     }
 
     async deleteUser(id: string): Promise<{ message: string }> {
-        const user = await this.userRepository.findOne({
+        const user = await this.usersRepository.findOne({
             where: { id },
             withDeleted: false,
         });
 
         if (!user) throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
 
-        await this.userRepository.softDelete(id);
+        await this.usersRepository.softDelete(id);
 
         return { message: SUCCESS_MESSAGES.USER.DELETED };
     }
 
     async deactivateUser(id: string): Promise<User> {
-        const user = await this.userRepository.findOne({
+        const user = await this.usersRepository.findOne({
             where: { id },
             withDeleted: false,
         });
@@ -327,11 +327,11 @@ export class UsersService {
         if (!user) throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
 
         user.isDeactivated = true;
-        return this.userRepository.save(user);
+        return this.usersRepository.save(user);
     }
 
     async activateUser(id: string): Promise<User> {
-        const user = await this.userRepository.findOne({
+        const user = await this.usersRepository.findOne({
             where: { id },
             withDeleted: false,
         });
@@ -339,7 +339,7 @@ export class UsersService {
         if (!user) throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
 
         user.isDeactivated = false;
-        return this.userRepository.save(user);
+        return this.usersRepository.save(user);
     }
 
     private async getUserCounters(id: string) {
@@ -347,7 +347,7 @@ export class UsersService {
             await Promise.all([
                 this.subscriptionsService.getSubscriptionsCounter(id),
                 this.subscriptionsService.getFollowersCounter(id),
-                this.reviewRepository.count({ where: { user: { id } } }),
+                this.reviewsRepository.count({ where: { user: { id } } }),
             ]);
 
         return {
