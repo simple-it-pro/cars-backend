@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ-панель - Вход</title>
+    <link rel="stylesheet" href="/admin/css/styles.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <h1>Админ-панель</h1>
+            <p class="subtitle">Авторизация через SMS</p>
+
+            <div id="phoneStep" class="form-step active">
+                <form id="phoneForm">
+                    <div class="form-group">
+                        <label for="phone">Номер телефона</label>
+                        <input
+                            type="tel"
+                            id="phone"
+                            name="phone"
+                            placeholder="+79999999999"
+                            required
+                            autocomplete="tel"
+                        >
+                    </div>
+                    <button type="submit" class="btn btn-primary">Получить код</button>
+                </form>
+            </div>
+
+            <div id="codeStep" class="form-step">
+                <form id="codeForm">
+                    <div class="form-group">
+                        <label for="code">Код подтверждения</label>
+                        <input
+                            type="text"
+                            id="code"
+                            name="code"
+                            placeholder="1234"
+                            maxlength="6"
+                            required
+                            autocomplete="one-time-code"
+                        >
+                        <small class="help-text">Код отправлен на <span id="phoneDisplay"></span></small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Войти</button>
+                    <button type="button" class="btn btn-secondary" onclick="backToPhone()">Назад</button>
+                </form>
+            </div>
+
+            <div id="message" class="message"></div>
+        </div>
+    </div>
+
+    <script src="/admin/js/login.js"></script>
+</body>
+</html>

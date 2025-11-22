@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ-панель</title>
+    <link rel="stylesheet" href="/admin/css/styles.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <h1>Админ-панель</h1>
+            <div class="user-info">
+                <span id="userName">Загрузка...</span>
+                <button onclick="logout()" class="btn btn-secondary">Выйти</button>
+            </div>
+        </header>
+
+        <nav class="dashboard-nav">
+            <button class="nav-btn active" data-tab="statistics">Статистика</button>
+            <button class="nav-btn" data-tab="users">Пользователи</button>
+            <button class="nav-btn" data-tab="chats">Чаты</button>
+            <button class="nav-btn" data-tab="messages">Сообщения</button>
+        </nav>
+
+        <main class="dashboard-content">
+            <!-- Statistics Tab -->
+            <div id="statistics" class="tab-content active">
+                <h2>Статистика</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="usersCount">-</div>
+                        <div class="stat-label">Пользователей</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="chatsCount">-</div>
+                        <div class="stat-label">Чатов</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="messagesCount">-</div>
+                        <div class="stat-label">Сообщений</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Users Tab -->
+            <div id="users" class="tab-content">
+                <div class="tab-header">
+                    <h2>Пользователи</h2>
+                    <button class="btn btn-primary" onclick="showCreateUserModal()">Создать пользователя</button>
+                </div>
+                <div class="table-container">
+                    <table id="usersTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Телефон</th>
+                                <th>Имя</th>
+                                <th>Роль</th>
+                                <th>Дата создания</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="usersPagination"></div>
+            </div>
+
+            <!-- Chats Tab -->
+            <div id="chats" class="tab-content">
+                <div class="tab-header">
+                    <h2>Чаты</h2>
+                    <button class="btn btn-primary" onclick="showCreateChatModal()">Создать чат</button>
+                </div>
+                <div class="table-container">
+                    <table id="chatsTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Участники</th>
+                                <th>Последнее сообщение</th>
+                                <th>Дата создания</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="chatsPagination"></div>
+            </div>
+
+            <!-- Messages Tab -->
+            <div id="messages" class="tab-content">
+                <div class="tab-header">
+                    <h2>Сообщения</h2>
+                    <button class="btn btn-primary" onclick="showCreateMessageModal()">Создать сообщение</button>
+                </div>
+                <div class="table-container">
+                    <table id="messagesTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Отправитель</th>
+                                <th>Содержание</th>
+                                <th>Дата</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="messagesPagination"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal for Create/Edit User -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeUserModal()">&times;</span>
+            <h2 id="userModalTitle">Создать пользователя</h2>
+            <form id="userForm">
+                <div class="form-group">
+                    <label for="userPhone">Телефон*</label>
+                    <input type="tel" id="userPhone" required>
+                </div>
+                <div class="form-group">
+                    <label for="userName">Имя</label>
+                    <input type="text" id="userName">
+                </div>
+                <div class="form-group">
+                    <label for="userNickname">Никнейм</label>
+                    <input type="text" id="userNickname">
+                </div>
+                <div class="form-group">
+                    <label for="userRole">Роль</label>
+                    <select id="userRole">
+                        <option value="COMMON">COMMON</option>
+                        <option value="ADVANCED">ADVANCED</option>
+                        <option value="ADMIN">ADMIN</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeUserModal()">Отмена</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Create Chat -->
+    <div id="chatModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeChatModal()">&times;</span>
+            <h2>Создать чат</h2>
+            <form id="chatForm">
+                <div class="form-group">
+                    <label for="chatUserA">Первый участник*</label>
+                    <select id="chatUserA" required>
+                        <option value="">Выберите пользователя...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="chatUserB">Второй участник*</label>
+                    <select id="chatUserB" required>
+                        <option value="">Выберите пользователя...</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Создать</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeChatModal()">Отмена</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Create Message -->
+    <div id="messageModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeMessageModal()">&times;</span>
+            <h2>Создать сообщение</h2>
+            <form id="messageForm">
+                <div class="form-group">
+                    <label for="messageChat">Чат*</label>
+                    <select id="messageChat" required>
+                        <option value="">Выберите чат...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="messageSender">Отправитель*</label>
+                    <select id="messageSender" required>
+                        <option value="">Выберите отправителя...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="messageContent">Содержимое*</label>
+                    <textarea id="messageContent" rows="4" required placeholder="Введите текст сообщения..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="messageType">Тип</label>
+                    <select id="messageType">
+                        <option value="text">Текст</option>
+                        <option value="voice">Голосовое</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Отправить</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeMessageModal()">Отмена</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/admin/js/dashboard.js"></script>
+</body>
+</html>
