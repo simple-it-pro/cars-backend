@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'cars-backend',
-      script: 'dist/src/main.js',
+      script: 'dist/main.js',
       cwd: '/var/www/cars-backend',
       instances: 1,
       autorestart: true,
