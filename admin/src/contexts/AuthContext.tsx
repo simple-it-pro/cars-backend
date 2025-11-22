@@ -23,7 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       usersApi
         .getMe()
         .then((res) => {
-          if (res.data.role === 'ADMIN') {
+          if (res.data.role === 'ADMIN' || res.data.role === 'ADVANCED') {
             setUser(res.data);
           } else {
             localStorage.removeItem('accessToken');
@@ -49,8 +49,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const response = await authApi.verifyCode(phone, code);
     const { accessToken, refreshToken, user: userData } = response.data;
 
-    if (userData.role !== 'ADMIN') {
-      throw new Error('Access denied. Admin role required.');
+    if (userData.role !== 'ADMIN' && userData.role !== 'ADVANCED') {
+      throw new Error('Доступ запрещен. Требуется роль ADMIN или ADVANCED.');
     }
 
     localStorage.setItem('accessToken', accessToken);
