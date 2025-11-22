@@ -1,0 +1,38 @@
+name: Deploy Admin Panel
+
+on:
+  push:
+    branches: [dev-admin]
+    paths:
+      - 'admin/**'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: admin
+        run: yarn install --frozen-lockfile
+
+      - name: Build
+        working-directory: admin
+        run: yarn build
+
+      - name: Deploy to server
+        uses: burnett01/rsync-deployments@7.0.1
+        with:
+          switches: -avzr --delete
+          path: admin/dist/
+          remote_path: /var/www/cars-admin/
+          remote_host: ${{ secrets.SERVER_HOST }}
+          remote_user: ${{ secrets.SERVER_USER }}
+          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
