@@ -1,0 +1,467 @@
+flowchart TB
+
+%% =========================
+%% ARCHITECTURE OVERVIEW
+%% =========================
+subgraph ARCH[Architecture overview — Garage module]
+direction LR
+
+subgraph API[HTTP API — Controllers]
+G_API[GarageController<br/>/garage/cars]
+GF_API[GarageFilesController<br/>/garage/files]
+E_API[CarExpensesController<br/>/garage/cars/:carId/expenses]
+S_API[ServiceRecordsController<br/>/garage/cars/:carId/service-records]
+end
+
+subgraph SVCS[Application services]
+G_S[GarageService]
+E_S[CarExpensesService]
+S_S[ServiceRecordsService]
+FLS[FilesService]
+FUS[FileUrlsService]
+end
+
+subgraph REPOS[TypeORM repositories]
+RCar[CarRepository]
+RPhoto[CarPhotoRepository]
+RFile[FileRepository]
+RExp[CarExpenseRepository]
+RRec[ServiceRecordRepository]
+end
+
+subgraph DB[PostgreSQL tables]
+TCar[[cars]]
+TPhoto[[car_photos]]
+TFile[[files]]
+TExp[[car_expenses]]
+TRec[[car_service_records]]
+end
+
+%% Controllers -> Services
+G_API --> G_S
+GF_API --> G_S
+E_API --> E_S
+S_API --> S_S
+
+%% Cross-service dependency
+E_S --- G_S
+S_S --- G_S
+
+%% Services -> Repositories / shared services
+G_S --- RCar
+G_S --- RPhoto
+G_S --- RFile
+G_S --- FLS
+G_S --- FUS
+
+E_S --- RExp
+S_S --- RRec
+
+%% Repositories -> DB tables
+RCar --> TCar
+RPhoto --> TPhoto
+RFile --> TFile
+RExp --> TExp
+RRec --> TRec
+end
+
+%% =========================
+%% COMMON HELPER
+%% =========================
+E0[GarageService.getUserCarAndCheckOwnership<br/>find car by id + ownerId<br/>relations: photos.file]
+
+%% =========================
+%% FLOWS — CARS
+%% =========================
+subgraph FLOWS[Key flows — Garage]
+direction TB
+
+%% -------- F1: Create car --------
+subgraph F1[Create car]
+direction TB
+F1_0[Client<br/>POST /garage/cars]
+F1_1[GarageController.create]
+F1_2[GarageService.create]
+F1_3[Create Car entity:<br/>owner = userId<br/>status = WAREHOUSE]
+F1_4[Start transaction]
+F1_5[Save Car via CarRepository]
+F1_6{dto.photoIds<br/>present?}
+F1_7[attachPhotosInternal<br/>link fileIds<br/>validate TEMPORARY<br/>set ATTACHED]
+F1_8[Commit transaction]
+F1_9[GarageService.getOne<br/>with signed URLs]
+F1_10[Return message and car]
+
+F1_0 --> F1_1 --> F1_2 --> F1_3 --> F1_4 --> F1_5 --> F1_6
+F1_6 -- yes --> F1_7 --> F1_8
+F1_6 -- no --> F1_8
+F1_8 --> F1_9 --> F1_10
+end
+
+%% -------- F2: Get all cars --------
+subgraph F2[Get all cars]
+direction TB
+F2_0[Client<br/>GET /garage/cars?status]
+F2_1[GarageController.getAll]
+F2_2[GarageService.getAll]
+F2_3[Build where by ownerId<br/>+ optional status]
+F2_4[CarRepository.findAndCount<br/>relations: owner photos photos.file]
+F2_5[addSignedUrlsToCar for each car]
+F2_6[Return cars total]
+
+F2_0 --> F2_1 --> F2_2 --> F2_3 --> F2_4 --> F2_5 --> F2_6
+end
+
+%% -------- F3: Get single car --------
+subgraph F3[Get car by id]
+direction TB
+F3_0[Client<br/>GET /garage/cars/:id]
+F3_1[GarageController.getOne]
+F3_2[GarageService.getOne]
+F3_3[CarRepository.findOne<br/>by id and ownerId<br/>with owner photos photos.file]
+F3_4{Car found?}
+F3_X1[NotFound<br/>GARAGE.CAR.NOT_FOUND]
+F3_5[addSignedUrlsToCar]
+F3_6[Return car]
+
+F3_0 --> F3_1 --> F3_2 --> F3_3 --> F3_4
+F3_4 -- no --> F3_X1
+F3_4 -- yes --> F3_5 --> F3_6
+end
+
+%% -------- F4: Update car --------
+subgraph F4[Update car]
+direction TB
+F4_0[Client<br/>PUT /garage/cars/:id]
+F4_1[GarageController.update]
+F4_2[GarageService.update]
+F4_3[GarageService.getOne<br/>check ownership]
+F4_4{status = LISTED?}
+F4_5[validateCarForSale<br/>cannot remove required fields]
+F4_6[CarRepository.update<br/>with dto]
+F4_7[GarageService.getOne<br/>load updated car]
+F4_8[Return message and car]
+
+F4_0 --> F4_1 --> F4_2 --> F4_3 --> F4_4
+F4_4 -- yes --> F4_5 --> F4_6
+F4_4 -- no --> F4_6
+F4_6 --> F4_7 --> F4_8
+end
+
+%% -------- F5: Delete car --------
+subgraph F5[Delete car]
+direction TB
+F5_0[Client<br/>DELETE /garage/cars/:id]
+F5_1[GarageController.delete]
+F5_2[GarageService.delete]
+F5_3[GarageService.getOne<br/>with photos.file]
+F5_4[Collect fileIds<br/>from car.photos]
+F5_5[Start transaction]
+F5_6[Delete CarPhoto<br/>by carId]
+F5_7[Update FileEntity<br/>status = TEMPORARY]
+F5_8[Delete Car entity]
+F5_9[Commit transaction]
+F5_10[Loop fileIds:<br/>filesService.deleteFile<br/>log warn on error]
+F5_11[Return message]
+
+F5_0 --> F5_1 --> F5_2 --> F5_3 --> F5_4 --> F5_5 --> F5_6 --> F5_7 --> F5_8 --> F5_9 --> F5_10 --> F5_11
+end
+
+%% -------- F6: Change car status --------
+subgraph F6[Change car status]
+direction TB
+F6_0[Client<br/>PATCH /garage/cars/:id/status]
+F6_1[GarageController.changeStatus]
+F6_2[GarageService.changeStatus]
+F6_3[GarageService.getOne]
+F6_4[validateStatusTransition<br/>current new]
+F6_5[Init updateData<br/>status = newStatus]
+F6_6{newStatus = LISTED?}
+F6_7{price provided?}
+F6_X1[BadRequest<br/>PRICE_REQUIRED]
+F6_8[validateCarForPublication]
+F6_9[updateData.price = price]
+F6_10[For ARCHIVED/WAREHOUSE<br/>updateData.price = null]
+F6_11[CarRepository.update<br/>with updateData]
+F6_12[GarageService.getOne]
+F6_13[Return message and car]
+
+F6_0 --> F6_1 --> F6_2 --> F6_3 --> F6_4 --> F6_5 --> F6_6
+F6_6 -- yes --> F6_7
+F6_7 -- no --> F6_X1
+F6_7 -- yes --> F6_8 --> F6_9 --> F6_11
+F6_6 -- no --> F6_10 --> F6_11
+F6_11 --> F6_12 --> F6_13
+end
+end
+
+%% =========================
+%% FLOWS — FILES & PHOTOS
+%% =========================
+subgraph FILE_FLOWS[Garage files & photos]
+direction TB
+
+%% -------- F10: Pre-upload file --------
+subgraph F10[Pre-upload photo file]
+direction TB
+F10_0[Client<br/>POST /garage/files/pre-upload<br/>multipart file]
+F10_1[GarageFilesController.preUploadFile<br/>FileInterceptor + validators]
+F10_2[GarageService.preUploadFile]
+F10_3[FilesService.preUploadFile<br/>create FileEntity<br/>status = TEMPORARY]
+F10_4[Return file metadata<br/>id url etc]
+
+F10_0 --> F10_1 --> F10_2 --> F10_3 --> F10_4
+end
+
+%% -------- F7: Attach existing photos --------
+subgraph F7[Attach car photos<br/>fileIds from pre-upload]
+direction TB
+F7_0[Client<br/>POST /garage/files/:id/photos<br/>body: fileIds]
+F7_1[GarageFilesController.attachPhotos]
+F7_2[GarageService.attachPhotos]
+F7_3[getUserCarAndCheckOwnership]
+F7_4[Start transaction]
+F7_5[Load current CarPhotos<br/>by carId]
+F7_6{current + fileIds.length > 10?}
+F7_X1[BadRequest<br/>TOO_MANY_PHOTOS]
+F7_7[Load FileEntity by fileIds]
+F7_8[Compute:<br/>notFound + nonTEMPORARY]
+F7_9{invalidFileIds exist?}
+F7_X2[BadRequest<br/>FILES_NOT_FOUND]
+F7_10[Compute lastOrder<br/>build CarPhoto rows]
+F7_11[Save CarPhoto<br/>update FileEntity.status=ATTACHED]
+F7_12[Commit transaction]
+F7_13[GarageService.getOne]
+F7_14[Return message and car]
+
+F7_0 --> F7_1 --> F7_2 --> F7_3 --> F7_4 --> F7_5 --> F7_6
+F7_6 -- yes --> F7_X1
+F7_6 -- no --> F7_7 --> F7_8 --> F7_9
+F7_9 -- yes --> F7_X2
+F7_9 -- no --> F7_10 --> F7_11 --> F7_12 --> F7_13 --> F7_14
+end
+
+%% -------- F8: Remove car photo --------
+subgraph F8[Remove car photo]
+direction TB
+F8_0[Client<br/>DELETE /garage/files/:id/photos/:fileId]
+F8_1[GarageFilesController.removePhoto]
+F8_2[GarageService.removePhoto]
+F8_3[getUserCarAndCheckOwnership<br/>load car with photos.file]
+F8_4[Find photo by fileId<br/>in car.photos]
+F8_5{Photo exists?}
+F8_X1[NotFound<br/>PHOTO_NOT_FOUND]
+F8_6[Start transaction]
+F8_7[Update FileEntity<br/>status = TEMPORARY]
+F8_8[Delete CarPhoto row]
+F8_9[Load remaining CarPhotos<br/>order ASC]
+F8_10[Reindex order<br/>0..n]
+F8_11[Commit transaction]
+F8_12[filesService.deleteFilefileId<br/>log warn on error]
+F8_13[GarageService.getOne]
+F8_14[Return message and car]
+
+F8_0 --> F8_1 --> F8_2 --> F8_3 --> F8_4 --> F8_5
+F8_5 -- no --> F8_X1
+F8_5 -- yes --> F8_6 --> F8_7 --> F8_8 --> F8_9 --> F8_10 --> F8_11 --> F8_12 --> F8_13 --> F8_14
+end
+
+%% -------- F9: Reorder car photos --------
+subgraph F9[Reorder car photos]
+direction TB
+F9_0[Client<br/>PATCH /garage/files/:id/photos/reorder]
+F9_1[GarageFilesController.reorderPhotos]
+F9_2[GarageService.reorderPhotos]
+F9_3[getUserCarAndCheckOwnership<br/>load car with photos]
+F9_4{photoIds.length ==<br/>car.photos.length?}
+F9_X1[BadRequest<br/>PHOTO_IDS_COUNT_MISMATCH]
+F9_5[Build Set of existing<br/>photo ids]
+F9_6[Find non-existing ids<br/>in photoIds]
+F9_7{nonExistingPhotoIds exist?}
+F9_X2[BadRequest<br/>PHOTO_NOT_BELONGS_TO_CAR]
+F9_8[Build CarPhoto stubs<br/>id + new order]
+F9_9[Save CarPhoto<br/>update order]
+F9_10[GarageService.getOne]
+F9_11[Return message and car]
+
+F9_0 --> F9_1 --> F9_2 --> F9_3 --> F9_4
+F9_4 -- no --> F9_X1
+F9_4 -- yes --> F9_5 --> F9_6 --> F9_7
+F9_7 -- yes --> F9_X2
+F9_7 -- no --> F9_8 --> F9_9 --> F9_10 --> F9_11
+end
+end
+
+%% =========================
+%% FLOWS — EXPENSES
+%% =========================
+subgraph E_FLOWS[Car expenses]
+direction TB
+
+%% --- E1: Get all expenses ---
+subgraph E1[Get all expenses]
+direction TB
+E1_0[Client<br/>GET /garage/cars/:carId/expenses]
+E1_1[CarExpensesController.getAll]
+E1_2[CarExpensesService.getAll]
+E1_3[Check ownership via GarageService]
+E1_4[CarExpenseRepository.find<br/>where car.id = carId<br/>order by date createdAt]
+E1_5[Return expenses list and total]
+
+E1_0 --> E1_1 --> E1_2 --> E1_3 --> E1_4 --> E1_5
+end
+
+%% --- E2: Get single expense ---
+subgraph E2[Get expense by id]
+direction TB
+E2_0[Client<br/>GET /garage/cars/:carId/expenses/:expenseId]
+E2_1[CarExpensesController.getOne]
+E2_2[CarExpensesService.getOne]
+E2_3[Check ownership]
+E2_4[CarExpenseRepository.findOne<br/>by id and car.id]
+E2_5{Expense found?}
+E2_X1[NotFound<br/>GARAGE.EXPENSE.NOT_FOUND]
+E2_6[Return expense entity]
+
+E2_0 --> E2_1 --> E2_2 --> E2_3 --> E2_4 --> E2_5
+E2_5 -- no --> E2_X1
+E2_5 -- yes --> E2_6
+end
+
+%% --- E3: Create expense ---
+subgraph E3[Create expense]
+direction TB
+E3_0[Client<br/>POST /garage/cars/:carId/expenses]
+E3_1[CarExpensesController.create]
+E3_2[CarExpensesService.create]
+E3_3[Check ownership via GarageService]
+E3_4[Set date from dto or now]
+E3_5[CarExpenseRepository.create<br/>with car relation]
+E3_6[CarExpenseRepository.save]
+E3_7[Return message and expense]
+
+E3_0 --> E3_1 --> E3_2 --> E3_3 --> E3_4 --> E3_5 --> E3_6 --> E3_7
+end
+
+%% --- E4: Update expense ---
+subgraph E4[Update expense]
+direction TB
+E4_0[Client<br/>PATCH /garage/cars/:carId/expenses/:expenseId]
+E4_1[CarExpensesController.update]
+E4_2[CarExpensesService.update]
+E4_3[Check ownership]
+E4_4[findOne by id and car.id]
+E4_5{Expense found?}
+E4_X1[NotFound<br/>GARAGE.EXPENSE.NOT_FOUND]
+E4_6[Merge dto into entity]
+E4_7[Save updated expense]
+E4_8[Return message and expense]
+
+E4_0 --> E4_1 --> E4_2 --> E4_3 --> E4_4 --> E4_5
+E4_5 -- no --> E4_X1
+E4_5 -- yes --> E4_6 --> E4_7 --> E4_8
+end
+
+%% --- E5: Delete expense ---
+subgraph E5[Delete expense]
+direction TB
+E5_0[Client<br/>DELETE /garage/cars/:carId/expenses/:expenseId]
+E5_1[CarExpensesController.delete]
+E5_2[CarExpensesService.delete]
+E5_3[Check ownership]
+E5_4[Delete by id and car.id]
+E5_5{Rows affected > 0?}
+E5_X1[NotFound<br/>GARAGE.EXPENSE.NOT_FOUND]
+E5_6[Return message only]
+
+E5_0 --> E5_1 --> E5_2 --> E5_3 --> E5_4 --> E5_5
+E5_5 -- no --> E5_X1
+E5_5 -- yes --> E5_6
+end
+end
+
+%% =========================
+%% FLOWS — SERVICE RECORDS
+%% =========================
+subgraph SR_FLOWS[Service records]
+direction TB
+
+%% --- SR1: Get all service records ---
+subgraph SR1[Get all service records]
+direction TB
+SR1_0[Client<br/>GET /garage/cars/:carId/service-records]
+SR1_1[ServiceRecordsController.getAll]
+SR1_2[ServiceRecordsService.getAll]
+SR1_3[Check ownership via GarageService]
+SR1_4[ServiceRecordRepository.find<br/>where car.id = carId<br/>order by serviceDate createdAt]
+SR1_5[Return records list and total]
+
+SR1_0 --> SR1_1 --> SR1_2 --> SR1_3 --> SR1_4 --> SR1_5
+end
+
+%% --- SR2: Get single service record ---
+subgraph SR2[Get service record by id]
+direction TB
+SR2_0[Client<br/>GET /garage/cars/:carId/service-records/:recordId]
+SR2_1[ServiceRecordsController.getOne]
+SR2_2[ServiceRecordsService.getOne]
+SR2_3[Check ownership]
+SR2_4[findOne by id and car.id]
+SR2_5{Record found?}
+SR2_X1[NotFound<br/>SERVICE_RECORD.NOT_FOUND]
+SR2_6[Return service record entity]
+
+SR2_0 --> SR2_1 --> SR2_2 --> SR2_3 --> SR2_4 --> SR2_5
+SR2_5 -- no --> SR2_X1
+SR2_5 -- yes --> SR2_6
+end
+
+%% --- SR3: Create service record ---
+subgraph SR3[Create service record]
+direction TB
+SR3_0[Client<br/>POST /garage/cars/:carId/service-records]
+SR3_1[ServiceRecordsController.create]
+SR3_2[ServiceRecordsService.create]
+SR3_3[Check ownership via GarageService]
+SR3_4[ServiceRecordRepository.create<br/>with car relation]
+SR3_5[ServiceRecordRepository.save]
+SR3_6[Return message and record]
+
+SR3_0 --> SR3_1 --> SR3_2 --> SR3_3 --> SR3_4 --> SR3_5 --> SR3_6
+end
+
+%% --- SR4: Update service record ---
+subgraph SR4[Update service record]
+direction TB
+SR4_0[Client<br/>PATCH /garage/cars/:carId/service-records/:recordId]
+SR4_1[ServiceRecordsController.update]
+SR4_2[ServiceRecordsService.update]
+SR4_3[Check ownership]
+SR4_4[findOne by id and car.id]
+SR4_5{Record found?}
+SR4_X1[NotFound<br/>SERVICE_RECORD.NOT_FOUND]
+SR4_6[Merge dto into entity]
+SR4_7[Save updated record]
+SR4_8[Return message and record]
+
+SR4_0 --> SR4_1 --> SR4_2 --> SR4_3 --> SR4_4 --> SR4_5
+SR4_5 -- no --> SR4_X1
+SR4_5 -- yes --> SR4_6 --> SR4_7 --> SR4_8
+end
+
+%% --- SR5: Delete service record ---
+subgraph SR5[Delete service record]
+direction TB
+SR5_0[Client<br/>DELETE /garage/cars/:carId/service-records/:recordId]
+SR5_1[ServiceRecordsController.delete]
+SR5_2[ServiceRecordsService.delete]
+SR5_3[Check ownership]
+SR5_4[Delete by id and car.id]
+SR5_5{Rows affected > 0?}
+SR5_X1[NotFound<br/>SERVICE_RECORD.NOT_FOUND]
+SR5_6[Return message only]
+
+SR5_0 --> SR5_1 --> SR5_2 --> SR5_3 --> SR5_4 --> SR5_5
+SR5_5 -- no --> SR5_X1
+SR5_5 -- yes --> SR5_6
+end
+end

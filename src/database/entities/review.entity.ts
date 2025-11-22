@@ -1,0 +1,96 @@
+import {
+    Column,
+    CreateDateColumn,
+    Entity,
+    ManyToOne,
+    PrimaryGeneratedColumn,
+    UpdateDateColumn,
+} from 'typeorm';
+import { ApiProperty } from '@nestjs/swagger';
+import { ArrayMaxSize, IsArray, ValidateNested } from 'class-validator';
+
+import User from './user.entity';
+import { reviewLength } from '../../common/constants/reviews';
+import { Image } from '../interfaces';
+
+@Entity({ name: 'reviews' })
+class Review {
+    @ApiProperty({
+        example: '123e4567-e89b-12d3-a456-426614174000',
+        description: 'Уникальный идентификатор',
+    })
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
+
+    @ApiProperty({
+        example: '2025-09-14T08:57:59.589Z',
+    })
+    @CreateDateColumn({ type: 'timestamptz' })
+    createdAt: Date;
+
+    @ApiProperty({
+        example: '2025-09-14T08:57:59.589Z',
+    })
+    @UpdateDateColumn({ type: 'timestamptz' })
+    updatedAt: Date;
+
+    @ApiProperty({
+        example: 'Всё круто и чётко',
+    })
+    @Column({ length: reviewLength })
+    content: string;
+
+    @ApiProperty({
+        example: 'Спасибо за хороший отзыв',
+    })
+    @Column({ nullable: true, length: reviewLength })
+    answer?: string;
+
+    @ApiProperty({
+        example: '2025-09-14T08:57:59.589Z',
+    })
+    @Column({ nullable: true, type: 'timestamptz' })
+    answeredAt?: Date;
+
+    @ApiProperty({
+        example: 5,
+    })
+    @Column('integer')
+    rank: number;
+
+    @ApiProperty({
+        example: [
+            {
+                url: 'https://example.com/image.jpg',
+                name: 'photo.jpg',
+                size: 1024000,
+            },
+        ],
+        description: 'Изображения',
+    })
+    @IsArray()
+    @ValidateNested({ each: true })
+    @ArrayMaxSize(5, { message: 'Максимум можно добавить 5 изображений' })
+    @Column('jsonb', { default: [] })
+    images: Array<Image>;
+
+    @ApiProperty({
+        type: () => User,
+        description: 'Автор отзыва',
+    })
+    @ManyToOne(() => User, { eager: true })
+    author: User;
+
+    @ApiProperty({
+        type: () => User,
+        description: 'Пользователь, которому оставили отзыв',
+    })
+    @ManyToOne(() => User, { eager: true })
+    user: User;
+
+    @ApiProperty({ description: 'Верифицирован ли отзыв' })
+    @Column({ default: false })
+    isVerified: boolean;
+}
+
+export default Review;

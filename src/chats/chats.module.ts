@@ -1,0 +1,55 @@
+import { Module } from '@nestjs/common';
+import { ChatsService } from './services';
+import { TypeOrmModule } from '@nestjs/typeorm';
+
+import {
+    MessagesService,
+    MessagesCoreService,
+    MessagesAttachmentService,
+} from './services';
+import { ChatsController } from './controllers';
+import { ChatsGateway } from './gateways';
+import { UsersModule } from '../users/users.module';
+import { AuthModule } from '../auth/auth.module';
+import { StorageModule } from '../storage/storage.module';
+import {
+    UnreadChat,
+    User,
+    Message,
+    Chat,
+    MessageContent,
+    UserBlock,
+} from '../database/entities';
+import { NotificationsModule } from '../notifications/notifications.module';
+
+@Module({
+    imports: [
+        TypeOrmModule.forFeature([
+            Chat,
+            Message,
+            UnreadChat,
+            User,
+            MessageContent,
+            UserBlock,
+        ]),
+        UsersModule,
+        AuthModule,
+        StorageModule,
+        NotificationsModule,
+    ],
+    controllers: [ChatsController],
+    providers: [
+        ChatsService,
+        MessagesService,
+        MessagesCoreService,
+        MessagesAttachmentService,
+        ChatsGateway,
+    ],
+    exports: [
+        ChatsService,
+        MessagesService,
+        MessagesCoreService,
+        MessagesAttachmentService,
+    ],
+})
+export class ChatsModule {}
