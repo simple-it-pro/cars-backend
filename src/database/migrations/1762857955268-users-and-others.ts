@@ -135,6 +135,17 @@ export class UsersAndOthers1762857955268 implements MigrationInterface {
             'id',
         );
         if (usersIdColumnType && !usersIdColumnType.includes('uuid')) {
+            // First drop refresh_tokens FK that references users.id
+            if (
+                await this.constraintExists(
+                    queryRunner,
+                    'FK_610102b60fea1455310ccd299de',
+                )
+            ) {
+                await queryRunner.query(
+                    `ALTER TABLE "cars"."refresh_tokens" DROP CONSTRAINT IF EXISTS "FK_610102b60fea1455310ccd299de"`,
+                );
+            }
             // Drop primary key constraint if exists
             if (
                 await this.constraintExists(

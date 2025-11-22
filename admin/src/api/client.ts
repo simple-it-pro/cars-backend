@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/cars/api';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -35,7 +35,7 @@ apiClient.interceptors.response.use(
         } catch {
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
-          window.location.href = '/login';
+          window.location.href = '/cars/login';
         }
       }
     }
