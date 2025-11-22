@@ -38,7 +38,7 @@ jobs:
         uses: burnett01/rsync-deployments@7.0.1
         with:
           switches: -avzr
-          path: package.json yarn.lock ecosystem.config.js typeorm.config.ts
+          path: package.json yarn.lock ecosystem.config.js
           remote_path: /var/www/cars-backend/
           remote_host: ${{ secrets.SERVER_HOST }}
           remote_user: ${{ secrets.SERVER_USER }}
@@ -53,11 +53,5 @@ jobs:
           script: |
             cd /var/www/cars-backend
             yarn install --production --frozen-lockfile
-
-            # Run migrations
-            source .env 2>/dev/null || true
-            yarn migration:run || echo "Migrations skipped or failed"
-
-            # Restart PM2
             pm2 restart ecosystem.config.js --env production || pm2 start ecosystem.config.js --env production
             pm2 save
