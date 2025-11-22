@@ -4,7 +4,7 @@ import { ConfigProvider, App as AntApp, Spin } from 'antd';
 import ruRU from 'antd/locale/ru_RU';
 
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { LoginPage, DashboardPage, UsersPage } from './pages';
+import { LoginPage, DashboardPage, UsersPage, AdminsPage } from './pages';
 import Layout from './components/Layout';
 
 const queryClient = new QueryClient({
@@ -77,6 +77,7 @@ function AppRoutes() {
       >
         <Route index element={<DashboardPage />} />
         <Route path="users" element={<UsersPage />} />
+        <Route path="admins" element={<AdminsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

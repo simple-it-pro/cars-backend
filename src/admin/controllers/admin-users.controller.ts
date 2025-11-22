@@ -42,6 +42,16 @@ export class AdminUsersController {
         });
     }
 
+    @Get('advanced')
+    @ApiOperation({ summary: 'Получить продвинутых пользователей' })
+    @ApiResponse({ status: 200, description: 'Список продвинутых пользователей с доступом к админке' })
+    async getAdvanced() {
+        return this.usersRepository.find({
+            where: { role: UserRole.ADVANCED },
+            order: { createdAt: 'DESC' },
+        });
+    }
+
     @Get(':id')
     @ApiOperation({ summary: 'Получить пользователя по ID' })
     @ApiResponse({ status: 200, description: 'Пользователь' })

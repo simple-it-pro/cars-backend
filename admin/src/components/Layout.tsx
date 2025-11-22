@@ -6,6 +6,7 @@ import {
   MenuUnfoldOutlined,
   LogoutOutlined,
   DashboardOutlined,
+  CrownOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -28,6 +29,11 @@ export default function AdminLayout() {
       key: '/users',
       icon: <UserOutlined />,
       label: 'Пользователи',
+    },
+    {
+      key: '/admins',
+      icon: <CrownOutlined />,
+      label: 'Администраторы',
     },
   ];
 

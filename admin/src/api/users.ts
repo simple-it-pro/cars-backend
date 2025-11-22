@@ -24,6 +24,8 @@ export const usersApi = {
   // Admin endpoints
   adminGetAll: () => apiClient.get<User[]>('/admin/users'),
 
+  adminGetAdvanced: () => apiClient.get<User[]>('/admin/users/advanced'),
+
   adminCreate: (data: CreateUserData) =>
     apiClient.post<User>('/admin/users', data),
 
