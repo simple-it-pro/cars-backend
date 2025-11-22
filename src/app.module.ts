@@ -5,14 +5,8 @@ import { SharedModule } from './shared/shared.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { SmsModule } from './sms/sms.module';
-import { ChatsModule } from './chats/chats.module';
-import { ReviewsModule } from './reviews/reviews.module';
 import { StorageModule } from './storage/storage.module';
-import { NotificationsModule } from './notifications/notifications.module';
-import { PostsModule } from './posts/posts.module';
-import { FilesModule } from './files/files.module';
-import { GarageModule } from './garage/garage.module';
-import { FeedModule } from './feed/feed.module';
+import { AdminModule } from './admin/admin.module';
 import ROUTES from './routes';
 
 @Module({
@@ -21,15 +15,9 @@ import ROUTES from './routes';
         AuthModule,
         UsersModule,
         SmsModule,
-        ChatsModule,
-        ReviewsModule,
         StorageModule,
-        PostsModule,
-        FilesModule,
-        NotificationsModule,
         RouterModule.register(ROUTES),
-        GarageModule,
-        FeedModule,
+        AdminModule,
     ],
 })
 export class AppModule {}

@@ -50,7 +50,9 @@ export class AuthService {
         private readonly fileUrlsService: FileUrlsService,
     ) {}
 
-    async requestVerificationCode(phone: string): Promise<{ message: string }> {
+    async requestVerificationCode(
+        phone: string,
+    ): Promise<{ message: string; testCode?: string }> {
         const normalizedPhone = this.normalizePhone(phone);
 
         await this.checkFloodProtection(normalizedPhone);
@@ -79,7 +81,12 @@ export class AuthService {
 
         if (!sent) throw new BadRequestException(ERROR_MESSAGES.AUTH.SMS_FAIL);
 
-        return { message: SUCCESS_MESSAGES.AUTH.SMS_SUCCESS };
+        const isTestMode = process.env.SMS_TEST_MODE === 'true';
+
+        return {
+            message: SUCCESS_MESSAGES.AUTH.SMS_SUCCESS,
+            ...(isTestMode && { testCode: code }),
+        };
     }
 
     async verifyCode(
