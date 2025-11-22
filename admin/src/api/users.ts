@@ -14,6 +14,10 @@ export interface UpdateUserData extends Partial<CreateUserData> {
   isDeactivated?: boolean;
 }
 
+export interface GetUsersFilter {
+  name?: string;
+}
+
 export const usersApi = {
   getAll: () => apiClient.get<User[]>('/users/getAll'),
 
@@ -22,7 +26,8 @@ export const usersApi = {
   updateMe: (data: Partial<User>) => apiClient.patch<User>('/users/me', data),
 
   // Admin endpoints
-  adminGetAll: () => apiClient.get<User[]>('/admin/users'),
+  adminGetAll: (filter?: GetUsersFilter) =>
+    apiClient.get<User[]>('/admin/users', { params: filter }),
 
   adminCreate: (data: CreateUserData) =>
     apiClient.post<User>('/admin/users', data),

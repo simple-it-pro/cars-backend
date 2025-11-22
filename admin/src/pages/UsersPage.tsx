@@ -33,14 +33,18 @@ type UserFormData = CreateUserData & { isDeactivated?: boolean };
 
 export default function UsersPage() {
   const [searchText, setSearchText] = useState('');
+  const [nameFilter, setNameFilter] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [form] = Form.useForm<UserFormData>();
   const queryClient = useQueryClient();
 
   const { data: users, isLoading } = useQuery({
-    queryKey: ['users'],
-    queryFn: () => usersApi.adminGetAll().then((res) => res.data),
+    queryKey: ['users', nameFilter],
+    queryFn: () =>
+      usersApi
+        .adminGetAll(nameFilter ? { name: nameFilter } : undefined)
+        .then((res) => res.data),
   });
 
   const createMutation = useMutation({
@@ -79,13 +83,15 @@ export default function UsersPage() {
     },
   });
 
-  const filteredUsers = users?.filter(
-    (user) =>
-      user.phone?.toLowerCase().includes(searchText.toLowerCase()) ||
-      user.name?.toLowerCase().includes(searchText.toLowerCase()) ||
-      user.nickname?.toLowerCase().includes(searchText.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchText.toLowerCase())
-  );
+  const filteredUsers = users?.filter((user) => {
+    if (!searchText) return true;
+    const search = searchText.toLowerCase();
+    return (
+      user.phone?.toLowerCase().includes(search) ||
+      user.nickname?.toLowerCase().includes(search) ||
+      user.email?.toLowerCase().includes(search)
+    );
+  });
 
   const handleOpenCreate = () => {
     setEditingUser(null);
@@ -249,14 +255,24 @@ export default function UsersPage() {
 
       <Card>
         <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
-          <Input
-            placeholder="Поиск по имени, телефону, email..."
-            prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 300 }}
-            allowClear
-          />
+          <Space>
+            <Input
+              placeholder="Фильтр по имени"
+              prefix={<SearchOutlined />}
+              value={nameFilter}
+              onChange={(e) => setNameFilter(e.target.value)}
+              style={{ width: 200 }}
+              allowClear
+            />
+            <Input
+              placeholder="Поиск по телефону, email..."
+              prefix={<SearchOutlined />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              style={{ width: 250 }}
+              allowClear
+            />
+          </Space>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>
             Добавить пользователя
           </Button>

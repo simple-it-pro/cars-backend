@@ -7,20 +7,22 @@ import {
     ParseUUIDPipe,
     Patch,
     Post,
+    Query,
     UseGuards,
 } from '@nestjs/common';
 import {
     ApiBearerAuth,
     ApiOperation,
+    ApiQuery,
     ApiResponse,
     ApiTags,
 } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 
 import { JwtGuard, AdminGuard } from '../../auth/guards';
 import { User } from '../../database/entities';
-import { CreateUserDto, AdminUpdateUserDto } from '../dto';
+import { CreateUserDto, AdminUpdateUserDto, GetUsersFilterDto } from '../dto';
 import { UserRole } from '../../common/types';
 
 @ApiTags('Admin - Users')
@@ -35,9 +37,17 @@ export class AdminUsersController {
 
     @Get()
     @ApiOperation({ summary: 'Получить всех пользователей' })
+    @ApiQuery({ name: 'name', required: false, description: 'Фильтр по имени' })
     @ApiResponse({ status: 200, description: 'Список пользователей' })
-    async getAll() {
+    async getAll(@Query() filter: GetUsersFilterDto) {
+        const where: Record<string, unknown> = {};
+
+        if (filter.name) {
+            where.name = ILike(`%${filter.name}%`);
+        }
+
         return this.usersRepository.find({
+            where,
             order: { createdAt: 'DESC' },
         });
     }
