@@ -12,6 +12,7 @@ import { SmsModule } from './sms/sms.module';
 import { ChatsModule } from './chats/chats.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { AdminModule } from './admin/admin.module';
+import { UserAgreementsModule } from './user-agreements/user-agreements.module';
 import configuration from './config/configuration';
 import * as path from 'path';
 
@@ -54,6 +55,7 @@ import * as path from 'path';
     ChatsModule,
     ReviewsModule,
     AdminModule,
+    UserAgreementsModule,
   ],
   controllers: [],
   providers: [JwtStrategy],
