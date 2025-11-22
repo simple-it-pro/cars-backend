@@ -1,19 +1,82 @@
-import { useQuery } from '@tanstack/react-query';
-import { Table, Tag, Avatar, Typography, Card, Input, Space } from 'antd';
-import { UserOutlined, SearchOutlined } from '@ant-design/icons';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  Table,
+  Tag,
+  Avatar,
+  Typography,
+  Card,
+  Input,
+  Space,
+  Button,
+  Modal,
+  Form,
+  Select,
+  message,
+  Popconfirm,
+} from 'antd';
+import {
+  UserOutlined,
+  SearchOutlined,
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+} from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useState } from 'react';
 import { usersApi } from '../api';
 import type { User } from '../api';
+import type { CreateUserData, UpdateUserData } from '../api/users';
 
 const { Title } = Typography;
 
+type UserFormData = CreateUserData & { isDeactivated?: boolean };
+
 export default function UsersPage() {
   const [searchText, setSearchText] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [form] = Form.useForm<UserFormData>();
+  const queryClient = useQueryClient();
 
   const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
-    queryFn: () => usersApi.getAll().then((res) => res.data),
+    queryFn: () => usersApi.adminGetAll().then((res) => res.data),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: CreateUserData) => usersApi.adminCreate(data),
+    onSuccess: () => {
+      message.success('Пользователь создан');
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      handleCloseModal();
+    },
+    onError: (error: Error) => {
+      message.error(error.message || 'Ошибка при создании пользователя');
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateUserData }) =>
+      usersApi.adminUpdate(id, data),
+    onSuccess: () => {
+      message.success('Пользователь обновлен');
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      handleCloseModal();
+    },
+    onError: (error: Error) => {
+      message.error(error.message || 'Ошибка при обновлении пользователя');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => usersApi.adminDelete(id),
+    onSuccess: () => {
+      message.success('Пользователь удален');
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+    onError: (error: Error) => {
+      message.error(error.message || 'Ошибка при удалении пользователя');
+    },
   });
 
   const filteredUsers = users?.filter(
@@ -23,6 +86,40 @@ export default function UsersPage() {
       user.nickname?.toLowerCase().includes(searchText.toLowerCase()) ||
       user.email?.toLowerCase().includes(searchText.toLowerCase())
   );
+
+  const handleOpenCreate = () => {
+    setEditingUser(null);
+    form.resetFields();
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (user: User) => {
+    setEditingUser(user);
+    form.setFieldsValue({
+      phone: user.phone,
+      name: user.name || undefined,
+      nickname: user.nickname || undefined,
+      email: user.email || undefined,
+      city: user.city || undefined,
+      role: user.role as 'COMMON' | 'ADVANCED' | 'ADMIN',
+      isDeactivated: user.isDeactivated,
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingUser(null);
+    form.resetFields();
+  };
+
+  const handleSubmit = async (values: UserFormData) => {
+    if (editingUser) {
+      updateMutation.mutate({ id: editingUser.id, data: values });
+    } else {
+      createMutation.mutate(values);
+    }
+  };
 
   const columns: ColumnsType<User> = [
     {
@@ -73,14 +170,23 @@ export default function UsersPage() {
       key: 'role',
       filters: [
         { text: 'Админ', value: 'ADMIN' },
-        { text: 'Пользователь', value: 'COMMON' },
+        { text: 'Продвинутый', value: 'ADVANCED' },
+        { text: 'Обычный', value: 'COMMON' },
       ],
       onFilter: (value, record) => record.role === value,
-      render: (role) => (
-        <Tag color={role === 'ADMIN' ? 'red' : 'blue'}>
-          {role === 'ADMIN' ? 'Админ' : 'Пользователь'}
-        </Tag>
-      ),
+      render: (role) => {
+        const colors: Record<string, string> = {
+          ADMIN: 'red',
+          ADVANCED: 'purple',
+          COMMON: 'blue',
+        };
+        const labels: Record<string, string> = {
+          ADMIN: 'Админ',
+          ADVANCED: 'Продвинутый',
+          COMMON: 'Обычный',
+        };
+        return <Tag color={colors[role]}>{labels[role] || role}</Tag>;
+      },
     },
     {
       title: 'Рейтинг',
@@ -112,6 +218,29 @@ export default function UsersPage() {
         new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
       render: (date) => new Date(date).toLocaleDateString('ru-RU'),
     },
+    {
+      title: 'Действия',
+      key: 'actions',
+      width: 100,
+      render: (_, record) => (
+        <Space>
+          <Button
+            type="text"
+            icon={<EditOutlined />}
+            onClick={() => handleOpenEdit(record)}
+          />
+          <Popconfirm
+            title="Удалить пользователя?"
+            description="Это действие нельзя отменить"
+            onConfirm={() => deleteMutation.mutate(record.id)}
+            okText="Да"
+            cancelText="Нет"
+          >
+            <Button type="text" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
   ];
 
   return (
@@ -119,7 +248,7 @@ export default function UsersPage() {
       <Title level={2}>Пользователи</Title>
 
       <Card>
-        <Space style={{ marginBottom: 16 }}>
+        <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
           <Input
             placeholder="Поиск по имени, телефону, email..."
             prefix={<SearchOutlined />}
@@ -128,6 +257,9 @@ export default function UsersPage() {
             style={{ width: 300 }}
             allowClear
           />
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>
+            Добавить пользователя
+          </Button>
         </Space>
 
         <Table
@@ -140,9 +272,88 @@ export default function UsersPage() {
             showSizeChanger: true,
             showTotal: (total) => `Всего: ${total}`,
           }}
-          scroll={{ x: 1000 }}
+          scroll={{ x: 1200 }}
         />
       </Card>
+
+      <Modal
+        title={editingUser ? 'Редактировать пользователя' : 'Создать пользователя'}
+        open={isModalOpen}
+        onCancel={handleCloseModal}
+        footer={null}
+        destroyOnClose
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          initialValues={{ role: 'COMMON' }}
+        >
+          <Form.Item
+            name="phone"
+            label="Телефон"
+            rules={[
+              { required: true, message: 'Введите телефон' },
+              {
+                pattern: /^\+7\d{10}$/,
+                message: 'Формат: +7XXXXXXXXXX',
+              },
+            ]}
+          >
+            <Input placeholder="+79991234567" />
+          </Form.Item>
+
+          <Form.Item name="name" label="Имя">
+            <Input placeholder="Иван Иванов" />
+          </Form.Item>
+
+          <Form.Item name="nickname" label="Никнейм">
+            <Input placeholder="ivan" />
+          </Form.Item>
+
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[{ type: 'email', message: 'Некорректный email' }]}
+          >
+            <Input placeholder="user@example.com" />
+          </Form.Item>
+
+          <Form.Item name="city" label="Город">
+            <Input placeholder="Москва" />
+          </Form.Item>
+
+          <Form.Item name="role" label="Роль">
+            <Select>
+              <Select.Option value="COMMON">Обычный</Select.Option>
+              <Select.Option value="ADVANCED">Продвинутый</Select.Option>
+              <Select.Option value="ADMIN">Админ</Select.Option>
+            </Select>
+          </Form.Item>
+
+          {editingUser && (
+            <Form.Item name="isDeactivated" label="Статус">
+              <Select>
+                <Select.Option value={false}>Активен</Select.Option>
+                <Select.Option value={true}>Деактивирован</Select.Option>
+              </Select>
+            </Form.Item>
+          )}
+
+          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+            <Space>
+              <Button onClick={handleCloseModal}>Отмена</Button>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={createMutation.isPending || updateMutation.isPending}
+              >
+                {editingUser ? 'Сохранить' : 'Создать'}
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }
