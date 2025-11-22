@@ -3,8 +3,6 @@ import {
     CreateDateColumn,
     DeleteDateColumn,
     Entity,
-    JoinTable,
-    ManyToMany,
     OneToMany,
     PrimaryGeneratedColumn,
     UpdateDateColumn,
@@ -13,19 +11,7 @@ import { Exclude } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
 import { UserRole } from '../../common/types';
-import {
-    Car,
-    Chat,
-    Follower,
-    Message,
-    Notification,
-    Post,
-    RefreshToken,
-    Review,
-    Subscription,
-    UnreadChat,
-    UserBlock,
-} from '.';
+import { RefreshToken } from '.';
 import { Image } from '../interfaces';
 
 @Entity({ name: 'users' })
@@ -126,7 +112,7 @@ class User {
 
     @ApiProperty({
         example:
-            'Я новичок в этом деле, но уже имею опыт и хорошие авто в гараже',
+            'Я новичок в этом деле, но уже имею опыт и хорошие авто в гараже',
     })
     @Column({ nullable: true })
     about: string;
@@ -153,52 +139,8 @@ class User {
     @Column({ default: false })
     isDeactivated: boolean;
 
-    @ManyToMany(() => Chat, (chat) => chat.users)
-    chats: Chat[];
-
-    @ManyToMany(() => Chat, (chat) => chat.favoritedBy)
-    @JoinTable({
-        name: 'favorite_chats',
-        joinColumn: { name: 'user_id', referencedColumnName: 'id' },
-        inverseJoinColumn: { name: 'chat_id', referencedColumnName: 'id' },
-    })
-    favoriteChats: Chat[];
-
-    @OneToMany(() => Subscription, (subscription) => subscription.user)
-    subscriptions: Subscription[];
-
-    @OneToMany(() => Follower, (follower) => follower.subscribedUser)
-    followers: Follower[];
-
-    @OneToMany(() => UnreadChat, (unreadChat) => unreadChat.user)
-    unreadChats: UnreadChat[];
-
     @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
     refreshTokens: RefreshToken[];
-
-    @OneToMany(() => Review, (review) => review.user)
-    reviews: Review[];
-
-    @OneToMany(() => Review, (review) => review.author)
-    authoredReviews: Review[];
-
-    @OneToMany(() => Message, (message) => message.sender)
-    messages: Message[];
-
-    @OneToMany(() => Notification, (notification) => notification.user)
-    notifications: Notification[];
-
-    @OneToMany(() => UserBlock, (userBlock) => userBlock.user)
-    userBlocks: UserBlock[];
-
-    @OneToMany(() => UserBlock, (userBlock) => userBlock.blockedUser)
-    blockedUsers: UserBlock[];
-
-    @OneToMany(() => Post, (post) => post.user)
-    posts: Post[];
-
-    @OneToMany(() => Car, (car) => car.owner)
-    cars: Car[];
 }
 
 export default User;

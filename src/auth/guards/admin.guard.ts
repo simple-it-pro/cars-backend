@@ -29,7 +29,7 @@ export class AdminGuard implements CanActivate {
             select: ['id', 'role'],
         });
 
-        if (!dbUser || dbUser.role !== UserRole.ADMIN) {
+        if (!dbUser || (dbUser.role !== UserRole.ADMIN && dbUser.role !== UserRole.ADVANCED)) {
             throw new ForbiddenException('Требуются права администратора');
         }
 

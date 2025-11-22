@@ -15,7 +15,7 @@ export interface User {
   id: string;
   createdAt: string;
   updatedAt: string;
-  role: 'ADMIN' | 'COMMON';
+  role: 'ADMIN' | 'ADVANCED' | 'COMMON';
   login: string | null;
   nickname: string | null;
   name: string | null;
