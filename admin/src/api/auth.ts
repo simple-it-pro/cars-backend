@@ -2,6 +2,7 @@ import apiClient from './client';
 
 export interface RequestCodeResponse {
   message: string;
+  testCode?: string;
 }
 
 export interface VerifyCodeResponse {

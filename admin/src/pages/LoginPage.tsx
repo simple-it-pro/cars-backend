@@ -17,10 +17,19 @@ export default function LoginPage() {
   const handleRequestCode = async (values: { phone: string }) => {
     setLoading(true);
     try {
-      await requestCode(values.phone);
+      const testCode = await requestCode(values.phone);
       setPhone(values.phone);
       setStep(1);
-      message.success('Код отправлен на указанный номер');
+      if (testCode) {
+        console.log(
+          '%c[TEST MODE] Код подтверждения: %c' + testCode,
+          'color: #1890ff; font-weight: bold;',
+          'color: #52c41a; font-size: 18px; font-weight: bold;'
+        );
+        message.info(`Тестовый режим: код ${testCode}`);
+      } else {
+        message.success('Код отправлен на указанный номер');
+      }
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
       message.error(err.response?.data?.message || 'Ошибка отправки кода');

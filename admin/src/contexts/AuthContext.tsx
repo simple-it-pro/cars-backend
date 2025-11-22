@@ -8,7 +8,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (phone: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
-  requestCode: (phone: string) => Promise<void>;
+  requestCode: (phone: string) => Promise<string | undefined>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -40,8 +40,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const requestCode = async (phone: string) => {
-    await authApi.requestCode(phone);
+  const requestCode = async (phone: string): Promise<string | undefined> => {
+    const response = await authApi.requestCode(phone);
+    return response.data.testCode;
   };
 
   const login = async (phone: string, code: string) => {
