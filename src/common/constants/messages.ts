@@ -15,6 +15,7 @@ export const ERROR_MESSAGES = {
         INVALID_REFRESH_TOKEN: 'Невалидный refresh token',
         WRONG_TOKEN_TYPE: 'Неверный тип токена',
         REFRESH_TOKEN_NOT_FOUND: 'Refresh token не найден или уже использован',
+        INVALID_WEBSOCKET_TOKEN: 'Невалидный websocket token',
         NO_PERMISSIONS: 'Недостаточно прав',
     },
     STORAGE: {
